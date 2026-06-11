@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.12">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="数据分析团队">
+<meta name="dcterms.date" content="2026-06-11">
+
+<title>📊 电商平台季度销售分析报告</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="06_Quarto报告模板_files/libs/clipboard/clipboard.min.js"></script>
+<script src="06_Quarto报告模板_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="06_Quarto报告模板_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="06_Quarto报告模板_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="06_Quarto报告模板_files/libs/quarto-html/popper.min.js"></script>
+<script src="06_Quarto报告模板_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="06_Quarto报告模板_files/libs/quarto-html/anchor.min.js"></script>
+<link href="06_Quarto报告模板_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="06_Quarto报告模板_files/libs/quarto-html/quarto-syntax-highlighting-7fc0177ccab6ff8a0b751889bd072cc9.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="06_Quarto报告模板_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="06_Quarto报告模板_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="06_Quarto报告模板_files/libs/bootstrap/bootstrap-ffee696e5329bfb9020a73fa97c9ed02.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="06_Quarto报告模板_files/libs/tabwid-1.1.3/tabwid.css" rel="stylesheet">
+<script src="06_Quarto报告模板_files/libs/tabwid-1.1.3/tabwid.js"></script>
+
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#执行摘要" id="toc-执行摘要" class="nav-link active" data-scroll-target="#执行摘要">执行摘要</a></li>
+  <li><a href="#数据概览" id="toc-数据概览" class="nav-link" data-scroll-target="#数据概览"><span class="header-section-number">1</span> 数据概览</a>
+  <ul class="collapse">
+  <li><a href="#数据来源与清洗" id="toc-数据来源与清洗" class="nav-link" data-scroll-target="#数据来源与清洗"><span class="header-section-number">1.1</span> 数据来源与清洗</a></li>
+  </ul></li>
+  <li><a href="#销售趋势分析" id="toc-销售趋势分析" class="nav-link" data-scroll-target="#销售趋势分析"><span class="header-section-number">2</span> 销售趋势分析</a>
+  <ul class="collapse">
+  <li><a href="#日度销售走势" id="toc-日度销售走势" class="nav-link" data-scroll-target="#日度销售走势"><span class="header-section-number">2.1</span> 日度销售走势</a></li>
+  <li><a href="#月度汇总对比" id="toc-月度汇总对比" class="nav-link" data-scroll-target="#月度汇总对比"><span class="header-section-number">2.2</span> 月度汇总对比</a></li>
+  </ul></li>
+  <li><a href="#区域分析" id="toc-区域分析" class="nav-link" data-scroll-target="#区域分析"><span class="header-section-number">3</span> 区域分析</a>
+  <ul class="collapse">
+  <li><a href="#区域销售对比" id="toc-区域销售对比" class="nav-link" data-scroll-target="#区域销售对比"><span class="header-section-number">3.1</span> 区域销售对比</a></li>
+  <li><a href="#区域健康度诊断" id="toc-区域健康度诊断" class="nav-link" data-scroll-target="#区域健康度诊断"><span class="header-section-number">3.2</span> 区域健康度诊断</a></li>
+  </ul></li>
+  <li><a href="#品类分析" id="toc-品类分析" class="nav-link" data-scroll-target="#品类分析"><span class="header-section-number">4</span> 品类分析</a>
+  <ul class="collapse">
+  <li><a href="#品类结构" id="toc-品类结构" class="nav-link" data-scroll-target="#品类结构"><span class="header-section-number">4.1</span> 品类结构</a></li>
+  <li><a href="#品类区域交叉分析" id="toc-品类区域交叉分析" class="nav-link" data-scroll-target="#品类区域交叉分析"><span class="header-section-number">4.2</span> 品类×区域交叉分析</a></li>
+  </ul></li>
+  <li><a href="#结论与建议" id="toc-结论与建议" class="nav-link" data-scroll-target="#结论与建议"><span class="header-section-number">5</span> 结论与建议</a></li>
+  <li><a href="#附录代码可复现性" id="toc-附录代码可复现性" class="nav-link" data-scroll-target="#附录代码可复现性">附录：代码可复现性</a></li>
+  </ul>
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="06_Quarto报告模板.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">📊 电商平台季度销售分析报告</h1>
+<p class="subtitle lead">AI 辅助生成的 Quarto 专业模板</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>数据分析团队 </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 11, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="执行摘要" class="level1 unnumbered">
+<h1 class="unnumbered">执行摘要</h1>
+<p>本报告为 <strong>XX科技有限公司</strong> 2024年Q4 电商平台销售数据分析。</p>
+<div class="cell" data-layout-align="center">
+<blockquote class="blockquote">
+<p><strong>📋 关键发现：</strong></p>
+<ul>
+<li>✅ 总销售额同比增长 <strong>18.6%</strong>，超预期完成季度目标</li>
+<li>⚠️ 华南区域完成率仅 <strong>72%</strong>，需要重点关注</li>
+<li>🔥 手机品类贡献 <strong>62%</strong> 营收，是核心驱动品类</li>
+<li>📈 配件品类利润率高达 <strong>22%</strong>，建议加大推广力度</li>
+</ul>
+</blockquote>
+</div>
+</section>
+<section id="数据概览" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> 数据概览</h1>
+<section id="数据来源与清洗" class="level2" data-number="1.1">
+<h2 data-number="1.1" class="anchored" data-anchor-id="数据来源与清洗"><span class="header-section-number">1.1</span> 数据来源与清洗</h2>
+<div class="cell" data-layout-align="center">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 模拟数据生成（实际项目替换为 read.csv(params$data_path)）</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2024</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>sales_data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">date     =</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"2024-10-01"</span>), <span class="fu">as.Date</span>(<span class="st">"2024-12-31"</span>), <span class="at">by =</span> <span class="st">"day"</span>),</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">region   =</span> <span class="fu">c</span>(<span class="st">"华东"</span>, <span class="st">"华南"</span>, <span class="st">"华北"</span>, <span class="st">"西南"</span>),</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">category =</span> <span class="fu">c</span>(<span class="st">"手机"</span>, <span class="st">"电脑"</span>, <span class="st">"配件"</span>, <span class="st">"智能穿戴"</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">sales_amount =</span> <span class="fu">round</span>(<span class="fu">runif</span>(<span class="fu">n</span>(), </span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>                               <span class="at">min =</span> <span class="fu">ifelse</span>(category <span class="sc">==</span> <span class="st">"手机"</span>, <span class="dv">5000</span>, <span class="dv">500</span>),</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>                               <span class="at">max =</span> <span class="fu">ifelse</span>(category <span class="sc">==</span> <span class="st">"手机"</span>, <span class="dv">50000</span>, <span class="dv">8000</span>)), <span class="dv">2</span>),</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">quantity     =</span> <span class="fu">sample</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">20</span>, <span class="fu">n</span>(), <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">profit       =</span> sales_amount <span class="sc">*</span> <span class="fu">runif</span>(<span class="fu">n</span>(), <span class="fl">0.08</span>, <span class="fl">0.35</span>),</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">month        =</span> <span class="fu">format</span>(date, <span class="st">"%Y-%m"</span>)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"数据规模：%s 行 × %s 列</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">nrow</span>(sales_data), <span class="fu">ncol</span>(sales_data)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>数据规模：1472 行 × 7 列</code></pre>
+</div>
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"时间范围：%s 至 %s</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">min</span>(sales_data<span class="sc">$</span>date), <span class="fu">max</span>(sales_data<span class="sc">$</span>date)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>时间范围：2024-10-01 至 2024-12-31</code></pre>
+</div>
+</div>
+<div class="cell" data-layout-align="center" data-tbl-cap="原始数据预览（前 8 行）">
+<div class="cell-output-display">
+<div class="tabwid"><style>.cl-0aab5f96{}.cl-0aa2c9e4{font-family:'Helvetica';font-size:11pt;font-weight:bold;font-style:normal;text-decoration:none;color:rgba(255, 255, 255, 1.00);background-color:transparent;}.cl-0aa2c9f8{font-family:'Helvetica';font-size:11pt;font-weight:normal;font-style:normal;text-decoration:none;color:rgba(0, 0, 0, 1.00);background-color:transparent;}.cl-0aa63ea8{margin:0;text-align:right;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-0aa63eb2{margin:0;text-align:left;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-0aa662b6{width:1.067in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662c0{width:0.752in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662c1{width:0.922in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662ca{width:1.304in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662cb{width:0.879in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662cc{width:1.05in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662d4{width:0.846in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662d5{width:1.067in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662de{width:0.752in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662df{width:0.922in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662e8{width:1.304in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662e9{width:0.879in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662ea{width:1.05in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662f2{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662f3{width:1.067in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662fc{width:0.752in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662fd{width:0.922in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa662fe{width:1.304in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa66306{width:0.879in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa66307{width:1.05in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0aa66308{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}</style><table data-quarto-disable-processing="true" class="cl-0aab5f96"><caption><p>原始数据预览（前 8 行）</p></caption><thead><tr style="overflow-wrap:break-word;"><th class="cl-0aa662b6"><p class="cl-0aa63ea8"><span class="cl-0aa2c9e4">date</span></p></th><th class="cl-0aa662c0"><p class="cl-0aa63eb2"><span class="cl-0aa2c9e4">region</span></p></th><th class="cl-0aa662c1"><p class="cl-0aa63eb2"><span class="cl-0aa2c9e4">category</span></p></th><th class="cl-0aa662ca"><p class="cl-0aa63ea8"><span class="cl-0aa2c9e4">sales_amount</span></p></th><th class="cl-0aa662cb"><p class="cl-0aa63ea8"><span class="cl-0aa2c9e4">quantity</span></p></th><th class="cl-0aa662cc"><p class="cl-0aa63ea8"><span class="cl-0aa2c9e4">profit</span></p></th><th class="cl-0aa662d4"><p class="cl-0aa63eb2"><span class="cl-0aa2c9e4">month</span></p></th></tr></thead><tbody><tr style="overflow-wrap:break-word;"><td class="cl-0aa662d5"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">2024-10-01</span></p></td><td class="cl-0aa662de"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">华东</span></p></td><td class="cl-0aa662df"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">手机</span></p></td><td class="cl-0aa662e8"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">42,662.41</span></p></td><td class="cl-0aa662e9"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">13</span></p></td><td class="cl-0aa662ea"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">11,507.485</span></p></td><td class="cl-0aa662f2"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">2024-10</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0aa662d5"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">2024-10-02</span></p></td><td class="cl-0aa662de"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">华东</span></p></td><td class="cl-0aa662df"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">手机</span></p></td><td class="cl-0aa662e8"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">19,439.04</span></p></td><td class="cl-0aa662e9"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">18</span></p></td><td class="cl-0aa662ea"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">3,545.711</span></p></td><td class="cl-0aa662f2"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">2024-10</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0aa662d5"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">2024-10-03</span></p></td><td class="cl-0aa662de"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">华东</span></p></td><td class="cl-0aa662df"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">手机</span></p></td><td class="cl-0aa662e8"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">35,616.35</span></p></td><td class="cl-0aa662e9"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">18</span></p></td><td class="cl-0aa662ea"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">7,079.159</span></p></td><td class="cl-0aa662f2"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">2024-10</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0aa662d5"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">2024-10-04</span></p></td><td class="cl-0aa662de"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">华东</span></p></td><td class="cl-0aa662df"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">手机</span></p></td><td class="cl-0aa662e8"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">36,417.79</span></p></td><td class="cl-0aa662e9"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">3</span></p></td><td class="cl-0aa662ea"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">9,943.234</span></p></td><td class="cl-0aa662f2"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">2024-10</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0aa662d5"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">2024-10-05</span></p></td><td class="cl-0aa662de"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">华东</span></p></td><td class="cl-0aa662df"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">手机</span></p></td><td class="cl-0aa662e8"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">25,565.41</span></p></td><td class="cl-0aa662e9"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">7</span></p></td><td class="cl-0aa662ea"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">2,567.504</span></p></td><td class="cl-0aa662f2"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">2024-10</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0aa662d5"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">2024-10-06</span></p></td><td class="cl-0aa662de"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">华东</span></p></td><td class="cl-0aa662df"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">手机</span></p></td><td class="cl-0aa662e8"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">36,563.91</span></p></td><td class="cl-0aa662e9"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">18</span></p></td><td class="cl-0aa662ea"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">12,301.727</span></p></td><td class="cl-0aa662f2"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">2024-10</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0aa662d5"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">2024-10-07</span></p></td><td class="cl-0aa662de"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">华东</span></p></td><td class="cl-0aa662df"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">手机</span></p></td><td class="cl-0aa662e8"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">23,706.99</span></p></td><td class="cl-0aa662e9"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">10</span></p></td><td class="cl-0aa662ea"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">5,222.206</span></p></td><td class="cl-0aa662f2"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">2024-10</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0aa662f3"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">2024-10-08</span></p></td><td class="cl-0aa662fc"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">华东</span></p></td><td class="cl-0aa662fd"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">手机</span></p></td><td class="cl-0aa662fe"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">18,644.41</span></p></td><td class="cl-0aa66306"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">3</span></p></td><td class="cl-0aa66307"><p class="cl-0aa63ea8"><span class="cl-0aa2c9f8">4,928.625</span></p></td><td class="cl-0aa66308"><p class="cl-0aa63eb2"><span class="cl-0aa2c9f8">2024-10</span></p></td></tr></tbody></table></div>
+</div>
+</div>
+</section>
+</section>
+<section id="销售趋势分析" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> 销售趋势分析</h1>
+<section id="日度销售走势" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="日度销售走势"><span class="header-section-number">2.1</span> 日度销售走势</h2>
+<div class="cell" data-layout-align="center">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>sales_data <span class="sc">%&gt;%</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(date) <span class="sc">%&gt;%</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(日销售额 <span class="ot">=</span> <span class="fu">sum</span>(sales_amount) <span class="sc">/</span> <span class="dv">10000</span>, <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(date, 日销售额)) <span class="sc">+</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> COLOR_ACCENT, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"loess"</span>, <span class="at">span =</span> <span class="fl">0.2</span>, </span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>              <span class="at">color =</span> COLOR_WARNING, <span class="at">se =</span> <span class="cn">TRUE</span>, <span class="at">alpha =</span> <span class="fl">0.15</span>) <span class="sc">+</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">title    =</span> <span class="st">"日度销售额趋势"</span>,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"蓝色折线为实际值，橙色为平滑趋势线"</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"日期"</span>, <span class="at">y =</span> <span class="st">"销售额（万元）"</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">13</span>) <span class="sc">+</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.title    =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">size =</span> <span class="dv">16</span>),</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.subtitle =</span> <span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">"gray50"</span>)</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="06_Quarto报告模板_files/figure-html/trend-daily-1.png" class="img-fluid figure-img" alt="每日销售额折线图，带 LOESS 平滑趋势线" width="768"></p>
+<figcaption>日度销售额趋势 — 可观测周期性和异常波动</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="月度汇总对比" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="月度汇总对比"><span class="header-section-number">2.2</span> 月度汇总对比</h2>
+<div class="cell" data-layout-align="center" data-tbl-cap="月度销售汇总表">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>sales_data <span class="sc">%&gt;%</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(month) <span class="sc">%&gt;%</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    总销售额 <span class="ot">=</span> <span class="fu">sum</span>(sales_amount) <span class="sc">/</span> <span class="dv">10000</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    订单数   <span class="ot">=</span> <span class="fu">n</span>(),</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups  =</span> <span class="st">"drop"</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    环比增长 <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>      (总销售额 <span class="sc">/</span> <span class="fu">lag</span>(总销售额) <span class="sc">-</span> <span class="dv">1</span>), <span class="at">accuracy =</span> <span class="fl">0.1</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    环比增长 <span class="ot">=</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(环比增长), <span class="st">"—"</span>, 环比增长)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">flextable</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">set_header_labels</span>(</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">month</span><span class="st">`</span>    <span class="ot">=</span> <span class="st">"月份"</span>,</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">总销售额</span><span class="st">`</span> <span class="ot">=</span> <span class="st">"总销售额（万元）"</span>,</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">订单数</span><span class="st">`</span>   <span class="ot">=</span> <span class="st">"订单数"</span>,</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">环比增长</span><span class="st">`</span> <span class="ot">=</span> <span class="st">"环比增长"</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_booktabs</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bg</span>(<span class="at">part =</span> <span class="st">"header"</span>, <span class="at">bg =</span> COLOR_PRIMARY) <span class="sc">%&gt;%</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">color</span>(<span class="at">part =</span> <span class="st">"header"</span>, <span class="at">color =</span> <span class="st">"white"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bold</span>(<span class="at">j =</span> <span class="st">"环比增长"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">color</span>(<span class="at">j =</span> <span class="st">"环比增长"</span>, <span class="at">color =</span> COLOR_SUCCESS) <span class="sc">%&gt;%</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">colformat_double</span>(<span class="at">j =</span> <span class="st">"总销售额"</span>, <span class="at">digits =</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">align</span>(<span class="at">align =</span> <span class="st">"center"</span>, <span class="at">part =</span> <span class="st">"all"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autofit</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="tabwid"><style>.cl-0b974df2{}.cl-0b8fa53e{font-family:'Helvetica';font-size:11pt;font-weight:normal;font-style:normal;text-decoration:none;color:rgba(255, 255, 255, 1.00);background-color:transparent;}.cl-0b8fa548{font-family:'Helvetica';font-size:11pt;font-weight:normal;font-style:normal;text-decoration:none;color:rgba(0, 0, 0, 1.00);background-color:transparent;}.cl-0b8fa552{font-family:'Helvetica';font-size:11pt;font-weight:bold;font-style:normal;text-decoration:none;color:rgba(39, 174, 96, 1.00);background-color:transparent;}.cl-0b92d114{margin:0;text-align:center;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-0b92f02c{width:0.846in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f036{width:1.06in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f037{width:0.576in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f040{width:0.684in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f04a{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f04b{width:1.06in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f054{width:0.576in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f055{width:0.684in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f05e{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f05f{width:1.06in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f060{width:0.576in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0b92f068{width:0.684in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}</style><table data-quarto-disable-processing="true" class="cl-0b974df2"><caption><p>月度销售汇总表</p></caption><thead><tr style="overflow-wrap:break-word;"><th class="cl-0b92f02c"><p class="cl-0b92d114"><span class="cl-0b8fa53e">月份</span></p></th><th class="cl-0b92f036"><p class="cl-0b92d114"><span class="cl-0b8fa53e">总销售额（万元）</span></p></th><th class="cl-0b92f037"><p class="cl-0b92d114"><span class="cl-0b8fa53e">订单数</span></p></th><th class="cl-0b92f040"><p class="cl-0b92d114"><span class="cl-0b8fa53e">环比增长</span></p></th></tr></thead><tbody><tr style="overflow-wrap:break-word;"><td class="cl-0b92f04a"><p class="cl-0b92d114"><span class="cl-0b8fa548">2024-10</span></p></td><td class="cl-0b92f04b"><p class="cl-0b92d114"><span class="cl-0b8fa548">503.7</span></p></td><td class="cl-0b92f054"><p class="cl-0b92d114"><span class="cl-0b8fa548">496</span></p></td><td class="cl-0b92f055"><p class="cl-0b92d114"><span class="cl-0b8fa552">—</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0b92f04a"><p class="cl-0b92d114"><span class="cl-0b8fa548">2024-11</span></p></td><td class="cl-0b92f04b"><p class="cl-0b92d114"><span class="cl-0b8fa548">483.1</span></p></td><td class="cl-0b92f054"><p class="cl-0b92d114"><span class="cl-0b8fa548">480</span></p></td><td class="cl-0b92f055"><p class="cl-0b92d114"><span class="cl-0b8fa552">-4.1%</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0b92f05e"><p class="cl-0b92d114"><span class="cl-0b8fa548">2024-12</span></p></td><td class="cl-0b92f05f"><p class="cl-0b92d114"><span class="cl-0b8fa548">496.4</span></p></td><td class="cl-0b92f060"><p class="cl-0b92d114"><span class="cl-0b8fa548">496</span></p></td><td class="cl-0b92f068"><p class="cl-0b92d114"><span class="cl-0b8fa552">2.7%</span></p></td></tr></tbody></table></div>
+<p>月度销售额对比 — 观察环比增长</p>
+</div>
+</div>
+</section>
+</section>
+<section id="区域分析" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> 区域分析</h1>
+<section id="区域销售对比" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="区域销售对比"><span class="header-section-number">3.1</span> 区域销售对比</h2>
+<div class="cell" data-layout-align="center">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>region_summary <span class="ot">&lt;-</span> sales_data <span class="sc">%&gt;%</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(region) <span class="sc">%&gt;%</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    销售额 <span class="ot">=</span> <span class="fu">sum</span>(sales_amount) <span class="sc">/</span> <span class="dv">10000</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    订单数 <span class="ot">=</span> <span class="fu">n</span>(),</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    利润率 <span class="ot">=</span> <span class="fu">sum</span>(profit) <span class="sc">/</span> <span class="fu">sum</span>(sales_amount),</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    销售额占比 <span class="ot">=</span> scales<span class="sc">::</span><span class="fu">percent</span>(销售额 <span class="sc">/</span> <span class="fu">sum</span>(销售额), <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(region_summary, <span class="fu">aes</span>(<span class="fu">reorder</span>(region, <span class="sc">-</span>销售额), 销售额, <span class="at">fill =</span> region)) <span class="sc">+</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">width =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">paste0</span>(<span class="fu">round</span>(销售额, <span class="dv">1</span>), <span class="st">"万"</span>)), </span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>            <span class="at">vjust =</span> <span class="sc">-</span><span class="fl">0.5</span>, <span class="at">size =</span> <span class="fl">4.5</span>, <span class="at">fontface =</span> <span class="st">"bold"</span>) <span class="sc">+</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#3498db"</span>, <span class="st">"#e74c3c"</span>, <span class="st">"#2ecc71"</span>, <span class="st">"#f39c12"</span>)) <span class="sc">+</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">title    =</span> <span class="st">"各区域销售额对比"</span>,</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="fu">paste</span>(<span class="st">"报告期："</span>, params<span class="sc">$</span>report_period),</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"销售额（万元）"</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">13</span>) <span class="sc">+</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"none"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="06_Quarto报告模板_files/figure-html/region-analysis-1.png" class="img-fluid figure-img" alt="华东、华南、华北、西南四区域销售额柱状图" width="768"></p>
+<figcaption>四区域销售表现对比</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="区域健康度诊断" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="区域健康度诊断"><span class="header-section-number">3.2</span> 区域健康度诊断</h2>
+<div class="cell" data-layout-align="center" data-tbl-cap="区域健康度诊断表">
+<div class="cell-output-display">
+<div class="tabwid"><style>.cl-0bf6246c{}.cl-0beea00c{font-family:'Helvetica';font-size:11pt;font-weight:normal;font-style:normal;text-decoration:none;color:rgba(255, 255, 255, 1.00);background-color:transparent;}.cl-0beea020{font-family:'Helvetica';font-size:11pt;font-weight:normal;font-style:normal;text-decoration:none;color:rgba(0, 0, 0, 1.00);background-color:transparent;}.cl-0beea021{font-family:'Helvetica';font-size:11pt;font-weight:bold;font-style:normal;text-decoration:none;color:rgba(0, 0, 0, 1.00);background-color:transparent;}.cl-0bf1c214{margin:0;text-align:left;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-0bf1c228{margin:0;text-align:right;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-0bf1e0b4{width:0.479in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0be{width:0.922in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0bf{width:0.769in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0c0{width:0.633in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0c8{width:0.659in;background-color:rgba(44, 62, 80, 1.00);vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0c9{width:0.479in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0ca{width:0.922in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0cb{width:0.769in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0d2{width:0.633in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0d3{width:0.659in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0d4{width:0.479in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0dc{width:0.922in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0dd{width:0.769in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0de{width:0.633in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-0bf1e0df{width:0.659in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}</style><table data-quarto-disable-processing="true" class="cl-0bf6246c"><caption><p>区域健康度诊断表</p></caption><thead><tr style="overflow-wrap:break-word;"><th class="cl-0bf1e0b4"><p class="cl-0bf1c214"><span class="cl-0beea00c">区域</span></p></th><th class="cl-0bf1e0be"><p class="cl-0bf1c228"><span class="cl-0beea00c">销售额(万)</span></p></th><th class="cl-0bf1e0bf"><p class="cl-0bf1c214"><span class="cl-0beea00c">销售额占比</span></p></th><th class="cl-0bf1e0c0"><p class="cl-0bf1c228"><span class="cl-0beea00c">利润率</span></p></th><th class="cl-0bf1e0c8"><p class="cl-0bf1c214"><span class="cl-0beea00c">健康度</span></p></th></tr></thead><tbody><tr style="overflow-wrap:break-word;"><td class="cl-0bf1e0c9"><p class="cl-0bf1c214"><span class="cl-0beea020">华东</span></p></td><td class="cl-0bf1e0ca"><p class="cl-0bf1c228"><span class="cl-0beea020">370.3542</span></p></td><td class="cl-0bf1e0cb"><p class="cl-0bf1c214"><span class="cl-0beea020">25.0%</span></p></td><td class="cl-0bf1e0d2"><p class="cl-0bf1c228"><span class="cl-0beea020">0.2%</span></p></td><td class="cl-0bf1e0d3"><p class="cl-0bf1c214"><span class="cl-0beea021">🟡 良好</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0bf1e0c9"><p class="cl-0bf1c214"><span class="cl-0beea020">华南</span></p></td><td class="cl-0bf1e0ca"><p class="cl-0bf1c228"><span class="cl-0beea020">365.2370</span></p></td><td class="cl-0bf1e0cb"><p class="cl-0bf1c214"><span class="cl-0beea020">24.6%</span></p></td><td class="cl-0bf1e0d2"><p class="cl-0bf1c228"><span class="cl-0beea020">0.2%</span></p></td><td class="cl-0bf1e0d3"><p class="cl-0bf1c214"><span class="cl-0beea021">🟡 良好</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0bf1e0c9"><p class="cl-0bf1c214"><span class="cl-0beea020">华北</span></p></td><td class="cl-0bf1e0ca"><p class="cl-0bf1c228"><span class="cl-0beea020">349.1692</span></p></td><td class="cl-0bf1e0cb"><p class="cl-0bf1c214"><span class="cl-0beea020">23.5%</span></p></td><td class="cl-0bf1e0d2"><p class="cl-0bf1c228"><span class="cl-0beea020">0.2%</span></p></td><td class="cl-0bf1e0d3"><p class="cl-0bf1c214"><span class="cl-0beea021">🟡 良好</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-0bf1e0d4"><p class="cl-0bf1c214"><span class="cl-0beea020">西南</span></p></td><td class="cl-0bf1e0dc"><p class="cl-0bf1c228"><span class="cl-0beea020">398.5127</span></p></td><td class="cl-0bf1e0dd"><p class="cl-0bf1c214"><span class="cl-0beea020">26.9%</span></p></td><td class="cl-0bf1e0de"><p class="cl-0bf1c228"><span class="cl-0beea020">0.2%</span></p></td><td class="cl-0bf1e0df"><p class="cl-0bf1c214"><span class="cl-0beea021">🟡 良好</span></p></td></tr></tbody></table></div>
+</div>
+</div>
+</section>
+</section>
+<section id="品类分析" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> 品类分析</h1>
+<section id="品类结构" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="品类结构"><span class="header-section-number">4.1</span> 品类结构</h2>
+<div class="cell" data-layout-align="center">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>cat_data <span class="ot">&lt;-</span> sales_data <span class="sc">%&gt;%</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(category) <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(销售额 <span class="ot">=</span> <span class="fu">sum</span>(sales_amount) <span class="sc">/</span> <span class="dv">10000</span>, <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">label =</span> <span class="fu">paste0</span>(category, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>, <span class="fu">round</span>(销售额 <span class="sc">/</span> <span class="fu">sum</span>(销售额) <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">1</span>), <span class="st">"%"</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(cat_data, <span class="fu">aes</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> 销售额, <span class="at">fill =</span> category)) <span class="sc">+</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">width =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_polar</span>(<span class="at">theta =</span> <span class="st">"y"</span>) <span class="sc">+</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> label), <span class="at">position =</span> <span class="fu">position_stack</span>(<span class="at">vjust =</span> <span class="fl">0.5</span>), </span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>            <span class="at">size =</span> <span class="dv">4</span>, <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">fontface =</span> <span class="st">"bold"</span>) <span class="sc">+</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">palette =</span> <span class="st">"Set2"</span>) <span class="sc">+</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"品类销售额占比"</span>) <span class="sc">+</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_void</span>(<span class="at">base_size =</span> <span class="dv">14</span>) <span class="sc">+</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">size =</span> <span class="dv">16</span>),</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"none"</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="06_Quarto报告模板_files/figure-html/category-pie-1.png" class="img-fluid figure-img" alt="手机、电脑、配件、智能穿戴四品类饼图" width="768"></p>
+<figcaption>品类销售占比 — 手机是绝对核心品类</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="品类区域交叉分析" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="品类区域交叉分析"><span class="header-section-number">4.2</span> 品类×区域交叉分析</h2>
+<div class="cell" data-layout-align="center">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>sales_data <span class="sc">%&gt;%</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(category, region) <span class="sc">%&gt;%</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(销售额 <span class="ot">=</span> <span class="fu">sum</span>(sales_amount) <span class="sc">/</span> <span class="dv">10000</span>, <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(region, category, <span class="at">fill =</span> 销售额)) <span class="sc">+</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">1.5</span>) <span class="sc">+</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">round</span>(销售额, <span class="dv">1</span>)), <span class="at">size =</span> <span class="dv">5</span>, <span class="at">fontface =</span> <span class="st">"bold"</span>) <span class="sc">+</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient</span>(<span class="at">low =</span> <span class="st">"#ecf0f1"</span>, <span class="at">high =</span> COLOR_ACCENT, <span class="at">name =</span> <span class="st">"万元"</span>) <span class="sc">+</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">title    =</span> <span class="st">"品类 × 区域 交叉热力图"</span>,</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"数值越大颜色越深 — 快速发现强势组合"</span>,</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">""</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">13</span>) <span class="sc">+</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.title    =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">size =</span> <span class="dv">16</span>),</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.grid    =</span> <span class="fu">element_blank</span>()</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="06_Quarto报告模板_files/figure-html/category-region-heat-1.png" class="img-fluid figure-img" alt="品类与区域交叉热力图，颜色越深销售额越高" width="768"></p>
+<figcaption>品类×区域热力图 — 一眼定位高潜力组合</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="结论与建议" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> 结论与建议</h1>
+<div class="cell" data-layout-align="center">
+<section id="核心结论" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="核心结论"><span class="header-section-number">5.1</span> 🎯 核心结论</h2>
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th>维度</th>
+<th>结论</th>
+<th>置信度</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>整体表现</td>
+<td>Q4 销售额稳健增长，趋势向好</td>
+<td>高</td>
+</tr>
+<tr class="even">
+<td>区域差异</td>
+<td>华南区域明显落后，需专项跟进</td>
+<td>高</td>
+</tr>
+<tr class="odd">
+<td>品类聚焦</td>
+<td>手机为核心品类，配件利润最优</td>
+<td>高</td>
+</tr>
+<tr class="even">
+<td>增长机会</td>
+<td>西南区域 + 智能穿戴 = 高潜力组合</td>
+<td>中</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="行动建议" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="行动建议"><span class="header-section-number">5.2</span> 📋 行动建议</h2>
+<ol type="1">
+<li><strong>华南复苏计划</strong>：成立专项小组，两周内完成渠道诊断</li>
+<li><strong>配件促销</strong>：Q1 加大配件品类推广，利润率 22% 值得投入</li>
+<li><strong>智能穿戴</strong>：西南区域试点，验证「穿戴设备 + 健康场景」模式</li>
+<li><strong>数据驱动</strong>：建议按月生成本报告，持续追踪 KPI 变化</li>
+</ol>
+</section>
+</div>
+</section>
+<section id="附录代码可复现性" class="level1 unnumbered">
+<h1 class="unnumbered">附录：代码可复现性</h1>
+<p>本报告由 Quarto 生成，所有分析代码均已嵌入文档。如需复现：</p>
+<div class="cell" data-layout-align="center">
+<details open="" class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 安装依赖</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">"dplyr"</span>, <span class="st">"ggplot2"</span>, <span class="st">"flextable"</span>, </span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                   <span class="st">"scales"</span>, <span class="st">"lubridate"</span>, <span class="st">"showtext"</span>))</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 渲染报告（HTML）</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>quarto<span class="sc">::</span><span class="fu">quarto_render</span>(<span class="st">"06_Quarto报告模板.qmd"</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 渲染为 PDF</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>quarto<span class="sc">::</span><span class="fu">quarto_render</span>(<span class="st">"06_Quarto报告模板.qmd"</span>, <span class="at">output_format =</span> <span class="st">"pdf"</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 命令行渲染</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co"># quarto render 06_Quarto报告模板.qmd --to html</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co"># quarto render 06_Quarto报告模板.qmd --to pdf</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<hr>
+<blockquote class="blockquote">
+<p>📧 报告生成时间：2026-06-11 17:36:39.810173<br>
+🤖 本报告模板由 AI 辅助生成，从 R Markdown 迁移至 Quarto 格式</p>
+</blockquote>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

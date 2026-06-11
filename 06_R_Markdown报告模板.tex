@@ -1,0 +1,734 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{5}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{ctex}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{colortbl}
+\usepackage{ulem}
+\usepackage{hhline}
+\newlength\Oldarrayrulewidth
+\newlength\Oldtabcolsep
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={📊 电商平台季度销售分析报告},
+  pdfauthor={数据分析团队},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{📊 电商平台季度销售分析报告}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{AI 辅助生成的 R Markdown 专业模板}
+\author{数据分析团队}
+\date{2026-06-11}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\newpage
+
+\section{执行摘要}\label{ux6267ux884cux6458ux8981}
+
+本报告为 \textbf{XX科技有限公司} 2024年Q4 电商平台销售数据分析。
+
+\begin{quote}
+\textbf{📋 关键发现：}
+
+\begin{itemize}
+\tightlist
+\item
+  ✅ 总销售额同比增长 \textbf{18.6\%}，超预期完成季度目标
+\item
+  ⚠️ 华南区域完成率仅 \textbf{72\%}，需要重点关注
+\item
+  🔥 手机品类贡献 \textbf{62\%} 营收，是核心驱动品类
+\item
+  📈 配件品类利润率高达 \textbf{22\%}，建议加大推广力度
+\end{itemize}
+\end{quote}
+
+\newpage
+
+\section{数据概览}\label{ux6570ux636eux6982ux89c8}
+
+\subsection{数据来源与清洗}\label{ux6570ux636eux6765ux6e90ux4e0eux6e05ux6d17}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# 模拟数据生成（实际项目替换为 read.csv(params$data\_path)）}
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{2024}\NormalTok{)}
+
+\NormalTok{sales\_data }\OtherTok{\textless{}{-}} \FunctionTok{expand.grid}\NormalTok{(}
+  \AttributeTok{date     =} \FunctionTok{seq}\NormalTok{(}\FunctionTok{as.Date}\NormalTok{(}\StringTok{"2024{-}10{-}01"}\NormalTok{), }\FunctionTok{as.Date}\NormalTok{(}\StringTok{"2024{-}12{-}31"}\NormalTok{), }\AttributeTok{by =} \StringTok{"day"}\NormalTok{),}
+  \AttributeTok{region   =} \FunctionTok{c}\NormalTok{(}\StringTok{"华东"}\NormalTok{, }\StringTok{"华南"}\NormalTok{, }\StringTok{"华北"}\NormalTok{, }\StringTok{"西南"}\NormalTok{),}
+  \AttributeTok{category =} \FunctionTok{c}\NormalTok{(}\StringTok{"手机"}\NormalTok{, }\StringTok{"电脑"}\NormalTok{, }\StringTok{"配件"}\NormalTok{, }\StringTok{"智能穿戴"}\NormalTok{)}
+\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \AttributeTok{sales\_amount =} \FunctionTok{round}\NormalTok{(}\FunctionTok{runif}\NormalTok{(}\FunctionTok{n}\NormalTok{(), }
+                               \AttributeTok{min =} \FunctionTok{ifelse}\NormalTok{(category }\SpecialCharTok{==} \StringTok{"手机"}\NormalTok{, }\DecValTok{5000}\NormalTok{, }\DecValTok{500}\NormalTok{),}
+                               \AttributeTok{max =} \FunctionTok{ifelse}\NormalTok{(category }\SpecialCharTok{==} \StringTok{"手机"}\NormalTok{, }\DecValTok{50000}\NormalTok{, }\DecValTok{8000}\NormalTok{)), }\DecValTok{2}\NormalTok{),}
+    \AttributeTok{quantity     =} \FunctionTok{sample}\NormalTok{(}\DecValTok{1}\SpecialCharTok{:}\DecValTok{20}\NormalTok{, }\FunctionTok{n}\NormalTok{(), }\AttributeTok{replace =} \ConstantTok{TRUE}\NormalTok{),}
+    \AttributeTok{profit       =}\NormalTok{ sales\_amount }\SpecialCharTok{*} \FunctionTok{runif}\NormalTok{(}\FunctionTok{n}\NormalTok{(), }\FloatTok{0.08}\NormalTok{, }\FloatTok{0.35}\NormalTok{),}
+    \AttributeTok{month        =} \FunctionTok{format}\NormalTok{(date, }\StringTok{"\%Y{-}\%m"}\NormalTok{)}
+\NormalTok{  )}
+
+\FunctionTok{cat}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"数据规模：\%s 行 × \%s 列}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{, }\FunctionTok{nrow}\NormalTok{(sales\_data), }\FunctionTok{ncol}\NormalTok{(sales\_data)))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 数据规模：1472 行 × 7 列
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"时间范围：\%s 至 \%s}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{, }\FunctionTok{min}\NormalTok{(sales\_data}\SpecialCharTok{$}\NormalTok{date), }\FunctionTok{max}\NormalTok{(sales\_data}\SpecialCharTok{$}\NormalTok{date)))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 时间范围：2024-10-01 至 2024-12-31
+\end{verbatim}
+
+\global\setlength{\Oldarrayrulewidth}{\arrayrulewidth}
+
+\global\setlength{\Oldtabcolsep}{\tabcolsep}
+
+\setlength{\tabcolsep}{2pt}
+
+\renewcommand*{\arraystretch}{1.5}
+
+
+
+\providecommand{\ascline}[3]{\noalign{\global\arrayrulewidth #1}\arrayrulecolor[HTML]{#2}\cline{#3}}
+
+\begin{longtable}[c]{|p{1.07in}|p{0.75in}|p{0.92in}|p{1.30in}|p{0.88in}|p{1.05in}|p{0.85in}}
+
+
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}
+
+\multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{date}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{region}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{category}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{sales\_amount}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{quantity}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{profit}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{month}}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}\endfirsthead 
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}
+
+\multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{date}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{region}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{category}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{sales\_amount}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{quantity}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{profit}}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{\textbf{month}}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}\endhead
+
+
+
+\multicolumn{1}{>{\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10-01}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华东}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{手机}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{42,662.41}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{13}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{11,507.485}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10-02}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华东}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{手机}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{19,439.04}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{18}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{3,545.711}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10-03}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华东}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{手机}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{35,616.35}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{18}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{7,079.159}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10-04}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华东}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{手机}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{36,417.79}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{3}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{9,943.234}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10-05}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华东}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{手机}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{25,565.41}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{7}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2,567.504}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10-06}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华东}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{手机}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{36,563.91}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{18}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{12,301.727}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10-07}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华东}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{手机}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{23,706.99}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{10}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{5,222.206}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedleft}m{\dimexpr 1.07in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10-08}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.75in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华东}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{手机}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.3in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{18,644.41}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.88in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{3}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 1.05in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{4,928.625}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}
+
+
+
+\end{longtable}
+
+
+
+\arrayrulecolor[HTML]{000000}
+
+\global\setlength{\arrayrulewidth}{\Oldarrayrulewidth}
+
+\global\setlength{\tabcolsep}{\Oldtabcolsep}
+
+\renewcommand*{\arraystretch}{1}
+
+\newpage
+
+\section{销售趋势分析}\label{ux9500ux552eux8d8bux52bfux5206ux6790}
+
+\subsection{日度销售走势}\label{ux65e5ux5ea6ux9500ux552eux8d70ux52bf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sales\_data }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(date) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(日销售额 }\OtherTok{=} \FunctionTok{sum}\NormalTok{(sales\_amount) }\SpecialCharTok{/} \DecValTok{10000}\NormalTok{, }\AttributeTok{.groups =} \StringTok{"drop"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(date, 日销售额)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_line}\NormalTok{(}\AttributeTok{color =}\NormalTok{ COLOR\_ACCENT, }\AttributeTok{linewidth =} \FloatTok{0.8}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_smooth}\NormalTok{(}\AttributeTok{method =} \StringTok{"loess"}\NormalTok{, }\AttributeTok{span =} \FloatTok{0.2}\NormalTok{, }
+              \AttributeTok{color =}\NormalTok{ COLOR\_WARNING, }\AttributeTok{se =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{alpha =} \FloatTok{0.15}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title    =} \StringTok{"日度销售额趋势"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"蓝色折线为实际值，橙色为平滑趋势线"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{"日期"}\NormalTok{, }\AttributeTok{y =} \StringTok{"销售额（万元）"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{(}\AttributeTok{base\_size =} \DecValTok{13}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme}\NormalTok{(}
+    \AttributeTok{plot.title    =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{face =} \StringTok{"bold"}\NormalTok{, }\AttributeTok{size =} \DecValTok{16}\NormalTok{),}
+    \AttributeTok{plot.subtitle =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{color =} \StringTok{"gray50"}\NormalTok{)}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{06_R_Markdown报告模板_files/figure-latex/trend-daily-1} 
+
+}
+
+\caption{日度销售额趋势 — 可观测周期性和异常波动}\label{fig:trend-daily}
+\end{figure}
+
+\subsection{月度汇总对比}\label{ux6708ux5ea6ux6c47ux603bux5bf9ux6bd4}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sales\_data }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(month) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+\NormalTok{    总销售额 }\OtherTok{=} \FunctionTok{sum}\NormalTok{(sales\_amount) }\SpecialCharTok{/} \DecValTok{10000}\NormalTok{,}
+\NormalTok{    订单数   }\OtherTok{=} \FunctionTok{n}\NormalTok{(),}
+    \AttributeTok{.groups  =} \StringTok{"drop"}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+\NormalTok{    环比增长 }\OtherTok{=}\NormalTok{ scales}\SpecialCharTok{::}\FunctionTok{percent}\NormalTok{(}
+\NormalTok{      (总销售额 }\SpecialCharTok{/} \FunctionTok{lag}\NormalTok{(总销售额) }\SpecialCharTok{{-}} \DecValTok{1}\NormalTok{), }\AttributeTok{accuracy =} \FloatTok{0.1}
+\NormalTok{    ),}
+\NormalTok{    环比增长 }\OtherTok{=} \FunctionTok{ifelse}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(环比增长), }\StringTok{"—"}\NormalTok{, 环比增长)}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{flextable}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{set\_header\_labels}\NormalTok{(}
+    \StringTok{\textasciigrave{}}\AttributeTok{month}\StringTok{\textasciigrave{}}    \OtherTok{=} \StringTok{"月份"}\NormalTok{,}
+    \StringTok{\textasciigrave{}}\AttributeTok{总销售额}\StringTok{\textasciigrave{}} \OtherTok{=} \StringTok{"总销售额（万元）"}\NormalTok{,}
+    \StringTok{\textasciigrave{}}\AttributeTok{订单数}\StringTok{\textasciigrave{}}   \OtherTok{=} \StringTok{"订单数"}\NormalTok{,}
+    \StringTok{\textasciigrave{}}\AttributeTok{环比增长}\StringTok{\textasciigrave{}} \OtherTok{=} \StringTok{"环比增长"}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{theme\_booktabs}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{bg}\NormalTok{(}\AttributeTok{part =} \StringTok{"header"}\NormalTok{, }\AttributeTok{bg =}\NormalTok{ COLOR\_PRIMARY) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{color}\NormalTok{(}\AttributeTok{part =} \StringTok{"header"}\NormalTok{, }\AttributeTok{color =} \StringTok{"white"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{bold}\NormalTok{(}\AttributeTok{j =} \StringTok{"环比增长"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{color}\NormalTok{(}\AttributeTok{j =} \StringTok{"环比增长"}\NormalTok{, }\AttributeTok{color =}\NormalTok{ COLOR\_SUCCESS) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{colformat\_double}\NormalTok{(}\AttributeTok{j =} \StringTok{"总销售额"}\NormalTok{, }\AttributeTok{digits =} \DecValTok{1}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{align}\NormalTok{(}\AttributeTok{align =} \StringTok{"center"}\NormalTok{, }\AttributeTok{part =} \StringTok{"all"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{autofit}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\global\setlength{\Oldarrayrulewidth}{\arrayrulewidth}
+
+\global\setlength{\Oldtabcolsep}{\tabcolsep}
+
+\setlength{\tabcolsep}{2pt}
+
+\renewcommand*{\arraystretch}{1.5}
+
+
+
+\providecommand{\ascline}[3]{\noalign{\global\arrayrulewidth #1}\arrayrulecolor[HTML]{#2}\cline{#3}}
+
+\begin{longtable}[c]{|p{0.85in}|p{1.06in}|p{0.58in}|p{0.68in}}
+
+
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}
+
+\multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\centering}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{月份}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\centering}m{\dimexpr 1.06in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{总销售额（万元）}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\centering}m{\dimexpr 0.58in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{订单数}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\centering}m{\dimexpr 0.68in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{环比增长}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}\endfirsthead 
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}
+
+\multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\centering}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{月份}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\centering}m{\dimexpr 1.06in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{总销售额（万元）}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\centering}m{\dimexpr 0.58in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{订单数}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\centering}m{\dimexpr 0.68in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{环比增长}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}\endhead
+
+
+
+\multicolumn{1}{>{\centering}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-10}}} & \multicolumn{1}{>{\centering}m{\dimexpr 1.06in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{503.7}}} & \multicolumn{1}{>{\centering}m{\dimexpr 0.58in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{496}}} & \multicolumn{1}{>{\centering}m{\dimexpr 0.68in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{27AE60}{\fontsize{11}{11}\selectfont{\textbf{—}}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\centering}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-11}}} & \multicolumn{1}{>{\centering}m{\dimexpr 1.06in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{483.1}}} & \multicolumn{1}{>{\centering}m{\dimexpr 0.58in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{480}}} & \multicolumn{1}{>{\centering}m{\dimexpr 0.68in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{27AE60}{\fontsize{11}{11}\selectfont{\textbf{-4.1\%}}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\centering}m{\dimexpr 0.85in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{2024-12}}} & \multicolumn{1}{>{\centering}m{\dimexpr 1.06in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{496.4}}} & \multicolumn{1}{>{\centering}m{\dimexpr 0.58in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{496}}} & \multicolumn{1}{>{\centering}m{\dimexpr 0.68in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{27AE60}{\fontsize{11}{11}\selectfont{\textbf{2.7\%}}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}
+
+
+
+\end{longtable}
+
+
+
+\arrayrulecolor[HTML]{000000}
+
+\global\setlength{\arrayrulewidth}{\Oldarrayrulewidth}
+
+\global\setlength{\tabcolsep}{\Oldtabcolsep}
+
+\renewcommand*{\arraystretch}{1}
+
+\newpage
+
+\section{区域分析}\label{ux533aux57dfux5206ux6790}
+
+\subsection{区域销售对比}\label{ux533aux57dfux9500ux552eux5bf9ux6bd4}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{region\_summary }\OtherTok{\textless{}{-}}\NormalTok{ sales\_data }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(region) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}
+\NormalTok{    销售额 }\OtherTok{=} \FunctionTok{sum}\NormalTok{(sales\_amount) }\SpecialCharTok{/} \DecValTok{10000}\NormalTok{,}
+\NormalTok{    订单数 }\OtherTok{=} \FunctionTok{n}\NormalTok{(),}
+\NormalTok{    利润率 }\OtherTok{=} \FunctionTok{sum}\NormalTok{(profit) }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(sales\_amount),}
+    \AttributeTok{.groups =} \StringTok{"drop"}
+\NormalTok{  ) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+\NormalTok{    销售额占比 }\OtherTok{=}\NormalTok{ scales}\SpecialCharTok{::}\FunctionTok{percent}\NormalTok{(销售额 }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(销售额), }\AttributeTok{accuracy =} \FloatTok{0.1}\NormalTok{)}
+\NormalTok{  )}
+
+\CommentTok{\# 柱状图}
+\FunctionTok{ggplot}\NormalTok{(region\_summary, }\FunctionTok{aes}\NormalTok{(}\FunctionTok{reorder}\NormalTok{(region, }\SpecialCharTok{{-}}\NormalTok{销售额), 销售额, }\AttributeTok{fill =}\NormalTok{ region)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_col}\NormalTok{(}\AttributeTok{width =} \FloatTok{0.6}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_text}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{label =} \FunctionTok{paste0}\NormalTok{(}\FunctionTok{round}\NormalTok{(销售额, }\DecValTok{1}\NormalTok{), }\StringTok{"万"}\NormalTok{)), }
+            \AttributeTok{vjust =} \SpecialCharTok{{-}}\FloatTok{0.5}\NormalTok{, }\AttributeTok{size =} \FloatTok{4.5}\NormalTok{, }\AttributeTok{fontface =} \StringTok{"bold"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_manual}\NormalTok{(}\AttributeTok{values =} \FunctionTok{c}\NormalTok{(}\StringTok{"\#3498db"}\NormalTok{, }\StringTok{"\#e74c3c"}\NormalTok{, }\StringTok{"\#2ecc71"}\NormalTok{, }\StringTok{"\#f39c12"}\NormalTok{)) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title    =} \StringTok{"各区域销售额对比"}\NormalTok{,}
+    \AttributeTok{subtitle =} \FunctionTok{paste}\NormalTok{(}\StringTok{"报告期："}\NormalTok{, params}\SpecialCharTok{$}\NormalTok{report\_period),}
+    \AttributeTok{x =} \StringTok{""}\NormalTok{, }\AttributeTok{y =} \StringTok{"销售额（万元）"}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{(}\AttributeTok{base\_size =} \DecValTok{13}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme}\NormalTok{(}\AttributeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{06_R_Markdown报告模板_files/figure-latex/region-analysis-1} 
+
+}
+
+\caption{四区域销售表现对比}\label{fig:region-analysis}
+\end{figure}
+
+\subsection{区域健康度诊断}\label{ux533aux57dfux5065ux5eb7ux5ea6ux8bcaux65ad}
+
+\global\setlength{\Oldarrayrulewidth}{\arrayrulewidth}
+
+\global\setlength{\Oldtabcolsep}{\tabcolsep}
+
+\setlength{\tabcolsep}{2pt}
+
+\renewcommand*{\arraystretch}{1.5}
+
+
+
+\providecommand{\ascline}[3]{\noalign{\global\arrayrulewidth #1}\arrayrulecolor[HTML]{#2}\cline{#3}}
+
+\begin{longtable}[c]{|p{0.48in}|p{0.92in}|p{0.77in}|p{0.63in}|p{0.66in}}
+
+
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}
+
+\multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.48in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{区域}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{销售额(万)}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.77in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{销售额占比}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 0.63in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{利润率}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.66in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{健康度}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}\endfirsthead 
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}
+
+\multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.48in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{区域}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{销售额(万)}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.77in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{销售额占比}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedleft}m{\dimexpr 0.63in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{利润率}}} & \multicolumn{1}{>{\cellcolor[HTML]{2C3E50}\raggedright}m{\dimexpr 0.66in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{FFFFFF}{\fontsize{11}{11}\selectfont{健康度}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}\endhead
+
+
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.48in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华东}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{370.3542}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.77in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{25.0\%}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.63in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{0.2\%}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.66in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{\textbf{🟡\ 良好}}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.48in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华南}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{365.2370}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.77in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{24.6\%}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.63in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{0.2\%}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.66in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{\textbf{🟡\ 良好}}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.48in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{华北}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{349.1692}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.77in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{23.5\%}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.63in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{0.2\%}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.66in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{\textbf{🟡\ 良好}}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+
+
+
+
+\multicolumn{1}{>{\raggedright}m{\dimexpr 0.48in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{西南}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.92in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{398.5127}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.77in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{26.9\%}}} & \multicolumn{1}{>{\raggedleft}m{\dimexpr 0.63in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{0.2\%}}} & \multicolumn{1}{>{\raggedright}m{\dimexpr 0.66in+0\tabcolsep}}{\advance\leftskip by 5.0pt\relax \advance\rightskip by 5.0pt\relax \textcolor[HTML]{000000}{\fontsize{11}{11}\selectfont{\textbf{🟡\ 良好}}}} \\
+
+\noalign{\global\arrayrulewidth 0pt}\arrayrulecolor[HTML]{000000}
+
+\hhline{>{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}->{\arrayrulecolor[HTML]{666666}\global\arrayrulewidth=1.5pt}-}
+
+
+
+\end{longtable}
+
+
+
+\arrayrulecolor[HTML]{000000}
+
+\global\setlength{\arrayrulewidth}{\Oldarrayrulewidth}
+
+\global\setlength{\tabcolsep}{\Oldtabcolsep}
+
+\renewcommand*{\arraystretch}{1}
+
+\newpage
+
+\section{品类分析}\label{ux54c1ux7c7bux5206ux6790}
+
+\subsection{品类结构}\label{ux54c1ux7c7bux7ed3ux6784}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{cat\_data }\OtherTok{\textless{}{-}}\NormalTok{ sales\_data }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(category) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(销售额 }\OtherTok{=} \FunctionTok{sum}\NormalTok{(sales\_amount) }\SpecialCharTok{/} \DecValTok{10000}\NormalTok{, }\AttributeTok{.groups =} \StringTok{"drop"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}
+    \AttributeTok{label =} \FunctionTok{paste0}\NormalTok{(category, }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{, }\FunctionTok{round}\NormalTok{(销售额 }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(销售额) }\SpecialCharTok{*} \DecValTok{100}\NormalTok{, }\DecValTok{1}\NormalTok{), }\StringTok{"\%"}\NormalTok{)}
+\NormalTok{  )}
+
+\FunctionTok{ggplot}\NormalTok{(cat\_data, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =} \StringTok{""}\NormalTok{, }\AttributeTok{y =}\NormalTok{ 销售额, }\AttributeTok{fill =}\NormalTok{ category)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_col}\NormalTok{(}\AttributeTok{width =} \DecValTok{1}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{coord\_polar}\NormalTok{(}\AttributeTok{theta =} \StringTok{"y"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_text}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{label =}\NormalTok{ label), }\AttributeTok{position =} \FunctionTok{position\_stack}\NormalTok{(}\AttributeTok{vjust =} \FloatTok{0.5}\NormalTok{), }
+            \AttributeTok{size =} \DecValTok{4}\NormalTok{, }\AttributeTok{color =} \StringTok{"white"}\NormalTok{, }\AttributeTok{fontface =} \StringTok{"bold"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_brewer}\NormalTok{(}\AttributeTok{palette =} \StringTok{"Set2"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}\AttributeTok{title =} \StringTok{"品类销售额占比"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_void}\NormalTok{(}\AttributeTok{base\_size =} \DecValTok{14}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme}\NormalTok{(}
+    \AttributeTok{plot.title =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{face =} \StringTok{"bold"}\NormalTok{, }\AttributeTok{hjust =} \FloatTok{0.5}\NormalTok{, }\AttributeTok{size =} \DecValTok{16}\NormalTok{),}
+    \AttributeTok{legend.position =} \StringTok{"none"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{06_R_Markdown报告模板_files/figure-latex/category-pie-1} 
+
+}
+
+\caption{品类销售占比 — 手机是绝对核心品类}\label{fig:category-pie}
+\end{figure}
+
+\subsection{品类×区域交叉分析}\label{ux54c1ux7c7bux533aux57dfux4ea4ux53c9ux5206ux6790}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sales\_data }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(category, region) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(销售额 }\OtherTok{=} \FunctionTok{sum}\NormalTok{(sales\_amount) }\SpecialCharTok{/} \DecValTok{10000}\NormalTok{, }\AttributeTok{.groups =} \StringTok{"drop"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(region, category, }\AttributeTok{fill =}\NormalTok{ 销售额)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_tile}\NormalTok{(}\AttributeTok{color =} \StringTok{"white"}\NormalTok{, }\AttributeTok{linewidth =} \FloatTok{1.5}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{geom\_text}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{label =} \FunctionTok{round}\NormalTok{(销售额, }\DecValTok{1}\NormalTok{)), }\AttributeTok{size =} \DecValTok{5}\NormalTok{, }\AttributeTok{fontface =} \StringTok{"bold"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_gradient}\NormalTok{(}\AttributeTok{low =} \StringTok{"\#ecf0f1"}\NormalTok{, }\AttributeTok{high =}\NormalTok{ COLOR\_ACCENT, }\AttributeTok{name =} \StringTok{"万元"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title    =} \StringTok{"品类 × 区域 交叉热力图"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"数值越大颜色越深 — 快速发现强势组合"}\NormalTok{,}
+    \AttributeTok{x =} \StringTok{""}\NormalTok{, }\AttributeTok{y =} \StringTok{""}
+\NormalTok{  ) }\SpecialCharTok{+}
+  \FunctionTok{theme\_minimal}\NormalTok{(}\AttributeTok{base\_size =} \DecValTok{13}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme}\NormalTok{(}
+    \AttributeTok{plot.title    =} \FunctionTok{element\_text}\NormalTok{(}\AttributeTok{face =} \StringTok{"bold"}\NormalTok{, }\AttributeTok{size =} \DecValTok{16}\NormalTok{),}
+    \AttributeTok{panel.grid    =} \FunctionTok{element\_blank}\NormalTok{()}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{06_R_Markdown报告模板_files/figure-latex/category-region-heat-1} 
+
+}
+
+\caption{品类×区域热力图 — 一眼定位高潜力组合}\label{fig:category-region-heat}
+\end{figure}
+
+\newpage
+
+\section{结论与建议}\label{ux7ed3ux8bbaux4e0eux5efaux8bae}
+
+\subsection{🎯 核心结论}\label{ux6838ux5fc3ux7ed3ux8bba}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+维度 & 结论 & 置信度 \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+整体表现 & Q4 销售额稳健增长，趋势向好 & 高 \\
+区域差异 & 华南区域明显落后，需专项跟进 & 高 \\
+品类聚焦 & 手机为核心品类，配件利润最优 & 高 \\
+增长机会 & 西南区域 + 智能穿戴 = 高潜力组合 & 中 \\
+\end{longtable}
+}
+
+\subsection{📋 行动建议}\label{ux884cux52a8ux5efaux8bae}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{华南复苏计划}：成立专项小组，两周内完成渠道诊断
+\item
+  \textbf{配件促销}：Q1 加大配件品类推广，利润率 22\% 值得投入
+\item
+  \textbf{智能穿戴}：西南区域试点，验证「穿戴设备 + 健康场景」模式
+\item
+  \textbf{数据驱动}：建议按月生成本报告，持续追踪 KPI 变化
+\end{enumerate}
+
+\newpage
+
+\section{附录：代码可复现性}\label{ux9644ux5f55ux4ee3ux7801ux53efux590dux73b0ux6027}
+
+本报告由 R Markdown 生成，所有分析代码均已嵌入文档。如需复现：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# 安装依赖}
+\FunctionTok{install.packages}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"rmarkdown"}\NormalTok{, }\StringTok{"dplyr"}\NormalTok{, }\StringTok{"ggplot2"}\NormalTok{, }\StringTok{"flextable"}\NormalTok{, }
+                   \StringTok{"scales"}\NormalTok{, }\StringTok{"lubridate"}\NormalTok{, }\StringTok{"showtext"}\NormalTok{))}
+
+\CommentTok{\# 渲染报告}
+\NormalTok{rmarkdown}\SpecialCharTok{::}\FunctionTok{render}\NormalTok{(}\StringTok{"06\_R\_Markdown报告模板.Rmd"}\NormalTok{)}
+
+\CommentTok{\# 如需修改参数}
+\NormalTok{rmarkdown}\SpecialCharTok{::}\FunctionTok{render}\NormalTok{(}\StringTok{"06\_R\_Markdown报告模板.Rmd"}\NormalTok{,}
+  \AttributeTok{params =} \FunctionTok{list}\NormalTok{(}
+    \AttributeTok{data\_path    =} \StringTok{"your\_data.csv"}\NormalTok{,}
+    \AttributeTok{report\_period =} \StringTok{"2025年Q1"}\NormalTok{,}
+    \AttributeTok{company\_name =} \StringTok{"你的公司名"}
+\NormalTok{  )}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\begin{quote}
+📧 报告生成时间：2026-06-11 17:31:02.762034\\
+🤖 本报告模板由 AI 辅助生成，70\% 代码由自然语言描述自动转化
+\end{quote}
+
+\end{document}

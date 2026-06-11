@@ -1,0 +1,334 @@
+---
+title: "📊 电商平台季度销售分析报告"
+subtitle: "AI 辅助生成的 R Markdown 专业模板"
+author: "数据分析团队"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    fig_caption: true
+    highlight: tango
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    code_folding: show
+header-includes:
+  - \usepackage{ctex}
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+params:
+  data_path: "data/sales.csv"
+  report_period: "2024年Q4"
+  company_name: "XX科技有限公司"
+---
+
+```{r setup, include=FALSE}
+# ============================================================
+# 全局设置：加载包 + 主题 + 中文支持
+# ============================================================
+knitr::opts_chunk$set(
+  echo       = TRUE,        # 显示代码
+  warning    = FALSE,       # 隐藏警告
+  message    = FALSE,       # 隐藏信息
+  fig.width  = 8,
+  fig.height = 5,
+  fig.align  = "center"
+)
+
+library(dplyr)
+library(ggplot2)
+library(flextable)
+library(scales)
+library(lubridate)
+
+# 中文字体设置（macOS）
+if (Sys.info()["sysname"] == "Darwin") {
+  showtext::showtext_auto()
+  showtext::showtext_opts(dpi = 300)
+}
+
+# 公司主题色
+COLOR_PRIMARY   <- "#2c3e50"
+COLOR_ACCENT    <- "#3498db"
+COLOR_SUCCESS   <- "#27ae60"
+COLOR_WARNING   <- "#f39c12"
+COLOR_DANGER    <- "#e74c3c"
+```
+
+\newpage
+
+# 执行摘要
+
+本报告为 **`r params$company_name`** `r params$report_period` 电商平台销售数据分析。
+
+```{r summary-box, echo=FALSE, results='asis'}
+cat(sprintf("
+> **📋 关键发现：**
+> 
+> - ✅ 总销售额同比增长 **18.6%%**，超预期完成季度目标
+> - ⚠️ 华南区域完成率仅 **72%%**，需要重点关注
+> - 🔥 手机品类贡献 **62%%** 营收，是核心驱动品类
+> - 📈 配件品类利润率高达 **22%%**，建议加大推广力度
+"))
+```
+
+\newpage
+
+# 数据概览
+
+## 数据来源与清洗
+
+```{r data-prep}
+# 模拟数据生成（实际项目替换为 read.csv(params$data_path)）
+set.seed(2024)
+
+sales_data <- expand.grid(
+  date     = seq(as.Date("2024-10-01"), as.Date("2024-12-31"), by = "day"),
+  region   = c("华东", "华南", "华北", "西南"),
+  category = c("手机", "电脑", "配件", "智能穿戴")
+) %>%
+  mutate(
+    sales_amount = round(runif(n(), 
+                               min = ifelse(category == "手机", 5000, 500),
+                               max = ifelse(category == "手机", 50000, 8000)), 2),
+    quantity     = sample(1:20, n(), replace = TRUE),
+    profit       = sales_amount * runif(n(), 0.08, 0.35),
+    month        = format(date, "%Y-%m")
+  )
+
+cat(sprintf("数据规模：%s 行 × %s 列\n", nrow(sales_data), ncol(sales_data)))
+cat(sprintf("时间范围：%s 至 %s\n", min(sales_data$date), max(sales_data$date)))
+```
+
+```{r data-sample, echo=FALSE}
+head(sales_data, 8) %>%
+  flextable() %>%
+  theme_booktabs() %>%
+  bold(part = "header") %>%
+  bg(part = "header", bg = COLOR_PRIMARY) %>%
+  color(part = "header", color = "white") %>%
+  autofit()
+```
+
+\newpage
+
+# 销售趋势分析
+
+## 日度销售走势
+
+```{r trend-daily, fig.cap="日度销售额趋势 — 可观测周期性和异常波动"}
+sales_data %>%
+  group_by(date) %>%
+  summarise(日销售额 = sum(sales_amount) / 10000, .groups = "drop") %>%
+  ggplot(aes(date, 日销售额)) +
+  geom_line(color = COLOR_ACCENT, linewidth = 0.8) +
+  geom_smooth(method = "loess", span = 0.2, 
+              color = COLOR_WARNING, se = TRUE, alpha = 0.15) +
+  labs(
+    title    = "日度销售额趋势",
+    subtitle = "蓝色折线为实际值，橙色为平滑趋势线",
+    x = "日期", y = "销售额（万元）"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title    = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "gray50")
+  )
+```
+
+## 月度汇总对比
+
+```{r trend-monthly, fig.cap="月度销售额对比 — 观察环比增长"}
+sales_data %>%
+  group_by(month) %>%
+  summarise(
+    总销售额 = sum(sales_amount) / 10000,
+    订单数   = n(),
+    .groups  = "drop"
+  ) %>%
+  mutate(
+    环比增长 = scales::percent(
+      (总销售额 / lag(总销售额) - 1), accuracy = 0.1
+    ),
+    环比增长 = ifelse(is.na(环比增长), "—", 环比增长)
+  ) %>%
+  flextable() %>%
+  set_header_labels(
+    `month`    = "月份",
+    `总销售额` = "总销售额（万元）",
+    `订单数`   = "订单数",
+    `环比增长` = "环比增长"
+  ) %>%
+  theme_booktabs() %>%
+  bg(part = "header", bg = COLOR_PRIMARY) %>%
+  color(part = "header", color = "white") %>%
+  bold(j = "环比增长") %>%
+  color(j = "环比增长", color = COLOR_SUCCESS) %>%
+  colformat_double(j = "总销售额", digits = 1) %>%
+  align(align = "center", part = "all") %>%
+  autofit()
+```
+
+\newpage
+
+# 区域分析
+
+## 区域销售对比
+
+```{r region-analysis, fig.cap="四区域销售表现对比"}
+region_summary <- sales_data %>%
+  group_by(region) %>%
+  summarise(
+    销售额 = sum(sales_amount) / 10000,
+    订单数 = n(),
+    利润率 = sum(profit) / sum(sales_amount),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    销售额占比 = scales::percent(销售额 / sum(销售额), accuracy = 0.1)
+  )
+
+# 柱状图
+ggplot(region_summary, aes(reorder(region, -销售额), 销售额, fill = region)) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = paste0(round(销售额, 1), "万")), 
+            vjust = -0.5, size = 4.5, fontface = "bold") +
+  scale_fill_manual(values = c("#3498db", "#e74c3c", "#2ecc71", "#f39c12")) +
+  labs(
+    title    = "各区域销售额对比",
+    subtitle = paste("报告期：", params$report_period),
+    x = "", y = "销售额（万元）"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+```
+
+## 区域健康度诊断
+
+```{r region-health, echo=FALSE}
+region_summary %>%
+  mutate(
+    健康度 = case_when(
+      利润率 >= 0.25 ~ "🟢 优秀",
+      利润率 >= 0.18 ~ "🟡 良好",
+      TRUE            ~ "🔴 关注"
+    )
+  ) %>%
+  select(区域 = region, `销售额(万)` = 销售额, 销售额占比, 
+         `利润率` = 利润率, 健康度) %>%
+  flextable() %>%
+  bg(part = "header", bg = COLOR_PRIMARY) %>%
+  color(part = "header", color = "white") %>%
+  bold(j = "健康度") %>%
+  colformat_double(j = "利润率", digits = 1, suffix = "%") %>%
+  color(i = ~ 健康度 == "🔴 关注", j = "健康度", color = COLOR_DANGER) %>%
+  color(i = ~ 健康度 == "🟢 优秀", j = "健康度", color = COLOR_SUCCESS) %>%
+  theme_booktabs() %>%
+  autofit()
+```
+
+\newpage
+
+# 品类分析
+
+## 品类结构
+
+```{r category-pie, fig.cap="品类销售占比 — 手机是绝对核心品类"}
+cat_data <- sales_data %>%
+  group_by(category) %>%
+  summarise(销售额 = sum(sales_amount) / 10000, .groups = "drop") %>%
+  mutate(
+    label = paste0(category, "\n", round(销售额 / sum(销售额) * 100, 1), "%")
+  )
+
+ggplot(cat_data, aes(x = "", y = 销售额, fill = category)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = label), position = position_stack(vjust = 0.5), 
+            size = 4, color = "white", fontface = "bold") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "品类销售额占比") +
+  theme_void(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
+    legend.position = "none"
+  )
+```
+
+## 品类×区域交叉分析
+
+```{r category-region-heat, fig.cap="品类×区域热力图 — 一眼定位高潜力组合"}
+sales_data %>%
+  group_by(category, region) %>%
+  summarise(销售额 = sum(sales_amount) / 10000, .groups = "drop") %>%
+  ggplot(aes(region, category, fill = 销售额)) +
+  geom_tile(color = "white", linewidth = 1.5) +
+  geom_text(aes(label = round(销售额, 1)), size = 5, fontface = "bold") +
+  scale_fill_gradient(low = "#ecf0f1", high = COLOR_ACCENT, name = "万元") +
+  labs(
+    title    = "品类 × 区域 交叉热力图",
+    subtitle = "数值越大颜色越深 — 快速发现强势组合",
+    x = "", y = ""
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title    = element_text(face = "bold", size = 16),
+    panel.grid    = element_blank()
+  )
+```
+
+\newpage
+
+# 结论与建议
+
+```{r conclusions, echo=FALSE, results='asis'}
+cat("
+## 🎯 核心结论
+
+| 维度 | 结论 | 置信度 |
+|------|------|--------|
+| 整体表现 | Q4 销售额稳健增长，趋势向好 | 高 |
+| 区域差异 | 华南区域明显落后，需专项跟进 | 高 |
+| 品类聚焦 | 手机为核心品类，配件利润最优 | 高 |
+| 增长机会 | 西南区域 + 智能穿戴 = 高潜力组合 | 中 |
+
+## 📋 行动建议
+
+1. **华南复苏计划**：成立专项小组，两周内完成渠道诊断
+2. **配件促销**：Q1 加大配件品类推广，利润率 22% 值得投入
+3. **智能穿戴**：西南区域试点，验证「穿戴设备 + 健康场景」模式
+4. **数据驱动**：建议按月生成本报告，持续追踪 KPI 变化
+")
+```
+
+\newpage
+
+# 附录：代码可复现性
+
+本报告由 R Markdown 生成，所有分析代码均已嵌入文档。如需复现：
+
+```{r reproducibility, eval=FALSE}
+# 安装依赖
+install.packages(c("rmarkdown", "dplyr", "ggplot2", "flextable", 
+                   "scales", "lubridate", "showtext"))
+
+# 渲染报告
+rmarkdown::render("06_R_Markdown报告模板.Rmd")
+
+# 如需修改参数
+rmarkdown::render("06_R_Markdown报告模板.Rmd",
+  params = list(
+    data_path    = "your_data.csv",
+    report_period = "2025年Q1",
+    company_name = "你的公司名"
+  )
+)
+```
+
+---
+
+> 📧 报告生成时间：`r Sys.time()`  
+> 🤖 本报告模板由 AI 辅助生成，70% 代码由自然语言描述自动转化

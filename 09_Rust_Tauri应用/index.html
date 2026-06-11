@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 备忘录管理器</title>
+    <style>
+        :root {
+            --bg: #f5f6fa;
+            --card-bg: #ffffff;
+            --primary: #4a69bd;
+            --danger: #e74c3c;
+            --success: #27ae60;
+            --text: #2d3436;
+            --muted: #b2bec3;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+
+        /* 头部 */
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .header h1 { font-size: 28px; color: var(--primary); }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 8px;
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .toolbar input {
+            flex: 1;
+            padding: 10px 16px;
+            border: 2px solid #dfe6e9;
+            border-radius: 8px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .toolbar input:focus { border-color: var(--primary); }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        /* 表单 */
+        .form-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .form-card h3 { margin-bottom: 16px; color: var(--primary); }
+        .form-card input, .form-card textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dfe6e9;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+            outline: none;
+            font-family: inherit;
+        }
+        .form-card textarea { resize: vertical; min-height: 80px; }
+        .form-card input:focus, .form-card textarea:focus { border-color: var(--primary); }
+
+        /* 备忘录卡片 */
+        .memo-list { display: flex; flex-direction: column; gap: 12px; }
+        .memo-card {
+            background: var(--card-bg);
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            transition: transform 0.15s;
+            position: relative;
+        }
+        .memo-card:hover { transform: translateY(-2px); }
+        .memo-card.pinned { border-left: 4px solid var(--primary); }
+        .memo-card h4 { font-size: 16px; margin-bottom: 6px; }
+        .memo-card p { font-size: 14px; color: #636e72; margin-bottom: 10px; }
+        .memo-card .meta {
+            display: flex;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .tag {
+            background: #e8ecf4;
+            color: var(--primary);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .memo-actions {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            display: flex;
+            gap: 6px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 0;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 头部 -->
+    <div class="header">
+        <h1>📝 备忘录管理器</h1>
+        <div class="stats">
+            <span id="stat-total">📋 总计 0</span>
+            <span id="stat-pinned">📌 置顶 0</span>
+            <span id="stat-tags">🏷️ 标签 0</span>
+        </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="toolbar">
+        <input type="text" id="search-input" placeholder="🔍 搜索备忘录..." oninput="loadMemos()">
+        <button class="btn btn-primary" onclick="showForm()">+ 新建</button>
+    </div>
+
+    <!-- 新建表单（默认隐藏） -->
+    <div class="form-card" id="form-card" style="display:none;">
+        <h3 id="form-title">新建备忘录</h3>
+        <input type="text" id="memo-title" placeholder="标题">
+        <textarea id="memo-content" placeholder="内容..."></textarea>
+        <input type="text" id="memo-tags" placeholder="标签（用逗号分隔，如：工作,重要）">
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary" onclick="saveMemo()">💾 保存</button>
+            <button class="btn" onclick="cancelForm()" style="background:#dfe6e9;">取消</button>
+        </div>
+        <input type="hidden" id="edit-id" value="">
+    </div>
+
+    <!-- 备忘录列表 -->
+    <div class="memo-list" id="memo-list">
+        <div class="empty-state">📭 还没有备忘录，点击「新建」开始吧</div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 前端逻辑：通过 Tauri invoke 调用 Rust 后端
+// ============================================================
+
+// 实际 Tauri 项目中，使用 @tauri-apps/api：
+// import { invoke } from '@tauri-apps/api/core';
+// 这里用全局 invoke 模拟（Tauri 会注入到 window）
+
+const invoke = window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke;
+
+// 加载备忘录列表
+async function loadMemos() {
+    const search = document.getElementById('search-input').value || null;
+    try {
+        const memos = await invoke('get_memos', { tagFilter: null, search });
+        renderMemos(memos);
+    } catch (e) {
+        console.error('加载失败:', e);
+        // 演示模式下显示模拟数据
+        renderMemos(getDemoMemos());
+    }
+}
+
+// 渲染备忘录卡片
+function renderMemos(memos) {
+    const container = document.getElementById('memo-list');
+    if (!memos || memos.length === 0) {
+        container.innerHTML = '<div class="empty-state">📭 没有找到匹配的备忘录</div>';
+        return;
+    }
+
+    // 置顶优先
+    memos.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+    container.innerHTML = memos.map(m => `
+        <div class="memo-card ${m.pinned ? 'pinned' : ''}">
+            <h4>${m.pinned ? '📌 ' : ''}${escapeHtml(m.title)}</h4>
+            <p>${escapeHtml(m.content)}</p>
+            <div class="meta">
+                <span>🕐 ${m.created_at}</span>
+                ${(m.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+            </div>
+            <div class="memo-actions">
+                <button class="btn btn-sm" onclick="togglePin(${m.id})"
+                        style="background:${m.pinned ? '#f39c12' : '#dfe6e9'}">
+                    ${m.pinned ? '📌' : '📍'}
+                </button>
+                <button class="btn btn-sm btn-primary" onclick="editMemo(${m.id})">✏️</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteMemo(${m.id})">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+
+    // 更新统计
+    updateStats(memos);
+}
+
+function updateStats(memos) {
+    document.getElementById('stat-total').textContent =
+        `📋 总计 ${memos.length}`;
+    document.getElementById('stat-pinned').textContent =
+        `📌 置顶 ${memos.filter(m => m.pinned).length}`;
+    const allTags = new Set(memos.flatMap(m => m.tags || []));
+    document.getElementById('stat-tags').textContent =
+        `🏷️ 标签 ${allTags.size}`;
+}
+
+// 新建/编辑表单
+function showForm(id = null) {
+    document.getElementById('form-card').style.display = 'block';
+    document.getElementById('form-title').textContent = id ? '编辑备忘录' : '新建备忘录';
+    document.getElementById('edit-id').value = id || '';
+    if (!id) {
+        document.getElementById('memo-title').value = '';
+        document.getElementById('memo-content').value = '';
+        document.getElementById('memo-tags').value = '';
+    }
+}
+
+function cancelForm() {
+    document.getElementById('form-card').style.display = 'none';
+}
+
+async function saveMemo() {
+    const id = document.getElementById('edit-id').value;
+    const title = document.getElementById('memo-title').value.trim();
+    const content = document.getElementById('memo-content').value.trim();
+    const tags = document.getElementById('memo-tags').value
+        .split(',').map(t => t.trim()).filter(Boolean);
+
+    if (!title) { alert('请输入标题'); return; }
+
+    try {
+        if (id) {
+            await invoke('update_memo', {
+                id: parseInt(id), title, content, tags: { value: tags }, pinned: null
+            });
+        } else {
+            await invoke('create_memo', { title, content, tags });
+        }
+        cancelForm();
+        loadMemos();
+    } catch (e) {
+        console.error('保存失败:', e);
+        alert('保存失败，请查看控制台');
+    }
+}
+
+let _editingMemo = null; // 存储当前编辑的备忘录数据
+
+async function editMemo(id) {
+    try {
+        const memos = await invoke('get_memos', { tagFilter: null, search: null });
+        const memo = memos.find(m => m.id === id);
+        if (memo) {
+            _editingMemo = memo;
+            showForm(id);
+            document.getElementById('memo-title').value = memo.title;
+            document.getElementById('memo-content').value = memo.content;
+            document.getElementById('memo-tags').value = (memo.tags || []).join(', ');
+        }
+    } catch (e) {
+        // 演示模式
+        const demos = getDemoMemos();
+        const memo = demos.find(m => m.id === id);
+        if (memo) {
+            _editingMemo = memo;
+            showForm(id);
+            document.getElementById('memo-title').value = memo.title;
+            document.getElementById('memo-content').value = memo.content;
+            document.getElementById('memo-tags').value = (memo.tags || []).join(', ');
+        }
+    }
+}
+
+async function togglePin(id) {
+    try {
+        await invoke('toggle_pin', { id });
+        loadMemos();
+    } catch (e) {
+        console.error('操作失败:', e);
+    }
+}
+
+async function deleteMemo(id) {
+    if (!confirm('确定删除这条备忘录吗？')) return;
+    try {
+        await invoke('delete_memo', { id });
+        loadMemos();
+    } catch (e) {
+        console.error('删除失败:', e);
+    }
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// 演示数据
+function getDemoMemos() {
+    return [
+        { id:1, title:'🦀 学习 Rust 所有权', content:'用房子产权、图书馆借书、搬家来理解所有权、借用和生命周期。', tags:['Rust','学习'], created_at:'2024-12-01 10:30', pinned:true },
+        { id:2, title:'📝 周会记录', content:'讨论了 Q1 产品路线图，确定了技术选型方案。', tags:['工作','会议'], created_at:'2024-12-03 14:00', pinned:false },
+        { id:3, title:'🎯 Tauri 项目搭建', content:'用 Tauri 2.0 + Rust 后端 + HTML/CSS 前端构建桌面应用。后端用 Mutex 管理状态，前端通过 invoke 调用命令。', tags:['Tauri','项目','Rust'], created_at:'2024-12-05 09:15', pinned:false },
+    ];
+}
+
+// 页面加载
+loadMemos();
+</script>
+</body>
+</html>
