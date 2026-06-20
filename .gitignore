@@ -1,5 +1,7 @@
-# uv venv
+# macOS
+.DS_Store
 
+# uv venv
 .venv/
 # vscode
 .vscode/
@@ -12,6 +14,12 @@ smartboard/node_modules/
 smartboard/node_modules/**/*
 smartboard/src-tauri/target/
 smartboard/src-tauri/target/**/*
+smartboard/.vite/
+smartboard/.DS_Store
+smartboard/**/.DS_Store
+smartboard/**/*.local
+smartboard/*.html
+!smartboard/index.html
 
 
 # quarto
