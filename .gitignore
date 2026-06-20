@@ -1,0 +1,22 @@
+# uv venv
+
+.venv/
+# vscode
+.vscode/
+# node
+node_modules/
+
+#smartboard
+smartboard/dist/
+smartboard/node_modules/
+smartboard/node_modules/**/*
+smartboard/src-tauri/target/
+smartboard/src-tauri/target/**/*
+
+
+# quarto
+.quarto/
+
+# python
+.pytest_cache/
+.mypy_cache/
