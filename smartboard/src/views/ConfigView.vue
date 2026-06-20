@@ -387,6 +387,7 @@ const dataStore = useDataStore()
 const configStore = useConfigStore()
 
 // ====== Drag state ======
+const dragList = ref<'kpi' | 'chart' | null>(null)
 const dragIdx = ref(-1)
 const dragPlaceholder = ref(-1)
 let dragGhost: HTMLElement | null = null
