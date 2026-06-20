@@ -1,0 +1,14 @@
+/Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/09_Rust_Tauri应用/target/debug/deps/serde-ffe1b0012f2abb1b.d: /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/09_Rust_Tauri应用/target/debug/build/serde-ed3d927fc6099e73/out/private.rs
+
+/Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/09_Rust_Tauri应用/target/debug/deps/libserde-ffe1b0012f2abb1b.rlib: /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/09_Rust_Tauri应用/target/debug/build/serde-ed3d927fc6099e73/out/private.rs
+
+/Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/09_Rust_Tauri应用/target/debug/deps/libserde-ffe1b0012f2abb1b.rmeta: /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/09_Rust_Tauri应用/target/debug/build/serde-ed3d927fc6099e73/out/private.rs
+
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/09_Rust_Tauri应用/target/debug/build/serde-ed3d927fc6099e73/out/private.rs:
+
+# env-dep:OUT_DIR=/Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/09_Rust_Tauri应用/target/debug/build/serde-ed3d927fc6099e73/out
