@@ -70,7 +70,7 @@
             </div>
             <div class="kpi-content">
               <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix)
-              }}</span>
+                }}</span>
               <span class="kpi-label">{{ kpi.label }}</span>
             </div>
           </div>
@@ -106,11 +106,20 @@
             </template>
 
             <!-- 基础图表 -->
-            <template v-else>
-              <div class="chart-container">
-                <v-chart :option="getChartOption(chart)" :theme="theme === 'dark' ? 'dark' : ''" autoresize
-                  style="flex:1;min-height:200px" />
-              </div>
+            <template v-else-if="chart.type === 'bar'">
+              <BarChart :chart="chart" :rows="chartRows" />
+            </template>
+            <template v-else-if="chart.type === 'horizontal_bar'">
+              <HorizontalBarChart :chart="chart" :rows="chartRows" />
+            </template>
+            <template v-else-if="chart.type === 'doughnut'">
+              <DoughnutChart :chart="chart" :rows="chartRows" />
+            </template>
+            <template v-else-if="chart.type === 'histogram'">
+              <HistogramChart :chart="chart" :rows="chartRows" />
+            </template>
+            <template v-else-if="chart.type === 'line'">
+              <LineChart :chart="chart" :rows="chartRows" />
             </template>
           </div>
         </div>
@@ -196,6 +205,11 @@ import { zhCN } from 'date-fns/locale'
 import TimeseriesChart from '@/components/dashboard/TimeseriesChart.vue'
 import DecileChart from '@/components/dashboard/DecileChart.vue'
 import ClusterChart from '@/components/dashboard/ClusterChart.vue'
+import BarChart from '@/components/dashboard/BarChart.vue'
+import HorizontalBarChart from '@/components/dashboard/HorizontalBarChart.vue'
+import DoughnutChart from '@/components/dashboard/DoughnutChart.vue'
+import HistogramChart from '@/components/dashboard/HistogramChart.vue'
+import LineChart from '@/components/dashboard/LineChart.vue'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { usePreviewStore } from '@/stores/preview-store'
@@ -286,11 +300,7 @@ function toggleActiveColumn(col: string) {
   }
 }
 
-// ====== Color palette (matches dashboard_gen.py) ======
-const COLORS = [
-  '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',
-  '#06B6D4', '#84CC16', '#F97316', '#14B8A6', '#6366F1', '#D946EF',
-]
+import { COLORS, fmt, fmtCompact, getNumericVal } from '@/core/chart-options'
 
 // KPI card colors — theme-aware
 const KPI_BG_LIGHT = ['#EBF5FF', '#ECFDF5', '#FFFBEB', '#FEF2F2', '#F5F3FF', '#ECFEFF']
@@ -300,31 +310,6 @@ const KPI_TEXT_DARK = ['#93c5fd', '#6ee7b7', '#fcd34d', '#fca5a5', '#c4b5fd', '#
 
 const KPI_BG = computed(() => theme.value === 'dark' ? KPI_BG_DARK : KPI_BG_LIGHT)
 const KPI_TEXT = computed(() => theme.value === 'dark' ? KPI_TEXT_DARK : KPI_TEXT_LIGHT)
-
-// ====== Formatting utilities ======
-function fmt(n: number | null | undefined, dec?: number): string {
-  if (n == null || isNaN(n)) return '0'
-  const d = dec !== undefined ? dec : 2
-  return Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: d })
-}
-
-function fmtCompact(n: number | null | undefined): string {
-  if (n == null || isNaN(n)) return '0'
-  const a = Math.abs(n)
-  if (a >= 1e8) return (n / 1e8).toFixed(1) + '亿'
-  if (a >= 1e4) return (n / 1e4).toFixed(1) + '万'
-  return fmt(n)
-}
-
-function getNumericVal(v: string | number | undefined): number {
-  if (v === undefined || v === null || v === '') return NaN
-  if (typeof v === 'number') return v
-  let s = String(v).trim()
-  if (s.endsWith('%')) s = s.slice(0, -1)
-  s = s.replace(/,/g, '')
-  const n = parseFloat(s)
-  return isNaN(n) ? NaN : n
-}
 
 // ====== Date picker bridge (local ref ↔ store) ======
 const dateStart = ref(previewStore.dateRange.start)
@@ -1003,281 +988,7 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   return chart.type === 'timeseries' || chart.type === 'decile' || chart.type === 'cluster'
 }
 
-// ====== ECharts option dispatcher ======
-function getChartOption(chart: ChartSpec) {
-  const rows = getRows()
-  switch (chart.type) {
-    case 'bar': return buildBarOption(chart, rows)
-    case 'horizontal_bar': return buildHorizontalBarOption(chart, rows)
-    case 'doughnut': return buildPieOption(chart, rows)
-    case 'histogram': return buildHistogramOption(chart, rows)
-    case 'line': return buildLineOption(chart, rows)
-    default: return {}
-  }
-}
 
-// ====== BAR — multi-metric grouped ======
-function buildBarOption(chart: ChartSpec, rows: Record<string, string | number>[]) {
-  const dimCol = chart.dimension
-  const metricCols = chart.metrics || (chart.metric ? [chart.metric] : [])
-  if (!dimCol || metricCols.length === 0) return {}
-
-  // Group by dimension, compute sum for each metric
-  const groups: Record<string, Record<string, number[]>> = {}
-  for (const row of rows) {
-    const key = String(row[dimCol] || '未知')
-    if (!groups[key]) groups[key] = {}
-    for (const m of metricCols) {
-      if (!groups[key][m]) groups[key][m] = []
-      const v = getNumericVal(row[m])
-      if (!isNaN(v)) groups[key][m].push(v)
-    }
-  }
-  const labels = Object.keys(groups).sort()
-
-  const series = metricCols.map((m, mi) => ({
-    name: m,
-    type: 'bar' as const,
-    data: labels.map((k) => {
-      const arr = groups[k]?.[m] || []
-      return arr.length ? arr.reduce((a, b) => a + b, 0) : 0
-    }),
-    itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS[mi % COLORS.length] },
-  }))
-
-  return {
-    tooltip: {
-      trigger: 'axis' as const,
-      formatter: (params: any) => {
-        if (!Array.isArray(params)) return ''
-        return params.map((p: any) => `${p.seriesName}: ${fmt(p.value)}`).join('<br/>')
-      },
-    },
-    legend: metricCols.length > 1 ? { bottom: 0, textStyle: { fontSize: 11 } } : undefined,
-    grid: { left: 60, right: 20, top: 20, bottom: metricCols.length > 1 ? 40 : 50 },
-    xAxis: {
-      type: 'category' as const,
-      data: labels,
-      axisLabel: { rotate: labels.length > 8 ? 30 : 0, fontSize: 11 },
-    },
-    yAxis: {
-      type: 'value' as const,
-      axisLabel: { fontSize: 11, formatter: (v: number) => fmtCompact(v) },
-    },
-    series,
-  }
-}
-
-// ====== HORIZONTAL BAR — single metric, sorted ascending ======
-function buildHorizontalBarOption(chart: ChartSpec, rows: Record<string, string | number>[]) {
-  const dimCol = chart.dimension
-  if (!dimCol) return {}
-
-  const metricCol = chart.metric || (chart.metrics && chart.metrics[0])
-  const aggFunc = metricCol ? 'sum' : 'count'
-  const aggData = previewStore.getAggData(dimCol, metricCol || 'count', aggFunc)
-
-  // Sort ascending so largest bar is at top
-  aggData.sort((a, b) => a.value - b.value)
-
-  // Dynamic left margin based on longest label
-  // CJK chars ~12px, ASCII ~7px at font-size 11; add 20px padding
-  const estLabelWidth = aggData.reduce((m, d) => {
-    let w = 0
-    for (const ch of d.label) w += ch.charCodeAt(0) > 127 ? 12 : 7
-    return Math.max(m, w)
-  }, 0)
-  const gridLeft = Math.max(40, estLabelWidth + 20)
-
-  return {
-    tooltip: {
-      trigger: 'axis' as const,
-      formatter: (params: any) => {
-        if (!Array.isArray(params)) return ''
-        return params.map((p: any) => `${p.name}: ${fmt(p.value)}`).join('<br/>')
-      },
-    },
-    grid: { left: gridLeft, right: 30, top: 10, bottom: 20 },
-    xAxis: {
-      type: 'value' as const,
-      axisLabel: { fontSize: 11, formatter: (v: number) => fmtCompact(v) },
-    },
-    yAxis: {
-      type: 'category' as const,
-      data: aggData.map((d) => d.label),
-      axisLabel: { fontSize: 11 },
-    },
-    series: [{
-      type: 'bar',
-      data: aggData.map((d) => d.value),
-      itemStyle: { borderRadius: [0, 4, 4, 0], color: COLORS[0] },
-    }],
-  }
-}
-
-// ====== DOUGHNUT — legend bottom, color palette ======
-function buildPieOption(chart: ChartSpec, rows: Record<string, string | number>[]) {
-  const dimCol = chart.dimension
-  const metricCol = chart.metric
-  if (!dimCol) return {}
-
-  let aggData
-  if (metricCol && metricCol !== 'count') {
-    aggData = previewStore.getAggData(dimCol, metricCol, chart.agg || 'sum')
-  } else {
-    // Count mode
-    const freq: Record<string, number> = {}
-    for (const row of rows) {
-      const key = String(row[dimCol] || '未知')
-      freq[key] = (freq[key] || 0) + 1
-    }
-    aggData = Object.entries(freq)
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value)
-  }
-
-  return {
-    color: COLORS.slice(0, aggData.length),
-    tooltip: {
-      trigger: 'item' as const,
-      formatter: '{b}: {c} ({d}%)',
-    },
-    legend: {
-      bottom: 0,
-      textStyle: { fontSize: 11 },
-    },
-    series: [{
-      type: 'pie',
-      radius: ['40%', '65%'],
-      center: ['50%', '45%'],
-      avoidLabelOverlap: true,
-      data: aggData.map((d) => ({ name: d.label, value: d.value })),
-      label: { fontSize: 11 },
-      itemStyle: { borderColor: '#fff', borderWidth: 2 },
-    }],
-  }
-}
-
-// ====== HISTOGRAM — sqrt(N) bins clamped 5-10, range labels ======
-function buildHistogramOption(chart: ChartSpec, rows: Record<string, string | number>[]) {
-  const col = chart.metric
-  if (!col) return {}
-
-  const values = rows
-    .map((r) => getNumericVal(r[col]))
-    .filter((n) => !isNaN(n))
-
-  if (values.length === 0) return {}
-
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-
-  if (min === max) {
-    return {
-      tooltip: { trigger: 'axis' as const },
-      grid: { left: 50, right: 20, top: 10, bottom: 30 },
-      xAxis: { type: 'category' as const, data: [fmtCompact(min)] },
-      yAxis: { type: 'value' as const, min: 0 },
-      series: [{ type: 'bar', data: [values.length], itemStyle: { color: COLORS[2] } }],
-    }
-  }
-
-  const numBins = Math.min(10, Math.max(5, Math.ceil(Math.sqrt(values.length))))
-  const step = (max - min) / numBins
-  const bins: number[] = new Array(numBins).fill(0)
-  const labels: string[] = []
-
-  for (let i = 0; i < numBins; i++) {
-    const lo = min + step * i
-    const hi = min + step * (i + 1)
-    labels.push(fmtCompact(lo) + '–' + fmtCompact(hi))
-  }
-  for (const v of values) {
-    let idx = Math.floor((v - min) / step)
-    if (idx >= numBins) idx = numBins - 1
-    bins[idx]++
-  }
-
-  // Dynamic bottom based on longest label at rotation
-  const maxLabelPx = labels.reduce((m, l) => {
-    let w = 0
-    for (const ch of l) w += ch.charCodeAt(0) > 127 ? 11 : 6.5
-    return Math.max(m, w)
-  }, 0)
-  const rotateAngle = 35
-  const projectedHeight = Math.ceil(maxLabelPx * Math.sin(rotateAngle * Math.PI / 180))
-  const gridBottom = Math.max(40, projectedHeight + 16)
-
-  return {
-    tooltip: { trigger: 'axis' as const },
-    grid: { left: 50, right: 20, top: 10, bottom: gridBottom },
-    xAxis: {
-      type: 'category' as const,
-      data: labels,
-      axisLabel: { fontSize: 10, rotate: rotateAngle },
-    },
-    yAxis: { type: 'value' as const, min: 0 },
-    series: [{
-      type: 'bar',
-      data: bins,
-      itemStyle: { borderRadius: [2, 2, 0, 0], color: COLORS[2] },
-    }],
-  }
-}
-
-// ====== LINE — monthly aggregation with fill area ======
-function buildLineOption(chart: ChartSpec, rows: Record<string, string | number>[]) {
-  const dateCol = chart.dateColumn
-  const metricCol = chart.metric
-  if (!dateCol || !metricCol) return {}
-
-  // Group by YYYY-MM
-  const monthly: Record<string, number[]> = {}
-  for (const row of rows) {
-    const dv = String(row[dateCol] || '').trim()
-    const m = dv.match(/^(\d{4})[-/.](\d{1,2})/)
-    if (!m) continue
-    const ym = m[1] + '-' + m[2].padStart(2, '0')
-    if (!monthly[ym]) monthly[ym] = []
-    const v = getNumericVal(row[metricCol])
-    if (!isNaN(v)) monthly[ym].push(v)
-  }
-
-  const sortedMonths = Object.keys(monthly).sort()
-  if (sortedMonths.length === 0) return {}
-
-  const sums = sortedMonths.map((m) => monthly[m].reduce((a, b) => a + b, 0))
-
-  return {
-    tooltip: {
-      trigger: 'axis' as const,
-      formatter: (params: any) => {
-        if (!Array.isArray(params)) return ''
-        return params.map((p: any) => `${p.seriesName}: ${fmt(p.value)}`).join('<br/>')
-      },
-    },
-    grid: { left: 60, right: 20, top: 10, bottom: 60 },
-    xAxis: {
-      type: 'category' as const,
-      data: sortedMonths,
-      axisLabel: { rotate: 30, fontSize: 11 },
-    },
-    yAxis: {
-      type: 'value' as const,
-      axisLabel: { fontSize: 11, formatter: (v: number) => fmtCompact(v) },
-    },
-    dataZoom: [{ type: 'inside' as const }],
-    series: [{
-      type: 'line',
-      name: metricCol,
-      data: sums,
-      smooth: true,
-      lineStyle: { color: COLORS[0], width: 2 },
-      itemStyle: { color: COLORS[0] },
-      areaStyle: { color: COLORS[0] + '22' },
-    }],
-  }
-}
 </script>
 
 <style scoped>
