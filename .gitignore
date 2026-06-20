@@ -20,3 +20,6 @@ smartboard/src-tauri/target/**/*
 # python
 .pytest_cache/
 .mypy_cache/
+
+#rust
+09_Rust_Tauri应用/target/
