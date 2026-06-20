@@ -4,12 +4,14 @@ import type { DashboardSpec, KpiSpec, ChartSpec, FilterSpec, TableSpec } from '@
 import { useDataStore } from './data-store'
 import { useConfigStore } from './config-store'
 import { aggregate } from '@/core/aggregator'
+import { applyFilter } from '@/core/filter'
 
 export const usePreviewStore = defineStore('preview', () => {
   const filteredRows = ref<Record<string, string | number>[]>([])
   const filterValues = ref<Record<string, string>>({})
   const dateRange = ref<{ start: string; end: string }>({ start: '', end: '' })
   const searchText = ref('')
+  const conditionFilter = ref('')
 
   const dataStore = useDataStore()
   const configStore = useConfigStore()
@@ -26,6 +28,8 @@ export const usePreviewStore = defineStore('preview', () => {
       agg: k.agg,
       format: k.format,
       prefix: k.prefix,
+      filter: k.filter,
+      formula: k.formula,
     }))
 
     const charts: ChartSpec[] = cfg.charts.map((c) => ({
@@ -113,35 +117,68 @@ export const usePreviewStore = defineStore('preview', () => {
       )
     }
 
+    // Apply condition filter
+    if (conditionFilter.value.trim()) {
+      rows = applyFilter(rows, undefined, conditionFilter.value)
+    }
+
     filteredRows.value = rows
   }
 
-  // 计算 KPI 值
-  function computeKpiValue(kpi: KpiSpec): number {
-    const rows = filteredRows.value.length > 0 ? filteredRows.value : (dataStore.dataSet?.rows ?? [])
-    if (kpi.agg === 'count') return rows.length
-
-    const values = rows.map((r) => {
-      const v = r[kpi.column]
+  // 计算单列聚合值
+  function computeColumnValue(
+    column: string,
+    agg: string,
+    rows: Record<string, string | number>[],
+    filter?: string,
+  ): number {
+    const filtered = applyFilter(rows, filter)
+    if (agg === 'count') return filtered.length
+    const values = filtered.map((r) => {
+      const v = r[column]
       if (v === undefined || v === null || v === '') return 0
       if (typeof v === 'number') return v
       const s = String(v).replace(/,/g, '').replace(/%/g, '').trim()
       const n = Number(s)
       return isNaN(n) ? 0 : n
     })
-
-    switch (kpi.agg) {
-      case 'sum':
-        return values.reduce((a, b) => a + b, 0)
-      case 'avg':
-        return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0
-      case 'min':
-        return Math.min(...values)
-      case 'max':
-        return Math.max(...values)
-      default:
-        return values.reduce((a, b) => a + b, 0)
+    switch (agg) {
+      case 'sum': return values.reduce((a, b) => a + b, 0)
+      case 'avg': return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0
+      case 'min': return values.length > 0 ? Math.min(...values) : 0
+      case 'max': return values.length > 0 ? Math.max(...values) : 0
+      default: return values.reduce((a, b) => a + b, 0)
     }
+  }
+
+  // 计算 KPI 值
+  function computeKpiValue(kpi: KpiSpec): number {
+    const rows = filteredRows.value.length > 0 ? filteredRows.value : (dataStore.dataSet?.rows ?? [])
+
+    // 公式 KPI
+    if (kpi.formula && kpi.formula.variables.length > 0) {
+      const varValues = kpi.formula.variables.map((v) =>
+        computeColumnValue(v.column, v.agg, rows, v.filter),
+      )
+      try {
+        let expr = kpi.formula.expression
+        for (let i = 0; i < varValues.length; i++) {
+          expr = expr.replace(new RegExp(`\\[${i}\\]`, 'g'), String(varValues[i]))
+        }
+        const result = new Function(`"use strict"; return (${expr})`)()
+        if (typeof result === 'number' && isFinite(result) && !isNaN(result)) {
+          return result
+        }
+        console.warn('[KPI Formula] 计算结果无效:', kpi.label, expr, '→', result)
+        return 0
+      } catch (e) {
+        console.warn('[KPI Formula] 表达式错误:', kpi.label, kpi.formula.expression, e)
+        return 0
+      }
+    }
+
+    // 单列 KPI
+    return computeColumnValue(kpi.column, kpi.agg, rows, kpi.filter)
   }
 
   // 获取筛选选项
@@ -169,6 +206,7 @@ export const usePreviewStore = defineStore('preview', () => {
     filterValues,
     dateRange,
     searchText,
+    conditionFilter,
     rowCount,
     buildSpec,
     applyFilters,

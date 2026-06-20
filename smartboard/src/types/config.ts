@@ -16,6 +16,13 @@ export interface KpiFormItem {
   agg: 'sum' | 'avg' | 'count' | 'min' | 'max'
   format: string
   prefix: string
+  /** 行筛选（单列 + 公式均可用） */
+  filter?: string
+  /** 多列公式 KPI */
+  formula?: {
+    variables: { column: string; agg: string; filter?: string }[]
+    expression: string
+  }
 }
 
 /** 图表表单项 */

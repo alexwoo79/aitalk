@@ -16,7 +16,8 @@
       <div class="filter-bar">
         <div v-for="f in spec.filters" :key="f.column" class="filter-item">
           <label>{{ f.column }}</label>
-          <select v-model="previewStore.filterValues[f.column]" @change="onFilterChange" class="filter-select">
+          <select v-model="previewStore.filterValues[f.column]" @change="onFilterChange"
+            class="input input-sm filter-select">
             <option value="__all__">全部</option>
             <option v-for="opt in previewStore.getFilterOptions(f.column)" :key="opt" :value="opt">
               {{ opt }}
@@ -25,13 +26,24 @@
         </div>
         <div class="filter-item">
           <label>搜索</label>
-          <input type="text" v-model="previewStore.searchText" @input="onFilterChange" class="search-input"
-            placeholder="输入关键字..." />
+          <input type="text" v-model="previewStore.searchText" @input="onFilterChange"
+            class="input input-sm search-input" placeholder="输入关键字..." />
+        </div>
+        <div class="filter-item">
+          <label>条件</label>
+          <input type="text" v-model="previewStore.conditionFilter" @input="onFilterChange"
+            class="input input-sm condition-input" list="condition-cols" placeholder="如: 金额 > 100" />
+          <datalist id="condition-cols">
+            <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
+            <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
+            <option v-for="col in allHeaders" :key="col + '_gt'" :value="col + ' > '" />
+            <option v-for="col in allHeaders" :key="col + '_lt'" :value="col + ' < '" />
+          </datalist>
         </div>
         <div class="filter-actions">
-          <button class="btn btn-reset" @click="resetFilters">重置筛选</button>
-          <button class="btn btn-clear" @click="clearDashboard">Clear</button>
-          <button class="btn btn-save" @click="saveDashboard">Save</button>
+          <button class="btn btn-sm btn-reset" @click="resetFilters">重置筛选</button>
+          <button class="btn btn-sm btn-clear" @click="clearDashboard">Clear</button>
+          <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
         </div>
         <span class="filter-count">当前筛选: {{ previewStore.rowCount }} 条记录</span>
       </div>
@@ -70,7 +82,7 @@
             </div>
             <div class="kpi-content">
               <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix)
-                }}</span>
+              }}</span>
               <span class="kpi-label">{{ kpi.label }}</span>
             </div>
           </div>
@@ -107,19 +119,19 @@
 
             <!-- 基础图表 -->
             <template v-else-if="chart.type === 'bar'">
-              <BarChart :chart="chart" :rows="chartRows" />
+              <BarChartComponent :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
             </template>
             <template v-else-if="chart.type === 'horizontal_bar'">
-              <HorizontalBarChart :chart="chart" :rows="chartRows" />
+              <HorizontalBarChart :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
             </template>
             <template v-else-if="chart.type === 'doughnut'">
-              <DoughnutChart :chart="chart" :rows="chartRows" />
+              <DoughnutChart :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
             </template>
             <template v-else-if="chart.type === 'histogram'">
-              <HistogramChart :chart="chart" :rows="chartRows" />
+              <HistogramChart :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
             </template>
             <template v-else-if="chart.type === 'line'">
-              <LineChart :chart="chart" :rows="chartRows" />
+              <LineChartComponent :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
             </template>
           </div>
         </div>
@@ -133,12 +145,24 @@
             <h3>数据表 · {{ tableRows.length }}<span v-if="tableSearch.trim()"> (匹配)</span> / {{ activeTopN }} 行</h3>
             <div class="table-controls">
               <div class="control-group">
-                <input type="text" v-model="tableSearch" class="table-search" placeholder="搜索..." />
+                <input type="text" v-model="tableSearch" class="input input-xs table-search" placeholder="搜索..." />
                 <button v-if="tableSearch" class="search-clear" @click="tableSearch = ''">✕</button>
               </div>
               <div class="control-group">
+                <label>条件</label>
+                <input type="text" v-model="tableCondition" class="input input-xs table-cond" list="table-cond-cols"
+                  placeholder="金额 > 100" />
+                <datalist id="table-cond-cols">
+                  <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
+                  <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
+                  <option v-for="col in allHeaders" :key="col + '_gt'" :value="col + ' > '" />
+                  <option v-for="col in allHeaders" :key="col + '_lt'" :value="col + ' < '" />
+                </datalist>
+              </div>
+              <div class="control-group">
                 <label>行数</label>
-                <input type="number" v-model.number="activeTopN" class="table-input" min="5" max="500" step="5" />
+                <input type="number" v-model.number="activeTopN" class="input input-xs table-input" min="5" max="500"
+                  step="5" />
               </div>
               <div class="control-group col-picker" v-if="showColPicker">
                 <div class="picker-panel">
@@ -147,7 +171,7 @@
                     <button class="btn-link" @click="activeColumns = []">清空</button>
                   </div>
                   <div class="picker-chips">
-                    <label v-for="col in allColumns" :key="col" class="picker-chip"
+                    <label v-for="col in allColumns" :key="col" class="chip sm picker-chip"
                       :class="{ active: activeColumns.includes(col) }">
                       <input type="checkbox" :checked="activeColumns.includes(col)" @change="toggleActiveColumn(col)"
                         hidden />
@@ -205,11 +229,11 @@ import { zhCN } from 'date-fns/locale'
 import TimeseriesChart from '@/components/dashboard/TimeseriesChart.vue'
 import DecileChart from '@/components/dashboard/DecileChart.vue'
 import ClusterChart from '@/components/dashboard/ClusterChart.vue'
-import BarChart from '@/components/dashboard/BarChart.vue'
+import BarChartComponent from '@/components/dashboard/BarChart.vue'
 import HorizontalBarChart from '@/components/dashboard/HorizontalBarChart.vue'
 import DoughnutChart from '@/components/dashboard/DoughnutChart.vue'
 import HistogramChart from '@/components/dashboard/HistogramChart.vue'
-import LineChart from '@/components/dashboard/LineChart.vue'
+import LineChartComponent from '@/components/dashboard/LineChart.vue'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { usePreviewStore } from '@/stores/preview-store'
@@ -218,6 +242,7 @@ import { writeTextFile } from '@tauri-apps/plugin-fs'
 import type { ChartSpec, KpiSpec } from '@/types/spec'
 import echartsCode from 'echarts/dist/echarts.min.js?raw'
 import { useTheme } from '@/composables/use-theme'
+import { applyFilter } from '@/core/filter'
 
 use([
   CanvasRenderer, BarChart, PieChart, LineChart, ScatterChart,
@@ -277,6 +302,7 @@ const activeColumns = ref<string[]>([])
 const activeTopN = ref(15)
 const showColPicker = ref(false)
 const tableSearch = ref('')
+const tableCondition = ref('')
 
 // Available columns from the dataset
 const allColumns = computed(() => dataStore.dataSet?.headers ?? [])
@@ -344,13 +370,11 @@ function onFilterChange() {
 const dashboardCleared = ref(false)
 
 function resetFilters() {
-  // Reset all filter values to "全部"
   for (const key of Object.keys(previewStore.filterValues)) {
     previewStore.filterValues[key] = '__all__'
   }
-  // Reset search
   previewStore.searchText = ''
-  // Reset date range to full range
+  previewStore.conditionFilter = ''
   if (spec.value?.dateRange) {
     previewStore.dateRange.start = spec.value.dateRange.min
     previewStore.dateRange.end = spec.value.dateRange.max
@@ -953,6 +977,11 @@ const tableRows = computed(() => {
     )
   }
 
+  // 表条件筛选（不影响图表）
+  if (tableCondition.value.trim()) {
+    filtered = applyFilter(filtered, undefined, tableCondition.value)
+  }
+
   // 排序
   let sorted = [...filtered]
   if (sortCol.value) {
@@ -977,6 +1006,10 @@ function getRows(): Record<string, string | number>[] {
 }
 
 const chartRows = computed(() => getRows())
+
+const allHeaders = computed(() => {
+  return dataStore.dataSet?.headers ?? []
+})
 
 const allMetricCols = computed(() => {
   const ds = dataStore.dataSet
@@ -1084,30 +1117,15 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 }
 
 .filter-select {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-  background: var(--bg);
-  color: var(--text-primary);
   min-width: 120px;
 }
 
 .search-input {
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
   width: 180px;
-  background: var(--bg);
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 0.2s;
 }
 
-.search-input:focus {
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+.condition-input {
+  width: 220px;
 }
 
 .filter-actions {
@@ -1117,20 +1135,16 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 }
 
 .btn-reset {
-  background: var(--bg-surface);
   color: var(--text-secondary);
-  border: 1px solid var(--border);
 }
 
 .btn-reset:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .btn-clear {
   color: var(--error);
   border-color: var(--error);
-  background: var(--bg-surface);
   opacity: 0.8;
 }
 
@@ -1142,7 +1156,6 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 .btn-save {
   color: var(--primary);
   border-color: var(--primary);
-  background: var(--bg-surface);
   opacity: 0.8;
 }
 
@@ -1352,12 +1365,6 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   min-height: 360px;
 }
 
-.chart-container {
-  flex: 1;
-  min-height: 200px;
-  min-width: 0;
-}
-
 /* Data table */
 .data-table-section {
   background: var(--bg-surface);
@@ -1405,28 +1412,14 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 
 .table-input {
   width: 70px;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-  background: var(--bg);
-  color: var(--text-primary);
 }
 
 .table-search {
-  width: 160px;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-  background: var(--bg);
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 0.2s;
+  width: 170px;
 }
 
-.table-search:focus {
-  border-color: var(--primary);
+.table-cond {
+  width: 200px;
 }
 
 .search-clear {
@@ -1441,33 +1434,6 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 
 .search-clear:hover {
   color: var(--text-primary);
-}
-
-.btn-sm {
-  padding: 4px 12px;
-  font-size: 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.btn-sm:hover {
-  background: var(--bg-hover);
-}
-
-.btn-link {
-  background: none;
-  border: none;
-  color: var(--primary);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 0;
-}
-
-.btn-link:hover {
-  text-decoration: underline;
 }
 
 .col-picker {
@@ -1501,17 +1467,6 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.picker-chip {
-  display: inline-flex;
-  padding: 4px 10px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s;
-  user-select: none;
 }
 
 .picker-chip.active {
@@ -1574,16 +1529,24 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 /* VueDatePicker global overrides — must be non-scoped to penetrate component */
 .date-range-bar .dp__input_wrap {
   width: 128px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .date-range-bar .dp__input_wrap input {
-  font-size: 12px !important;
-  padding: 5px 8px !important;
+  height: 32px !important;
+  padding: 0 10px !important;
+  font-size: 13px !important;
+  line-height: 30px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
 }
 
 .date-range-bar .dp__input {
-  font-size: 12px !important;
-  padding: 5px 8px !important;
+  height: 32px !important;
+  padding: 0 10px !important;
+  font-size: 13px !important;
+  line-height: 30px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
 }
 </style>

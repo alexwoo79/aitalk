@@ -22,6 +22,12 @@ export interface KpiSpec {
   format: string
   prefix: string
   icon?: string
+  filter?: string
+  /** 多列公式 KPI */
+  formula?: {
+    variables: { column: string; agg: string; filter?: string }[]
+    expression: string
+  }
 }
 
 /** 图表 */

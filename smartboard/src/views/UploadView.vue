@@ -13,7 +13,7 @@
 
     <div v-if="dataStore.error" class="error-banner">
       <span>{{ dataStore.error }}</span>
-      <button @click="dataStore.clearData()">关闭</button>
+      <button class="btn" @click="dataStore.clearData()">关闭</button>
     </div>
 
     <DataPreview v-if="dataStore.dataSet" :data-set="dataStore.dataSet" @next="goToConfig" />
@@ -82,7 +82,9 @@ function goToConfig() {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .error-banner {
@@ -94,14 +96,5 @@ function goToConfig() {
   color: var(--text-error);
   border-radius: 8px;
   margin-bottom: 24px;
-}
-
-.error-banner button {
-  background: none;
-  border: 1px solid var(--text-error);
-  color: var(--text-error);
-  padding: 4px 12px;
-  border-radius: 4px;
-  cursor: pointer;
 }
 </style>

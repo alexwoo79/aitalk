@@ -76,8 +76,8 @@ export function buildBarOption(
         return params.map((p: any) => `${p.seriesName}: ${fmt(p.value)}`).join('<br/>')
       },
     },
-    legend: metricCols.length > 1 ? { bottom: 0, textStyle: { fontSize: 11 } } : undefined,
-    grid: { left: 60, right: 20, top: 20, bottom: metricCols.length > 1 ? 40 : 50 },
+    legend: metricCols.length > 1 ? { top: 0, textStyle: { fontSize: 11 } } : undefined,
+    grid: { left: 60, right: 20, top: metricCols.length > 1 ? 30 : 20, bottom: 30 },
     xAxis: {
       type: 'category' as const,
       data: labels,
@@ -91,25 +91,59 @@ export function buildBarOption(
   }
 }
 
-// ====== HORIZONTAL BAR — single metric, sorted ascending ======
+// ====== HORIZONTAL BAR — multi-metric, sorted ascending ======
 export function buildHorizontalBarOption(
   chart: ChartSpec,
   rows: Record<string, string | number>[],
 ) {
   const dimCol = chart.dimension
-  if (!dimCol) return {}
+  const metricCols = chart.metrics?.length
+    ? chart.metrics
+    : chart.metric
+      ? [chart.metric]
+      : []
+  if (!dimCol || metricCols.length === 0) return {}
 
-  const metricCol = chart.metric || (chart.metrics && chart.metrics[0])
-  const aggFunc: 'sum' | 'avg' | 'count' | 'min' | 'max' = metricCol ? 'sum' : 'count'
-  const aggData = aggregate(rows, dimCol, metricCol || 'count', aggFunc)
+  // Group by dimension, compute sum for each metric
+  const groups: Record<string, Record<string, number[]>> = {}
+  for (const row of rows) {
+    const key = String(row[dimCol] || '未知')
+    if (!groups[key]) groups[key] = {}
+    for (const m of metricCols) {
+      if (!groups[key][m]) groups[key][m] = []
+      const v = getNumericVal(row[m] as any)
+      if (!isNaN(v)) groups[key][m].push(v)
+    }
+  }
+  const labels = Object.keys(groups).sort()
 
-  // Sort ascending so largest bar is at top
-  aggData.sort((a, b) => a.value - b.value)
+  // Sort categories by total value ascending
+  const totals = labels.map((k) =>
+    metricCols.reduce((sum, m) => sum + (groups[k]?.[m] || []).reduce((a, b) => a + b, 0), 0)
+  )
+  const sorted = labels.map((l, i) => ({ label: l, total: totals[i] })).sort((a, b) => a.total - b.total)
+  const sortedLabels = sorted.map((s) => s.label)
 
-  // Dynamic left margin based on longest label
-  const estLabelWidth = aggData.reduce((m, d) => {
+  // Per-metric series
+  const series = metricCols.map((m, mi) => ({
+    name: m,
+    type: 'bar' as const,
+    data: sortedLabels.map((k) => {
+      const arr = groups[k]?.[m] || []
+      return arr.length ? arr.reduce((a, b) => a + b, 0) : 0
+    }),
+    itemStyle: {
+      borderRadius: mi === metricCols.length - 1
+        ? [0, 4, 4, 0] as [number, number, number, number]
+        : [0, 0, 0, 0] as [number, number, number, number],
+      color: COLORS[mi % COLORS.length],
+    },
+  }))
+
+  // Dynamic left margin
+  const estLabelWidth = sortedLabels.reduce((m, l) => {
     let w = 0
-    for (const ch of d.label) w += ch.charCodeAt(0) > 127 ? 12 : 7
+    for (const ch of l) w += ch.charCodeAt(0) > 127 ? 12 : 7
     return Math.max(m, w)
   }, 0)
   const gridLeft = Math.max(40, estLabelWidth + 20)
@@ -119,24 +153,21 @@ export function buildHorizontalBarOption(
       trigger: 'axis' as const,
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
-        return params.map((p: any) => `${p.name}: ${fmt(p.value)}`).join('<br/>')
+        return params.map((p: any) => `${p.seriesName}: ${fmt(p.value)}`).join('<br/>')
       },
     },
-    grid: { left: gridLeft, right: 30, top: 10, bottom: 20 },
+    legend: metricCols.length > 1 ? { top: 0, textStyle: { fontSize: 11 } } : undefined,
+    grid: { left: gridLeft, right: 30, top: metricCols.length > 1 ? 30 : 10, bottom: 20 },
     xAxis: {
       type: 'value' as const,
       axisLabel: { fontSize: 11, formatter: (v: number) => fmtCompact(v) },
     },
     yAxis: {
       type: 'category' as const,
-      data: aggData.map((d) => d.label),
+      data: sortedLabels,
       axisLabel: { fontSize: 11 },
     },
-    series: [{
-      type: 'bar',
-      data: aggData.map((d) => d.value),
-      itemStyle: { borderRadius: [0, 4, 4, 0] as [number, number, number, number], color: COLORS[0] },
-    }],
+    series,
   }
 }
 

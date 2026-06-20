@@ -45,37 +45,18 @@
                 <span class="drag-handle" title="拖拽排序" @pointerdown.prevent="onPointerDown($event, i, 'kpi')">⋮⋮</span>
                 <div class="kpi-item-main">
                   <div class="kpi-item-row">
-                    <input v-model="kpi.label" class="kpi-label-input" placeholder="标签"
-                      @change="configStore.updateKpi(i, { label: kpi.label })" />
-                    <span class="kpi-col-tag">{{ kpi.column }}</span>
+                    <span class="kpi-item-label">{{ kpi.label }}</span>
+                    <span v-if="kpi.formula" class="kpi-formula-tag">公式</span>
+                    <span v-else class="kpi-col-tag">{{ kpi.column }}</span>
+                    <span class="kpi-agg-tag">{{ aggLabel(kpi.agg) }}</span>
+                    <span v-if="kpi.filter" class="kpi-filter-tag" :title="kpi.filter">筛选</span>
+                    <button class="btn-icon" @click="openEditKpi(i)" title="编辑">✎</button>
                     <button class="btn-icon" @click="configStore.removeKpi(i)" title="移除">✕</button>
-                  </div>
-                  <div class="kpi-item-row kpi-item-params">
-                    <select :value="kpi.agg"
-                      @change="configStore.updateKpi(i, { agg: ($event.target as HTMLSelectElement).value as any })"
-                      class="input select-xs">
-                      <option v-for="opt in AGG_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                    </select>
-                    <select :value="kpi.format"
-                      @change="configStore.updateKpi(i, { format: ($event.target as HTMLSelectElement).value })"
-                      class="input select-xs">
-                      <option v-for="opt in KPI_FORMAT_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}
-                      </option>
-                    </select>
-                    <input v-if="kpi.format === 'currency'" :value="kpi.prefix"
-                      @change="configStore.updateKpi(i, { prefix: ($event.target as HTMLInputElement).value })"
-                      class="input input-xs prefix-input" placeholder="前缀 ¥" />
                   </div>
                 </div>
               </div>
             </div>
-            <div v-if="availableMetrics.length > 0" class="add-row">
-              <select v-model="newKpiCol" class="input select-sm">
-                <option value="">选择指标列...</option>
-                <option v-for="col in availableMetrics" :key="col" :value="col">{{ col }}</option>
-              </select>
-              <button class="btn btn-sm" @click="addKpiFromSelect" :disabled="!newKpiCol">添加</button>
-            </div>
+            <button class="btn btn-sm btn-add" @click="openAddKpi">+ 添加KPI卡片</button>
           </section>
 
           <!-- 图表块 -->
@@ -163,6 +144,122 @@
         </div>
       </div>
     </template>
+
+    <!-- KPI 编辑器弹窗 -->
+    <Teleport to="body">
+      <div v-if="showKpiEditor" class="modal-overlay" @click.self="cancelKpiEdit">
+        <div class="modal-dialog">
+          <div class="modal-header">
+            <h3>{{ editingKpiIdx >= 0 ? '编辑KPI卡片' : '新增KPI卡片' }}</h3>
+            <button class="btn-icon" @click="cancelKpiEdit">✕</button>
+          </div>
+          <div class="modal-body">
+            <!-- 模式切换 -->
+            <div class="kpi-mode-toggle">
+              <button class="period-btn" :class="{ active: !kpiForm.useFormula }"
+                @click="kpiForm.useFormula = false">单列</button>
+              <button class="period-btn" :class="{ active: kpiForm.useFormula }"
+                @click="kpiForm.useFormula = true">公式组合</button>
+            </div>
+
+            <!-- 单列模式 -->
+            <template v-if="!kpiForm.useFormula">
+              <div class="editor-grid">
+                <label>指标列</label>
+                <select v-model="kpiForm.column" class="input select-sm">
+                  <option value="">选择指标列...</option>
+                  <option v-for="col in allNumericCols" :key="col" :value="col">{{ col }}</option>
+                </select>
+                <label>标签</label>
+                <input v-model="kpiForm.label" class="input" placeholder="KPI显示标签" />
+                <label>聚合方式</label>
+                <select v-model="kpiForm.agg" class="input select-sm">
+                  <option v-for="opt in KPI_AGG_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
+                <label>筛选(可选)</label>
+                <div class="filter-wrap">
+                  <input v-model="kpiForm.filter" class="input" placeholder="留空=全部" list="filter-cols" />
+                  <datalist id="filter-cols">
+                    <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
+                    <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
+                    <option v-for="col in allHeaders" :key="col + '_gt'" :value="col + ' > '" />
+                    <option v-for="col in allHeaders" :key="col + '_lt'" :value="col + ' < '" />
+                  </datalist>
+                  <span class="filter-hint">格式: 列名 运算符 值。输入列名时自动补全</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- 公式模式 -->
+            <template v-else>
+              <div class="formula-section">
+                <div class="formula-label">变量定义</div>
+                <div v-for="(v, vi) in kpiForm.variables" :key="vi" class="formula-var-row">
+                  <span class="var-index">[{{ vi }}]</span>
+                  <select v-model="v.column" class="input input-sm" style="flex:1">
+                    <option value="">选择列...</option>
+                    <option v-for="col in allNumericCols" :key="col" :value="col">{{ col }}</option>
+                  </select>
+                  <select v-model="v.agg" class="input input-sm" style="width:72px">
+                    <option value="sum">求和</option>
+                    <option value="avg">均值</option>
+                    <option value="count">计数</option>
+                    <option value="min">最小</option>
+                    <option value="max">最大</option>
+                  </select>
+                  <input v-model="v.filter" class="input input-sm formula-filter" placeholder="筛选(可选) 留空=全部"
+                    list="filter-cols-formula" />
+                  <button v-if="kpiForm.variables.length > 1" class="btn-icon" @click="kpiForm.variables.splice(vi, 1)"
+                    title="移除">✕</button>
+                </div>
+                <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">+ 添加变量</button>
+                <datalist id="filter-cols-formula">
+                  <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
+                  <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
+                  <option v-for="col in allHeaders" :key="col + '_gt'" :value="col + ' > '" />
+                  <option v-for="col in allHeaders" :key="col + '_lt'" :value="col + ' < '" />
+                </datalist>
+
+                <div class="formula-label">运算表达式 <span class="formula-hint">双击变量名插入</span></div>
+                <div class="formula-btns">
+                  <button v-for="vi in kpiForm.variables.length" :key="vi" class="period-btn"
+                    @click="insertVar(vi - 1)">[{{ vi - 1 }}]</button>
+                  <span class="toggle-sep" style="margin:0 4px"></span>
+                  <button class="period-btn" @click="insertOp('+')">+</button>
+                  <button class="period-btn" @click="insertOp('-')">−</button>
+                  <button class="period-btn" @click="insertOp('*')">×</button>
+                  <button class="period-btn" @click="insertOp('/')">÷</button>
+                  <button class="period-btn" @click="insertOp('(')">(</button>
+                  <button class="period-btn" @click="insertOp(')')">)</button>
+                </div>
+                <input v-model="kpiForm.expression" class="input formula-input"
+                  placeholder="如: [0] + [1]  或  ([0] - [1]) / [0] * 100" />
+              </div>
+              <div class="editor-grid" style="margin-top:12px">
+                <label>标签</label>
+                <input v-model="kpiForm.label" class="input" placeholder="KPI显示标签" />
+              </div>
+            </template>
+
+            <!-- 公共设置 -->
+            <div class="editor-grid" style="margin-top:12px">
+              <label>数字格式</label>
+              <select v-model="kpiForm.format" class="input select-sm">
+                <option v-for="opt in KPI_FORMAT_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+              </select>
+              <template v-if="kpiForm.format === 'currency'">
+                <label>前缀</label>
+                <input v-model="kpiForm.prefix" class="input input-sm" placeholder="¥" maxlength="4" />
+              </template>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" @click="saveKpi" :disabled="!canSaveKpi">保存</button>
+            <button class="btn" @click="cancelKpiEdit">取消</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- 图表编辑器弹窗 -->
     <Teleport to="body">
@@ -289,8 +386,7 @@ const router = useRouter()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
 
-const newKpiCol = ref('')
-const dragList = ref<'kpi' | 'chart' | null>(null)
+// ====== Drag state ======
 const dragIdx = ref(-1)
 const dragPlaceholder = ref(-1)
 let dragGhost: HTMLElement | null = null
@@ -383,13 +479,6 @@ function onPointerUp(e: PointerEvent) {
   }
 }
 
-const availableMetrics = computed(() => {
-  const ds = dataStore.dataSet
-  if (!ds) return []
-  const used = new Set(configStore.config.kpis.map((k) => k.column))
-  return ds.headers.filter((h) => ds.classifications[h]?.role === 'metric' && !used.has(h))
-})
-
 const numericCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
@@ -412,18 +501,131 @@ function chartTypeLabel(type: string): string {
   return CHART_TYPES.find((t) => t.value === type)?.label ?? type
 }
 
-function addKpiFromSelect() {
-  if (!newKpiCol.value) return
-  const ds = dataStore.dataSet!
-  const cls = ds.classifications[newKpiCol.value]
-  configStore.addKpi({
-    column: newKpiCol.value,
-    label: newKpiCol.value,
-    agg: 'sum',
-    format: cls?.format ?? 'number',
-    prefix: cls?.prefix ?? '',
-  })
-  newKpiCol.value = ''
+// ====== KPI editor ======
+const KPI_AGG_OPTIONS = [
+  { value: 'sum', label: '求和' },
+  { value: 'avg', label: '平均值' },
+  { value: 'count', label: '计数' },
+  { value: 'min', label: '最小值' },
+  { value: 'max', label: '最大值' },
+]
+
+const showKpiEditor = ref(false)
+const editingKpiIdx = ref(-1)
+
+interface KpiVariable { column: string; agg: string; filter: string }
+const kpiForm = reactive({
+  useFormula: false,
+  column: '',
+  label: '',
+  agg: 'sum' as string,
+  format: 'number' as string,
+  prefix: '',
+  filter: '',
+  variables: [] as KpiVariable[],
+  expression: '',
+})
+
+const allNumericCols = computed(() => {
+  const ds = dataStore.dataSet
+  if (!ds) return []
+  return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric')
+})
+
+const canSaveKpi = computed(() => {
+  if (!kpiForm.label.trim()) return false
+  if (kpiForm.useFormula) {
+    return kpiForm.variables.length >= 2 && kpiForm.variables.every(v => v.column) && kpiForm.expression.trim()
+  }
+  return !!kpiForm.column
+})
+
+function aggLabel(agg: string): string {
+  return KPI_AGG_OPTIONS.find((o) => o.value === agg)?.label ?? agg
+}
+
+function addVariable() {
+  kpiForm.variables.push({ column: '', agg: 'sum', filter: '' })
+}
+
+function insertVar(idx: number) {
+  kpiForm.expression += `[${idx}]`
+}
+
+function insertOp(op: string) {
+  kpiForm.expression += ` ${op} `
+}
+
+function openAddKpi() {
+  editingKpiIdx.value = -1
+  kpiForm.useFormula = false
+  kpiForm.column = ''
+  kpiForm.label = ''
+  kpiForm.agg = 'sum'
+  kpiForm.format = 'number'
+  kpiForm.prefix = ''
+  kpiForm.filter = ''
+  kpiForm.variables = [{ column: '', agg: 'sum', filter: '' }, { column: '', agg: 'sum', filter: '' }]
+  kpiForm.expression = '[0] + [1]'
+  showKpiEditor.value = true
+}
+
+function openEditKpi(idx: number) {
+  editingKpiIdx.value = idx
+  const kpi = configStore.config.kpis[idx]
+  if (kpi.formula) {
+    kpiForm.useFormula = true
+    kpiForm.variables = kpi.formula.variables.map(v => ({ ...v, filter: v.filter || '' }))
+    kpiForm.expression = kpi.formula.expression
+    kpiForm.column = ''
+    kpiForm.agg = 'sum'
+  } else {
+    kpiForm.useFormula = false
+    kpiForm.column = kpi.column
+    kpiForm.agg = kpi.agg
+    kpiForm.filter = kpi.filter || ''
+    kpiForm.variables = [{ column: '', agg: 'sum', filter: '' }, { column: '', agg: 'sum', filter: '' }]
+    kpiForm.expression = '[0] + [1]'
+  }
+  kpiForm.label = kpi.label
+  kpiForm.format = kpi.format
+  kpiForm.prefix = kpi.prefix
+  showKpiEditor.value = true
+}
+
+function saveKpi() {
+  if (!canSaveKpi.value) return
+  const data: any = {
+    column: kpiForm.useFormula ? '' : kpiForm.column,
+    label: kpiForm.label.trim(),
+    agg: kpiForm.useFormula ? 'sum' : kpiForm.agg,
+    format: kpiForm.format,
+    prefix: kpiForm.prefix,
+    filter: kpiForm.useFormula ? undefined : (kpiForm.filter.trim() || undefined),
+  }
+  if (kpiForm.useFormula) {
+    data.formula = {
+      variables: kpiForm.variables.filter(v => v.column).map(v => ({
+        column: v.column,
+        agg: v.agg,
+        filter: v.filter.trim() || undefined,
+      })),
+      expression: kpiForm.expression.trim(),
+    }
+  } else {
+    // 从公式切换为单列时，清除旧的 formula
+    data.formula = undefined
+  }
+  if (editingKpiIdx.value >= 0) {
+    configStore.updateKpi(editingKpiIdx.value, data)
+  } else {
+    configStore.addKpi(data)
+  }
+  showKpiEditor.value = false
+}
+
+function cancelKpiEdit() {
+  showKpiEditor.value = false
 }
 
 function goToDashboard() {
@@ -613,23 +815,6 @@ function cancelChartEdit() {
   text-align: center;
 }
 
-.btn-ghost {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.btn-ghost:hover {
-  color: var(--text-primary);
-  border-color: var(--text-secondary);
-}
-
 .config-layout {
   display: grid;
   grid-template-columns: 1fr 320px;
@@ -655,22 +840,6 @@ function cancelChartEdit() {
   font-weight: 600;
   margin-bottom: 12px;
   color: var(--text-primary);
-}
-
-.input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 14px;
-  background: var(--bg);
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.input:focus {
-  border-color: var(--primary);
 }
 
 .select-sm {
@@ -754,30 +923,21 @@ function cancelChartEdit() {
   gap: 6px;
 }
 
-.kpi-item-params {
-  flex-wrap: wrap;
-}
-
-.kpi-label-input {
+.kpi-item-label {
   flex: 1;
-  background: transparent;
-  border: 1px solid transparent;
-  padding: 2px 6px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
+}
+
+.kpi-agg-tag {
+  display: inline-flex;
+  padding: 2px 8px;
   border-radius: 4px;
-  outline: none;
-  min-width: 80px;
-}
-
-.kpi-label-input:hover {
-  border-color: var(--border);
-}
-
-.kpi-label-input:focus {
-  border-color: var(--primary);
-  background: var(--bg-surface);
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .kpi-col-tag {
@@ -790,62 +950,106 @@ function cancelChartEdit() {
   white-space: nowrap;
 }
 
-.select-xs {
-  width: 72px;
-  padding: 2px 4px;
-  font-size: 11px;
+.kpi-formula-tag {
+  display: inline-flex;
+  padding: 2px 8px;
   border-radius: 4px;
-}
-
-.input-xs {
-  width: 52px;
-  padding: 2px 4px;
+  background: #fef3c7;
+  color: #92400e;
   font-size: 11px;
-  border-radius: 4px;
-}
-
-.prefix-input {
-  width: 56px;
-}
-
-.kpi-label {
+  white-space: nowrap;
   font-weight: 500;
-  flex: 1;
 }
 
-.kpi-meta {
-  color: var(--text-secondary);
-  font-size: 12px;
+.kpi-filter-tag {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: help;
 }
 
-.add-row {
+.kpi-mode-toggle {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
 }
 
-/* Filter chips */
+.formula-section {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--bg);
+  margin-bottom: 4px;
+}
+
+.formula-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.formula-hint {
+  font-weight: 400;
+  opacity: 0.5;
+  font-size: 11px;
+}
+
+.formula-var-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.formula-filter {
+  flex: 1;
+  min-width: 130px;
+}
+
+.var-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  min-width: 24px;
+  font-family: monospace;
+}
+
+.formula-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.formula-input {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+}
+
+.filter-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
 .filter-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.chip {
-  display: inline-flex;
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-  user-select: none;
-}
-
-.chip.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
 }
 
 /* Chart list */
@@ -907,10 +1111,6 @@ function cancelChartEdit() {
   flex-wrap: wrap;
 }
 
-.btn-add {
-  margin-top: 10px;
-}
-
 /* Modal overlay */
 .modal-overlay {
   position: fixed;
@@ -926,7 +1126,7 @@ function cancelChartEdit() {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  width: 520px;
+  width: 620px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
@@ -989,15 +1189,24 @@ function cancelChartEdit() {
   text-align: right;
 }
 
+.editor-grid .input {
+  max-width: 320px;
+}
+
 .metric-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.chip.sm {
-  padding: 4px 10px;
-  font-size: 12px;
+.metric-chips .chip {
+  transition: all 0.15s;
+}
+
+.metric-chips .chip.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
 }
 
 /* Table config */
@@ -1021,19 +1230,6 @@ function cancelChartEdit() {
   margin-bottom: 8px;
   font-size: 13px;
   color: var(--text-secondary);
-}
-
-.btn-link {
-  background: none;
-  border: none;
-  color: var(--primary);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 0;
-}
-
-.btn-link:hover {
-  text-decoration: underline;
 }
 
 /* Preview panel */
@@ -1079,65 +1275,12 @@ function cancelChartEdit() {
   color: var(--text-primary);
 }
 
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  transition: all 0.2s;
-}
-
-.btn:hover {
-  background: var(--bg-hover);
-}
-
-.btn-primary {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 13px;
-}
-
-.btn-lg {
-  width: 100%;
-  padding: 12px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.btn-icon {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 14px;
+/* Buttons — ConfigView-specific overrides */
+.btn-add {
+  margin-top: 10px;
 }
 
 .btn-icon:hover {
-  background: var(--bg-hover);
-  color: var(--text-error);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  color: var(--error);
 }
 </style>

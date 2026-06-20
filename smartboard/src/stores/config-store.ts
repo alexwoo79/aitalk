@@ -165,7 +165,12 @@ export const useConfigStore = defineStore('config', () => {
 
   function updateKpi(index: number, patch: Partial<KpiFormItem>) {
     const kpi = config.value.kpis[index]
-    if (kpi) Object.assign(kpi, patch)
+    if (!kpi) return
+    Object.assign(kpi, patch)
+    // 如果 patch 显式设为 undefined，删除旧属性
+    if ('formula' in patch && patch.formula === undefined) {
+      delete (kpi as any).formula
+    }
   }
 
   function reorderKpis(fromIndex: number, toIndex: number) {
