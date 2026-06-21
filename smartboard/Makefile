@@ -162,21 +162,30 @@ ios-device-deploy: ## 📱 一键构建 + 部署 Debug 到真机 (devicectl)
 	echo "✅ 构建成功"; \
 	echo ""; \
 	echo "🚀 安装到设备..."; \
-	APP_PATH="$$(find $(PROJ_ROOT)/src-tauri/gen/apple/build -name '*.app' -maxdepth 5 -type d 2>/dev/null | grep -v '/DerivedData' | head -1)"; \
+	APP_PATH="$$(find $(PROJ_ROOT)/src-tauri/gen/apple/build -name '*.ipa' -maxdepth 4 -type f 2>/dev/null | head -1)"; \
 	if [ -z "$$APP_PATH" ]; then \
-		APP_PATH="$$(find $(PROJ_ROOT)/src-tauri/gen/apple/build/DerivedData/Build/Products -name '*.app' -maxdepth 3 -type d 2>/dev/null | head -1)"; \
-	fi; \
-	if [ -z "$$APP_PATH" ]; then \
-		APP_PATH="$$(find /tmp -name '*.ipa' -maxdepth 2 2>/dev/null | head -1)"; \
+		APP_PATH="$$(find $(PROJ_ROOT)/src-tauri/gen/apple/build -name '*.app' -maxdepth 5 -type d 2>/dev/null | head -1)"; \
 	fi; \
 	if [ -z "$$APP_PATH" ]; then \
 		echo "❌ 找不到构建产物"; \
 		echo "   搜索路径: $(PROJ_ROOT)/src-tauri/gen/apple/build/"; \
-		echo "   Debug 构建产物通常是 .app (而非 .ipa)"; \
+		echo "   查看构建日志: cat /tmp/smartboard-ios-build.log"; \
 		exit 1; \
 	fi; \
 	echo "   产物: $$APP_PATH"; \
-	xcrun devicectl device install app --device "$$DEV_ID" "$$APP_PATH"; \
+	xcrun devicectl device install app --device "$$DEV_ID" "$$APP_PATH" 2>&1; \
+	INSTALL_EXIT=$$?; \
+	if [ $$INSTALL_EXIT -ne 0 ]; then \
+		echo ""; \
+		echo "⚠️  devicectl 安装失败，尝试从 xcarchive 安装 .app ..."; \
+		APP_PATH="$$(find $(PROJ_ROOT)/src-tauri/gen/apple/build -name '*.app' -maxdepth 5 -type d 2>/dev/null | head -1)"; \
+		if [ -n "$$APP_PATH" ]; then \
+			xcrun devicectl device install app --device "$$DEV_ID" "$$APP_PATH" 2>&1; \
+		else \
+			echo "❌ 安装失败"; \
+			exit 1; \
+		fi; \
+	fi; \
 	echo ""; \
 	echo "========================================"; \
 	echo "  ✅ 部署完成！App 已在设备上"
@@ -217,13 +226,26 @@ ios-device-deploy-release: ## 📱 一键构建 Release + 部署到真机 (devic
 	echo "✅ 构建成功"; \
 	echo ""; \
 	echo "🚀 Step 2/2: devicectl 安装到设备..."; \
-	IPA_PATH="$$(find $(PROJ_ROOT)/src-tauri/gen/apple/build -name '*.ipa' -maxdepth 5 2>/dev/null | head -1)"; \
+	IPA_PATH="$$(find $(PROJ_ROOT)/src-tauri/gen/apple/build -name '*.ipa' -maxdepth 4 -type f 2>/dev/null | head -1)"; \
 	if [ -z "$$IPA_PATH" ]; then \
 		echo "❌ 找不到 IPA, 请确认构建成功"; \
 		echo "   搜索路径: $(PROJ_ROOT)/src-tauri/gen/apple/build/"; \
+		echo "   查看构建日志: cat /tmp/smartboard-ios-release.log"; \
 		exit 1; \
 	fi; \
-	xcrun devicectl device install app --device "$$DEV_ID" "$$IPA_PATH"; \
+	echo "   产物: $$IPA_PATH"; \
+	xcrun devicectl device install app --device "$$DEV_ID" "$$IPA_PATH" 2>&1; \
+	INSTALL_EXIT=$$?; \
+	if [ $$INSTALL_EXIT -ne 0 ]; then \
+		echo "⚠️  IPA 安装失败，尝试从 xcarchive 安装 .app ..."; \
+		APP_PATH="$$(find $(PROJ_ROOT)/src-tauri/gen/apple/build -name '*.app' -maxdepth 5 -type d 2>/dev/null | head -1)"; \
+		if [ -n "$$APP_PATH" ]; then \
+			xcrun devicectl device install app --device "$$DEV_ID" "$$APP_PATH" 2>&1; \
+		else \
+			echo "❌ 安装失败"; \
+			exit 1; \
+		fi; \
+	fi; \
 	echo ""; \
 	echo "========================================"; \
 	echo "  ✅ 部署完成！"
