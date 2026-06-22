@@ -216,12 +216,16 @@
                 <div class="filter-wrap">
                   <input v-model="kpiForm.filter" class="input" placeholder="留空=全部" list="filter-cols" />
                   <datalist id="filter-cols">
-                    <option v-for="col in filterableColumns" :key="col" :value="col + ' = '" />
-                    <option v-for="col in filterableColumns" :key="col + '_ne'" :value="col + ' != '" />
-                    <option v-for="col in filterableColumns" :key="col + '_gt'" :value="col + ' > '" />
-                    <option v-for="col in filterableColumns" :key="col + '_lt'" :value="col + ' < '" />
+                    <template v-for="col in filterableColumns" :key="col">
+                      <option :value="col + ' = '" />
+                      <option :value="col + ' != '" />
+                      <option v-if="isNumericCol(col)" :value="col + ' > '" />
+                      <option v-if="isNumericCol(col)" :value="col + ' < '" />
+                      <option v-if="!isNumericCol(col)" :value="col + ' in '" />
+                      <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
+                    </template>
                   </datalist>
-                  <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。输入列名时自动补全</span>
+                  <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。in = 在列表中，~ = 含有。输入列名时自动补全</span>
                 </div>
               </div>
             </template>
@@ -254,10 +258,14 @@
                 <div class="filter-wrap">
                   <input v-model="kpiForm.filter" class="input" placeholder="留空=全部" list="filter-cols-formula" />
                   <datalist id="filter-cols-formula">
-                    <option v-for="col in filterableColumns" :key="col" :value="col + ' = '" />
-                    <option v-for="col in filterableColumns" :key="col + '_ne'" :value="col + ' != '" />
-                    <option v-for="col in filterableColumns" :key="col + '_gt'" :value="col + ' > '" />
-                    <option v-for="col in filterableColumns" :key="col + '_lt'" :value="col + ' < '" />
+                    <template v-for="col in filterableColumns" :key="col">
+                      <option :value="col + ' = '" />
+                      <option :value="col + ' != '" />
+                      <option v-if="isNumericCol(col)" :value="col + ' > '" />
+                      <option v-if="isNumericCol(col)" :value="col + ' < '" />
+                      <option v-if="!isNumericCol(col)" :value="col + ' in '" />
+                      <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
+                    </template>
                   </datalist>
                   <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。将叠加到每个变量的列筛选之上</span>
                 </div>
@@ -410,12 +418,16 @@
               <div class="filter-wrap">
                 <input v-model="chartForm.filter" class="input" placeholder="留空=全部数据，如: 地区 = 北京" list="chart-filter-cols" />
                 <datalist id="chart-filter-cols">
-                  <option v-for="col in filterableColumns" :key="col" :value="col + ' = '" />
-                  <option v-for="col in filterableColumns" :key="col + '_ne'" :value="col + ' != '" />
-                  <option v-for="col in filterableColumns" :key="col + '_gt'" :value="col + ' > '" />
-                  <option v-for="col in filterableColumns" :key="col + '_lt'" :value="col + ' < '" />
+                  <template v-for="col in filterableColumns" :key="col">
+                    <option :value="col + ' = '" />
+                    <option :value="col + ' != '" />
+                    <option v-if="isNumericCol(col)" :value="col + ' > '" />
+                    <option v-if="isNumericCol(col)" :value="col + ' < '" />
+                    <option v-if="!isNumericCol(col)" :value="col + ' in '" />
+                    <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
+                  </template>
                 </datalist>
-                <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。如「地区 = 北京 | 地区 = 上海」</span>
+                <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。in = 在列表中，~ = 含有。如「地区 in 北京,上海」或「名称 ~ 科技」</span>
               </div>
             </div>
           </div>
@@ -569,6 +581,11 @@ const allHeaders = computed(() => {
 const filterableColumns = computed(() =>
   allHeaders.value.filter((h) => !dataStore.excludedColumns.has(h)),
 )
+
+/** 判断列是否为数值类型（数值列用 > < >= <=，非数值列用 in ~） */
+function isNumericCol(col: string): boolean {
+  return dataStore.dataSet?.classifications[col]?.type === 'numeric'
+}
 
 function chartTypeLabel(type: string): string {
   return CHART_TYPES.find((t) => t.value === type)?.label ?? type

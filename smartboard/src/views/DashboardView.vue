@@ -34,10 +34,14 @@
           <input type="text" v-model="previewStore.conditionFilter" @input="onFilterChange"
             class="input input-sm condition-input" list="condition-cols" placeholder="如: 金额 > 100 | 金额 < 10" />
           <datalist id="condition-cols">
-            <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
-            <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
-            <option v-for="col in allHeaders" :key="col + '_gt'" :value="col + ' > '" />
-            <option v-for="col in allHeaders" :key="col + '_lt'" :value="col + ' < '" />
+            <template v-for="col in allHeaders" :key="col">
+              <option :value="col + ' = '" />
+              <option :value="col + ' != '" />
+              <option v-if="isNumericCol(col)" :value="col + ' > '" />
+              <option v-if="isNumericCol(col)" :value="col + ' < '" />
+              <option v-if="!isNumericCol(col)" :value="col + ' in '" />
+              <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
+            </template>
           </datalist>
         </div>
         <div class="filter-actions">
@@ -155,10 +159,14 @@
                 <input type="text" v-model="tableCondition" class="input input-xs table-cond" list="table-cond-cols"
                   placeholder="金额 > 100 | 金额 < 10" />
                 <datalist id="table-cond-cols">
-                  <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
-                  <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
-                  <option v-for="col in allHeaders" :key="col + '_gt'" :value="col + ' > '" />
-                  <option v-for="col in allHeaders" :key="col + '_lt'" :value="col + ' < '" />
+                  <template v-for="col in allHeaders" :key="col">
+                    <option :value="col + ' = '" />
+                    <option :value="col + ' != '" />
+                    <option v-if="isNumericCol(col)" :value="col + ' > '" />
+                    <option v-if="isNumericCol(col)" :value="col + ' < '" />
+                    <option v-if="!isNumericCol(col)" :value="col + ' in '" />
+                    <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
+                  </template>
                 </datalist>
               </div>
               <div class="control-group">
@@ -308,6 +316,11 @@ const tableCondition = ref('')
 
 // Available columns from the dataset
 const allColumns = computed(() => dataStore.dataSet?.headers ?? [])
+
+/** 判断列是否为数值类型（数值列用 > <，非数值列用 in ~） */
+function isNumericCol(col: string): boolean {
+  return dataStore.dataSet?.classifications[col]?.type === 'numeric'
+}
 
 // Initialize table state from spec
 function initTableState() {
@@ -523,11 +536,32 @@ var condFilter='',searchText='',tblSearch='',tblCond='',tblCols=TC.slice(),tblTo
 // ---- dynamic title ----
 function rTit(title,metrics){if(!title)return'';if(!metrics||!metrics.length)return title;return title.replace('{metrics}',metrics.join('、')).replace('{metric}',metrics[0])}
 
-// ---- filter engine ----
-function pF(f){if(!f||!f.trim())return null;var m=f.trim().match(/^(.+?)\\s*(=|!=|>=|<=|>|<)\\s*(.+)$/);if(!m)return null;var om={'=':'eq','!=':'ne','>':'gt','>=':'gte','<':'lt','<=':'lte'};return{col:m[1].trim(),op:om[m[2]]||'eq',val:m[3].trim()}}
-function mR(r,p){var cv=String(r[p.col]||'').trim();var cn=Number(cv.replace(/,/g,'')),fn=Number(p.val.replace(/,/g,''));var un=!isNaN(cn)&&!isNaN(fn);switch(p.op){case'eq':return un?cn===fn:cv===p.val;case'ne':return un?cn!==fn:cv!==p.val;case'gt':return un?cn>fn:cv>p.val;case'gte':return un?cn>=fn:cv>=p.val;case'lt':return un?cn<fn:cv<p.val;case'lte':return un?cn<=fn:cv<=p.val;default:return true}}
+// ---- filter engine (支持 in / ~ contains) ----
+function pF(f){if(!f||!f.trim())return null;var s=f.trim();
+// in 运算符
+var im=s.match(/^(.+?)\\s+(in)\\s+(.+)$/i);if(im)return{col:im[1].trim(),op:'in',val:im[3].trim()};
+// contains 运算符
+var cm=s.match(/^(.+?)\\s+(~|～|contains)\\s+(.+)$/i);if(cm)return{col:cm[1].trim(),op:'contains',val:cm[3].trim()};
+// 标准比较运算符
+var m=s.match(/^(.+?)\\s*(=|!=|>=|<=|>|<)\\s*(.+)$/);if(!m)return null;var om={'=':'eq','!=':'ne','>':'gt','>=':'gte','<':'lt','<=':'lte'};return{col:m[1].trim(),op:om[m[2]]||'eq',val:m[3].trim()}}
+function mR(r,p){var cv=String(r[p.col]||'').trim();var cn=Number(cv.replace(/,/g,'')),fn=Number(p.val.replace(/,/g,''));var un=!isNaN(cn)&&!isNaN(fn);
+switch(p.op){
+case'eq':return un?cn===fn:cv===p.val;
+case'ne':return un?cn!==fn:cv!==p.val;
+case'gt':return un?cn>fn:cv>p.val;
+case'gte':return un?cn>=fn:cv>=p.val;
+case'lt':return un?cn<fn:cv<p.val;
+case'lte':return un?cn<=fn:cv<=p.val;
+case'in':{var list=p.val.replace(/^\\[|\\]$/g,'').replace(/^\\(|\\)$/g,'').replace(/["\\x27]/g,'').split(/[,，、;\\s]+/).map(function(s){return s.trim()}).filter(Boolean);return list.some(function(item){var itemNum=Number(item.replace(/,/g,''));if(!isNaN(cn)&&!isNaN(itemNum))return cn===itemNum;return cv===item})}
+case'contains':return cv.toLowerCase().indexOf(p.val.toLowerCase())!==-1;
+default:return true}}
 function aF(rows,filter){if(!filter)return rows;var ags=filter.split('&').map(function(g){return g.trim()}).filter(function(g){return g});var res=rows.slice();
-ags.forEach(function(g){var ocs=g.split('|').map(function(c){return c.trim()}).filter(function(c){return c}).map(pF).filter(function(p){return p});if(ocs.length)res=res.filter(function(r){return ocs.some(function(p){return mR(r,p)})})});return res}
+// 构建列名映射（大小写不敏感）
+var cm2={};if(res.length){var ks=Object.keys(res[0]);for(var ki=0;ki<ks.length;ki++){cm2[ks[ki].toLowerCase()]=ks[ki]}}
+ags.forEach(function(g){var ocs=g.split('|').map(function(c){return c.trim()}).filter(function(c){return c}).map(pF).filter(function(p){return p});
+// 规范化列名
+ocs.forEach(function(p){var a=cm2[p.col.toLowerCase()];if(a)p.col=a});
+if(ocs.length)res=res.filter(function(r){return ocs.some(function(p){return mR(r,p)})})});return res}
 
 function fmt(n,d){if(n==null||isNaN(n))return'0';return Number(n).toLocaleString('zh-CN',{maximumFractionDigits:d!=null?d:2})}
 function fmtC(n){if(n==null||isNaN(n))return'0';var a=Math.abs(n);if(a>=1e8)return(n/1e8).toFixed(1)+'亿';if(a>=1e4)return(n/1e4).toFixed(1)+'万';return fmt(n)}

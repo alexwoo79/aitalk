@@ -122,7 +122,10 @@ export const usePreviewStore = defineStore('preview', () => {
 
     // Apply condition filter
     if (conditionFilter.value.trim()) {
+      console.log('[preview] conditionFilter 输入:', JSON.stringify(conditionFilter.value))
+      const before = rows.length
       rows = applyFilter(rows, undefined, conditionFilter.value)
+      console.log('[preview] 条件筛选: ' + before + ' → ' + rows.length + ' 行')
     }
 
     filteredRows.value = rows
