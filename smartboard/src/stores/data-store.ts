@@ -10,6 +10,7 @@ export const useDataStore = defineStore('data', () => {
   const dataSet = ref<DataSet | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const excludedColumns = ref<Set<string>>(new Set())
 
   async function loadFromDialog() {
     const selected = await open({
@@ -64,10 +65,25 @@ export const useDataStore = defineStore('data', () => {
     }
   }
 
+  function toggleExcludeColumn(column: string) {
+    const s = new Set(excludedColumns.value)
+    if (s.has(column)) {
+      s.delete(column)
+    } else {
+      s.add(column)
+    }
+    excludedColumns.value = s
+  }
+
+  function clearExcluded() {
+    excludedColumns.value = new Set()
+  }
+
   function clearData() {
     dataSet.value = null
     error.value = null
+    clearExcluded()
   }
 
-  return { dataSet, loading, error, loadFromDialog, loadFile, clearData }
+  return { dataSet, loading, error, excludedColumns, loadFromDialog, loadFile, clearData, toggleExcludeColumn, clearExcluded }
 })

@@ -32,7 +32,7 @@
         <div class="filter-item">
           <label>条件</label>
           <input type="text" v-model="previewStore.conditionFilter" @input="onFilterChange"
-            class="input input-sm condition-input" list="condition-cols" placeholder="如: 金额 > 100" />
+            class="input input-sm condition-input" list="condition-cols" placeholder="如: 金额 > 100 | 金额 < 10" />
           <datalist id="condition-cols">
             <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
             <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
@@ -95,43 +95,45 @@
             <div class="rs-handle rs-handle-e" @pointerdown.prevent="onResizeStart($event, 'e')"></div>
             <div class="rs-handle rs-handle-s" @pointerdown.prevent="onResizeStart($event, 's')"></div>
             <div class="rs-handle rs-handle-se" @pointerdown.prevent="onResizeStart($event, 'se')"></div>
-            <h3>{{ chart.title }}</h3>
 
             <!-- 时序分析 -->
             <template v-if="chart.type === 'timeseries'">
-              <TimeseriesChart :rows="chartRows" :date-column="chart.dateColumn || spec.dateRange?.column || ''"
+              <TimeseriesChart :rows="filteredChartRows(chart)" :date-column="chart.dateColumn || spec.dateRange?.column || ''"
                 :metric="chart.metric || spec.primaryMetric || ''"
-                :metrics="chart.metrics && chart.metrics.length > 0 ? chart.metrics : allMetricCols" />
+                :metrics="chart.metrics && chart.metrics.length > 0 ? chart.metrics : allMetricCols"
+                :title="chart.title" />
             </template>
 
             <!-- 十分位分析 -->
             <template v-else-if="chart.type === 'decile'">
-              <DecileChart :rows="chartRows" :metric="chart.metric || spec.primaryMetric || ''"
-                :metrics="chart.metrics && chart.metrics.length > 0 ? chart.metrics : allMetricCols" />
+              <DecileChart :rows="filteredChartRows(chart)" :metric="chart.metric || spec.primaryMetric || ''"
+                :metrics="chart.metrics && chart.metrics.length > 0 ? chart.metrics : allMetricCols"
+                :title="chart.title" />
             </template>
 
             <!-- 聚类分析 -->
             <template v-else-if="chart.type === 'cluster'">
-              <ClusterChart :rows="chartRows"
+              <ClusterChart :rows="filteredChartRows(chart)"
                 :metrics="chart.clusterMetrics || chart.metrics || (spec.primaryMetric ? [spec.primaryMetric] : [])"
-                :k="chart.k" />
+                :k="chart.k"
+                :title="chart.title" />
             </template>
 
             <!-- 基础图表 -->
             <template v-else-if="chart.type === 'bar'">
-              <BarChartComponent :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
+              <BarChartComponent :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
             </template>
             <template v-else-if="chart.type === 'horizontal_bar'">
-              <HorizontalBarChart :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
+              <HorizontalBarChart :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
             </template>
             <template v-else-if="chart.type === 'doughnut'">
-              <DoughnutChart :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
+              <DoughnutChart :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
             </template>
             <template v-else-if="chart.type === 'histogram'">
-              <HistogramChart :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
+              <HistogramChart :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
             </template>
             <template v-else-if="chart.type === 'line'">
-              <LineChartComponent :chart="chart" :rows="chartRows" :available-metrics="allMetricCols" />
+              <LineChartComponent :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
             </template>
           </div>
         </div>
@@ -151,7 +153,7 @@
               <div class="control-group">
                 <label>条件</label>
                 <input type="text" v-model="tableCondition" class="input input-xs table-cond" list="table-cond-cols"
-                  placeholder="金额 > 100" />
+                  placeholder="金额 > 100 | 金额 < 10" />
                 <datalist id="table-cond-cols">
                   <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
                   <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
@@ -405,8 +407,8 @@ async function saveDashboard() {
     column: k.column, label: k.label, agg: k.agg,
     format: k.format, prefix: k.prefix || '',
   }))
-  // 全部指标列（当 chart.metrics 为空时回退使用）
-  const allMetricCols = headers.filter((h) => cls[h]?.role === 'metric')
+  // 全部指标列（当 chart.metrics 为空时回退使用，排除已排除的列）
+  const allMetricCols = headers.filter((h) => cls[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
 
   const chartSpecs = s.charts
     .filter(c => !c._skip)
@@ -418,6 +420,7 @@ async function saveDashboard() {
       agg: c.agg || 'sum',
       clusterMetrics: (c.clusterMetrics && c.clusterMetrics.length > 0) ? c.clusterMetrics : allMetricCols,
       k: c.k || 3,
+      filter: c.filter || '',
     }))
   const tblCols = s.table.columns
   const tblSort = s.table.sortBy
@@ -515,20 +518,37 @@ var TS='${tblSort}';
 var TN=${tblTopN};
 var COL=['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316','#14B8A6','#6366F1','#D946EF'];
 var fv={},ci=[],sc=TS,sd=false;
+var condFilter='',searchText='',tblSearch='',tblCond='',tblCols=TC.slice(),tblTopN=TN;
+
+// ---- dynamic title ----
+function rTit(title,metrics){if(!title)return'';if(!metrics||!metrics.length)return title;return title.replace('{metrics}',metrics.join('、')).replace('{metric}',metrics[0])}
+
+// ---- filter engine ----
+function pF(f){if(!f||!f.trim())return null;var m=f.trim().match(/^(.+?)\\s*(=|!=|>=|<=|>|<)\\s*(.+)$/);if(!m)return null;var om={'=':'eq','!=':'ne','>':'gt','>=':'gte','<':'lt','<=':'lte'};return{col:m[1].trim(),op:om[m[2]]||'eq',val:m[3].trim()}}
+function mR(r,p){var cv=String(r[p.col]||'').trim();var cn=Number(cv.replace(/,/g,'')),fn=Number(p.val.replace(/,/g,''));var un=!isNaN(cn)&&!isNaN(fn);switch(p.op){case'eq':return un?cn===fn:cv===p.val;case'ne':return un?cn!==fn:cv!==p.val;case'gt':return un?cn>fn:cv>p.val;case'gte':return un?cn>=fn:cv>=p.val;case'lt':return un?cn<fn:cv<p.val;case'lte':return un?cn<=fn:cv<=p.val;default:return true}}
+function aF(rows,filter){if(!filter)return rows;var ags=filter.split('&').map(function(g){return g.trim()}).filter(function(g){return g});var res=rows.slice();
+ags.forEach(function(g){var ocs=g.split('|').map(function(c){return c.trim()}).filter(function(c){return c}).map(pF).filter(function(p){return p});if(ocs.length)res=res.filter(function(r){return ocs.some(function(p){return mR(r,p)})})});return res}
 
 function fmt(n,d){if(n==null||isNaN(n))return'0';return Number(n).toLocaleString('zh-CN',{maximumFractionDigits:d!=null?d:2})}
 function fmtC(n){if(n==null||isNaN(n))return'0';var a=Math.abs(n);if(a>=1e8)return(n/1e8).toFixed(1)+'亿';if(a>=1e4)return(n/1e4).toFixed(1)+'万';return fmt(n)}
 function gn(v){if(v==null||v==='')return NaN;if(typeof v==='number')return v;var s=String(v).trim();if(s.endsWith('%'))s=s.slice(0,-1);s=s.replace(/,/g,'');var n=parseFloat(s);return isNaN(n)?NaN:n}
 
 // ---- filter ----
-function gf(){var rows=R.slice();for(var e in fv){var v=fv[e];if(v&&v!=='__all__')rows=rows.filter(function(r){return String(r[e]||'').trim()===v})}return rows}
+function gf(){var rows=R.slice();for(var e in fv){var v=fv[e];if(v&&v!=='__all__')rows=rows.filter(function(r){return String(r[e]||'').trim()===v})}
+if(condFilter.trim())rows=aF(rows,condFilter);
+if(searchText.trim()){var q=searchText.trim().toLowerCase();rows=rows.filter(function(r){return Object.values(r).some(function(v){return String(v).toLowerCase().includes(q)})})}
+return rows}
 function rf(){var bar=document.getElementById('filterBar');bar.innerHTML='';
 FS.forEach(function(f){var c=f.column;var lb=document.createElement('label');lb.textContent=c+':';bar.appendChild(lb);
 var sel=document.createElement('select');var uv={};R.forEach(function(r){var v=String(r[c]||'').trim();if(v)uv[v]=1});var vs=Object.keys(uv).sort();
 var o0=document.createElement('option');o0.value='';o0.textContent='全部';sel.appendChild(o0);
 vs.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o)});
 sel.value=fv[c]||'';sel.onchange=function(){fv[c]=sel.value;ra()};bar.appendChild(sel)});
-var rb=document.createElement('button');rb.className='btn';rb.textContent='重置筛选';rb.onclick=function(){fv={};ra()};bar.appendChild(rb);
+// condition filter
+var cf=document.createElement('input');cf.type='text';cf.placeholder='条件筛选, 如: 金额 > 100 & 地区 = 北京';cf.style.cssText='padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;min-width:200px';cf.oninput=function(){condFilter=cf.value;ra()};bar.appendChild(cf);
+// search
+var si=document.createElement('input');si.type='text';si.placeholder='搜索...';si.style.cssText='padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:120px';si.oninput=function(){searchText=si.value;ra()};bar.appendChild(si);
+var rb=document.createElement('button');rb.className='btn';rb.textContent='重置筛选';rb.onclick=function(){fv={};condFilter='';searchText='';cf.value='';si.value='';ra()};bar.appendChild(rb);
 var sp=document.createElement('span');sp.className='filter-count';sp.id='fc';bar.appendChild(sp)}
 function ra(){var rows=gf();rK(rows);rT(rows);try{rC(rows)}catch(e){console.error(e)}
 var el=document.getElementById('fc');if(el)el.textContent='当前筛选: '+rows.length+' 条记录'}
@@ -641,69 +661,96 @@ function rC(rows){var grid=document.getElementById('chartsGrid');
 disposeCharts();grid.innerHTML='';
 CS.forEach(function(ch,i){
   try{
+  // per-chart filter
+  var cRows=ch.filter?aF(rows,ch.filter):rows;
+
   var isAn=ch.type==='timeseries'||ch.type==='decile'||ch.type==='cluster';
   var card=document.createElement('div');card.className=isAn?'chart-card chart-card-full':'chart-card';
   card.setAttribute('data-chart-idx',i);
-  var h3=document.createElement('h3');h3.textContent=ch.title;card.appendChild(h3);
+  // dynamic title
+  var ms0=ch.metrics&&ch.metrics.length>0?ch.metrics:(ch.metric?[ch.metric]:[]);
+  var h3=document.createElement('h3');h3.textContent=rTit(ch.title,ms0);card.appendChild(h3);
 
   if(ch.type==='timeseries'){
-    // -- metric selector --
     var ms=ch.metrics&&ch.metrics.length>0?ch.metrics:(ch.metric?[ch.metric]:[]);
     var activeM=ch.metric||ms[0];
     if(ms.length>1){var mb=document.createElement('div');mb.className='metric-btns';ms.forEach(function(m){var b=document.createElement('button');b.className='metric-btn'+(m===activeM?' active':'');b.textContent=m;b.onclick=function(){
       mb.querySelectorAll('.metric-btn').forEach(function(bb){bb.classList.remove('active')});b.classList.add('active');
-      renderTimeseriesChart(card,ch,rows,m);
+      h3.textContent=rTit(ch.title,[m]);
+      renderTimeseriesChart(card,ch,cRows,m);
     };mb.appendChild(b)});card.appendChild(mb)}
-    // -- period toggle --
     var pt=document.createElement('div');pt.className='period-toggle';
     [{k:'month',l:'月'},{k:'quarter',l:'季'},{k:'year',l:'年'}].forEach(function(pd){
       var b=document.createElement('button');b.className='period-btn'+(pd.k==='month'?' active':'');b.textContent=pd.l;b.setAttribute('data-pd',pd.k);
-      b.onclick=function(){pt.querySelectorAll('.period-btn').forEach(function(bb){bb.classList.remove('active')});b.classList.add('active');renderTimeseriesChart(card,ch,rows,card.querySelector('.metric-btn.active')?card.querySelector('.metric-btn.active').textContent:activeM,pd.k)};pt.appendChild(b)});
+      b.onclick=function(){pt.querySelectorAll('.period-btn').forEach(function(bb){bb.classList.remove('active')});b.classList.add('active');renderTimeseriesChart(card,ch,cRows,card.querySelector('.metric-btn.active')?card.querySelector('.metric-btn.active').textContent:activeM,pd.k)};pt.appendChild(b)});
     card.appendChild(pt);
-    // -- chart container --
     var tsWrap=document.createElement('div');tsWrap.className='chart-body-ts';tsWrap.id='chart-ts-'+i;card.appendChild(tsWrap);
     grid.appendChild(card);
-    renderTimeseriesChart(card,ch,rows,activeM,'month');
+    renderTimeseriesChart(card,ch,cRows,activeM,'month');
   }else if(ch.type==='decile'){
-    // -- metric selector --
-    var dm=ch.metrics&&ch.metrics.length>0?ch.metrics:(ch.metric?[ch.metric]:[]);
-    var dActive=ch.metric||dm[0];
-    if(dm.length>1){var dmb=document.createElement('div');dmb.className='metric-btns';dm.forEach(function(m){var b=document.createElement('button');b.className='metric-btn'+(m===dActive?' active':'');b.textContent=m;b.onclick=function(){
+    var dm=ch.metrics&&ch.metrics.length>0?ch.metrics:(ch.metric?[ch.metric]:[]);var dActive=ch.metric||dm[0];
+    // always show metric selector
+    var dmb=document.createElement('div');dmb.className='metric-btns';dm.forEach(function(m){var b=document.createElement('button');b.className='metric-btn'+(m===dActive?' active':'');b.textContent=m;b.onclick=function(){
       dmb.querySelectorAll('.metric-btn').forEach(function(bb){bb.classList.remove('active')});b.classList.add('active');
-      renderDecileChart(card,ch,rows,m);
-    };dmb.appendChild(b)});card.appendChild(dmb)}
+      h3.textContent=rTit(ch.title,[m]);
+      renderDecileChart(card,ch,cRows,m);
+    };dmb.appendChild(b)});card.appendChild(dmb)
     var dw=document.createElement('div');dw.className='chart-body-ts';dw.id='chart-dec-'+i;card.appendChild(dw);
     grid.appendChild(card);
-    renderDecileChart(card,ch,rows,dActive);
+    renderDecileChart(card,ch,cRows,dActive);
   }else if(ch.type==='cluster'){
-    // -- axis selectors --
     var cm=ch.clusterMetrics&&ch.clusterMetrics.length>0?ch.clusterMetrics:(ch.metrics||[]);
     if(cm.length>2){var as=document.createElement('div');as.className='axis-selector';
       var xg=document.createElement('div');xg.innerHTML='<label>X 轴</label>';var xs=document.createElement('select');cm.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;xs.appendChild(o)});xs.value=cm[0];xg.appendChild(xs);as.appendChild(xg);
       var yg=document.createElement('div');yg.innerHTML='<label>Y 轴</label>';var ys=document.createElement('select');cm.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;ys.appendChild(o)});ys.value=cm[1]||cm[0];yg.appendChild(ys);as.appendChild(yg);
-      xs.onchange=function(){renderClusterChart(card,ch,rows,xs.value,ys.value)};
-      ys.onchange=function(){renderClusterChart(card,ch,rows,xs.value,ys.value)};
+      xs.onchange=function(){h3.textContent=rTit(ch.title,[xs.value,ys.value]);renderClusterChart(card,ch,cRows,xs.value,ys.value)};
+      ys.onchange=function(){h3.textContent=rTit(ch.title,[xs.value,ys.value]);renderClusterChart(card,ch,cRows,xs.value,ys.value)};
       card.appendChild(as);
       var cw=document.createElement('div');cw.className='chart-body-cl';cw.id='chart-cl-'+i;card.appendChild(cw);
       grid.appendChild(card);
-      renderClusterChart(card,ch,rows,cm[0],cm[1]||cm[0]);
+      renderClusterChart(card,ch,cRows,cm[0],cm[1]||cm[0]);
     }else{
       var cw2=document.createElement('div');cw2.className='chart-body-cl';cw2.id='chart-cl-'+i;card.appendChild(cw2);
       grid.appendChild(card);
-      renderClusterChart(card,ch,rows,cm[0],cm[1]||cm[0]);
+      renderClusterChart(card,ch,cRows,cm[0],cm[1]||cm[0]);
     }
   }else{
+    // basic: add metric toggle (bar/hbar support multi-metric)
+    var bm=ch.metrics&&ch.metrics.length>0?ch.metrics:(ch.metric?[ch.metric]:[]);
+    if(bm.length>1&&(ch.type==='bar'||ch.type==='horizontal_bar')){
+      var bmb=document.createElement('div');bmb.className='metric-btns';var activeBms=bm.slice();
+      bm.forEach(function(m){var b=document.createElement('button');b.className='metric-btn active';b.textContent=m;b.onclick=function(){
+        if(activeBms.length>1||!b.classList.contains('active')){b.classList.toggle('active');
+        activeBms=[];bmb.querySelectorAll('.metric-btn.active').forEach(function(ab){activeBms.push(ab.textContent)});
+        h3.textContent=rTit(ch.title,activeBms);
+        var opt=null;if(ch.type==='bar')opt=buildBarOpt2(ch,cRows,activeBms);else opt=buildHBarOpt2(ch,cRows,activeBms[0]);
+        var wrap=card.querySelector('.chart-body');var old=wrap.querySelector('div');if(old)old.remove();if(opt){var c=initChart(wrap,'320px');if(c)c.setOption(opt)}}};bmb.appendChild(b)});card.appendChild(bmb)}
     var wrap=document.createElement('div');wrap.className='chart-body';wrap.id='chart-basic-'+i;card.appendChild(wrap);grid.appendChild(card);
     var opt=null;
-    if(ch.type==='bar')opt=buildBarOpt(ch,rows);
-    else if(ch.type==='horizontal_bar')opt=buildHBarOpt(ch,rows);
-    else if(ch.type==='doughnut')opt=buildDoughnutOpt(ch,rows);
-    else if(ch.type==='histogram')opt=buildHistOpt(ch,rows);
-    else if(ch.type==='line')opt=buildLineOpt(ch,rows);
+    if(ch.type==='bar')opt=buildBarOpt2(ch,cRows,bm);
+    else if(ch.type==='horizontal_bar')opt=buildHBarOpt2(ch,cRows,bm[0]);
+    else if(ch.type==='doughnut')opt=buildDoughnutOpt(ch,cRows);
+    else if(ch.type==='histogram')opt=buildHistOpt(ch,cRows);
+    else if(ch.type==='line')opt=buildLineOpt(ch,cRows);
     if(opt){var c=initChart(wrap,'320px');if(c)c.setOption(opt)}
   }
   }catch(e){console.error(e)}
 })}
+
+// ---- buildBarOpt variant that accepts metrics array directly ----
+function buildBarOpt2(ch,rows,ms){
+  var dimCol=ch.dimension;if(!dimCol||ms.length===0)return null;
+  var groups={};rows.forEach(function(r){var k=String(r[dimCol]||'未知');if(!groups[k])groups[k]={};ms.forEach(function(m){if(!groups[k][m])groups[k][m]=[];var v=gn(r[m]);if(!isNaN(v))groups[k][m].push(v)})});
+  var labels=Object.keys(groups).sort();
+  var series=ms.map(function(m,mi){return{name:m,type:'bar',data:labels.map(function(k){var arr=groups[k]&&groups[k][m]||[];return arr.length?arr.reduce(function(a,b){return a+b},0):0}),itemStyle:{borderRadius:[4,4,0,0],color:COL[mi%COL.length]}}});
+  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmt(x.value)}).join('<br/>')}},legend:ms.length>1?{bottom:0,textStyle:{fontSize:11}}:undefined,grid:{left:60,right:20,top:20,bottom:ms.length>1?40:50},xAxis:{type:'category',data:labels,axisLabel:{rotate:labels.length>8?30:0,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},series:series};
+}
+function buildHBarOpt2(ch,rows,mc){
+  var dimCol=ch.dimension;var ad=agg(rows,dimCol,mc,ch.agg||'sum');ad.sort(function(a,b){return a.value-b.value});
+  var maxW=0;ad.forEach(function(d){var w=0;for(var i=0;i<d.label.length;i++)w+=d.label.charCodeAt(i)>127?12:7;maxW=Math.max(maxW,w)});
+  var gl=Math.max(40,maxW+20);
+  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.name+': '+fmt(x.value)}).join('<br/>')}},grid:{left:gl,right:30,top:10,bottom:20},xAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},yAxis:{type:'category',data:ad.map(function(d){return d.label}),axisLabel:{fontSize:11}},series:[{type:'bar',data:ad.map(function(d){return d.value}),itemStyle:{borderRadius:[0,4,4,0],color:COL[0]}}]};
+}
 
 // ---- timeseries chart render ----
 function renderTimeseriesChart(card,ch,rows,mc,pd){
@@ -820,12 +867,38 @@ function renderClusterChart(card,ch,rows,xCol,yCol){
 }
 
 // ---- data table ----
-function rT(rows){var el=document.getElementById('tableCard');el.innerHTML='<h3>数据表 · '+Math.min(rows.length,TN)+' / '+rows.length+' 行</h3>';
-var sorted=rows.slice();if(sc)sorted.sort(function(a,b){var va=gn(a[sc]),vb=gn(b[sc]);if(!isNaN(va)&&!isNaN(vb))return(va-vb)*(sd?-1:1);return String(a[sc]||'').localeCompare(String(b[sc]||''))*(sd?-1:1)});
-var sl=sorted.slice(0,TN);var tw=document.createElement('div');tw.style.overflowX='auto';
+function rT(rows){var el=document.getElementById('tableCard');el.innerHTML='';
+// toolbar
+var tb=document.createElement('div');tb.style.cssText='display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap';
+var th3=document.createElement('h3');th3.style.cssText='margin:0;font-size:15px';tb.appendChild(th3);
+// search
+var tbs=document.createElement('input');tbs.type='text';tbs.placeholder='搜索...';tbs.style.cssText='padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:120px';tbs.oninput=function(){tblSearch=tbs.value;rT2(rows,el,tb)};tb.appendChild(tbs);
+// condition
+var tbc=document.createElement('input');tbc.type='text';tbc.placeholder='条件, 如: 金额 > 100';tbc.style.cssText='padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:160px';tbc.oninput=function(){tblCond=tbc.value;rT2(rows,el,tb)};tb.appendChild(tbc);
+// topN
+var tbn=document.createElement('input');tbn.type='number';tbn.value=tblTopN;tbn.min=5;tbn.max=500;tbn.style.cssText='padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:60px';tbn.onchange=function(){tblTopN=parseInt(tbn.value)||15;rT2(rows,el,tb)};tb.appendChild(tbn);
+// col toggle
+var ccp=document.createElement('details');ccp.style.cssText='font-size:12px';
+var ccs=document.createElement('summary');ccs.textContent='列 ('+tblCols.length+'/'+TC.length+')';ccp.appendChild(ccs);
+var ccd=document.createElement('div');ccd.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin-top:4px';
+TC.forEach(function(c){var l=document.createElement('label');l.style.cssText='padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #e2e8f0;cursor:pointer;user-select:none;'+(tblCols.includes(c)?'background:#3B82F6;color:white;border-color:#3B82F6':'');
+l.textContent=c;l.onclick=function(){var idx=tblCols.indexOf(c);if(idx!==-1)tblCols.splice(idx,1);else tblCols.push(c);ccs.textContent='列 ('+tblCols.length+'/'+TC.length+')';rT2(rows,el,tb)};ccd.appendChild(l)});
+ccp.appendChild(ccd);tb.appendChild(ccp);
+el.appendChild(tb);
+rT2(rows,el,tb)}
+
+function rT2(rows,el,tb){
+// remove old table
+var ot=el.querySelector('div:not(:first-child)');if(ot)ot.remove();
+var filtered=rows.slice();
+if(tblSearch.trim()){var q=tblSearch.trim().toLowerCase();filtered=filtered.filter(function(r){return tblCols.some(function(c){var v=r[c];return v!=null&&String(v).toLowerCase().includes(q)})})}
+if(tblCond.trim())filtered=aF(filtered,tblCond);
+var sorted=filtered.slice();if(sc)sorted.sort(function(a,b){var va=gn(a[sc]),vb=gn(b[sc]);if(!isNaN(va)&&!isNaN(vb))return(va-vb)*(sd?-1:1);return String(a[sc]||'').localeCompare(String(b[sc]||''))*(sd?-1:1)});
+var sl=sorted.slice(0,tblTopN);var tw=document.createElement('div');tw.style.overflowX='auto';
+var h3=tb.querySelector('h3');h3.textContent='数据表 · '+Math.min(sl.length,tblTopN)+' / '+filtered.length+' 行';
 var html='<table><thead><tr><th class="rn">#</th>';
-TC.forEach(function(c){var ind=sc===c?(sd?' ↓':' ↑'):'';html+='<th onclick="st2(\\x27'+c+'\\x27)">'+c+ind+'</th>'});
-html+='</tr></thead><tbody>';sl.forEach(function(r,i){html+='<tr><td class="rn">'+(i+1)+'</td>';TC.forEach(function(c){var v=r[c];if(v==null||v==='')v='—';else{var cl=CLS[c];if(cl&&cl.type==='numeric'&&cl.role==='metric'){var n=gn(v);if(!isNaN(n))v=fmt(n)}}html+='<td>'+v+'</td>'});html+='</tr>'});
+tblCols.forEach(function(c){var ind=sc===c?(sd?' ↓':' ↑'):'';html+='<th onclick=\"st2(\\x27'+c+'\\x27)\">'+c+ind+'</th>'});
+html+='</tr></thead><tbody>';sl.forEach(function(r,i){html+='<tr><td class="rn">'+(i+1)+'</td>';tblCols.forEach(function(c){var v=r[c];if(v==null||v==='')v='—';else{var cl=CLS[c];if(cl&&cl.type==='numeric'&&cl.role==='metric'){var n=gn(v);if(!isNaN(n))v=fmt(n)}}html+='<td>'+v+'</td>'});html+='</tr>'});
 html+='</tbody></table>';tw.innerHTML=html;el.appendChild(tw)}
 function st2(c){if(sc===c)sd=!sd;else{sc=c;sd=false}rT(gf())}
 
@@ -1007,14 +1080,23 @@ function getRows(): Record<string, string | number>[] {
 
 const chartRows = computed(() => getRows())
 
+/** 对图表应用其专属的行级筛选 */
+function filteredChartRows(chart: { filter?: string }): Record<string, string | number>[] {
+  const rows = chartRows.value
+  if (!chart.filter) return rows
+  return applyFilter(rows, undefined, chart.filter)
+}
+
 const allHeaders = computed(() => {
-  return dataStore.dataSet?.headers ?? []
+  const ds = dataStore.dataSet
+  if (!ds) return []
+  return ds.headers.filter((h) => !dataStore.excludedColumns.has(h))
 })
 
 const allMetricCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.role === 'metric')
+  return ds.headers.filter((h) => ds.classifications[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
 })
 
 function isAnalysisChart(chart: ChartSpec): boolean {

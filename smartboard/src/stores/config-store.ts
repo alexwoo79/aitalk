@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import type { DashboardConfig, KpiFormItem, ChartFormItem } from '@/types/config'
 import { useDataStore } from './data-store'
 
+export type ConfigSection = 'title' | 'filters' | 'kpis' | 'charts' | 'table'
+
 export const useConfigStore = defineStore('config', () => {
   const config = ref<DashboardConfig>({
     title: '',
@@ -14,20 +16,46 @@ export const useConfigStore = defineStore('config', () => {
 
   const dataStore = useDataStore()
 
-  // 自动生成推荐配置
-  function generateAutoConfig() {
+  // 各区域独立保存状态（快照存在 = 曾保存过，对比当前值判断是否 dirty）
+  const sectionSnapshots = ref<Partial<Record<ConfigSection, any>>>({})
+
+  // ====== 自动配置的计算基础（供各区域复用） ======
+  function _autoBase() {
     const ds = dataStore.dataSet
-    if (!ds) return
-
-    // 标题：文件名去掉扩展名
-    config.value.title = ds.fileName.replace(/\.[^.]+$/, '') + ' 分析看板'
-
-    // KPI：所有 metric 列，最多 6 个
+    if (!ds) return null
+    const excluded = dataStore.excludedColumns
     const metricCols = ds.headers.filter(
-      (h) => ds.classifications[h]?.role === 'metric',
+      (h) => ds.classifications[h]?.role === 'metric' && !excluded.has(h),
     )
-    config.value.kpis = metricCols.slice(0, 6).map((col) => {
-      const cls = ds.classifications[col]
+    const dims = ds.chartDimensions.filter((d) => !excluded.has(d))
+    const primaryMetric = ds.primaryMetric && !excluded.has(ds.primaryMetric)
+      ? ds.primaryMetric
+      : (metricCols.length > 0 ? metricCols[0] : null)
+    const dateCol = ds.headers.find((h) => ds.classifications[h]?.type === 'date' && !excluded.has(h))
+    return { ds, excluded, metricCols, dims, primaryMetric, dateCol }
+  }
+
+  // ====== 各区域独立自动生成 ======
+
+  function generateAutoTitle() {
+    const base = _autoBase()
+    if (!base) return
+    config.value.title = base.ds.fileName.replace(/\.[^.]+$/, '') + ' 分析看板'
+  }
+
+  function generateAutoFilters() {
+    const base = _autoBase()
+    if (!base) return
+    config.value.filters = base.ds.headers.filter(
+      (h) => base.ds.classifications[h]?.role === 'dimension' && base.ds.classifications[h]?.type === 'categorical' && !base.excluded.has(h),
+    )
+  }
+
+  function generateAutoKpis() {
+    const base = _autoBase()
+    if (!base) return
+    config.value.kpis = base.metricCols.slice(0, 6).map((col) => {
+      const cls = base.ds.classifications[col]
       return {
         column: col,
         label: col,
@@ -36,119 +64,66 @@ export const useConfigStore = defineStore('config', () => {
         prefix: cls.prefix,
       }
     })
+  }
 
-    // 筛选：所有 categorical dimension 列
-    config.value.filters = ds.headers.filter(
-      (h) => ds.classifications[h]?.role === 'dimension' && ds.classifications[h]?.type === 'categorical',
-    )
+  function generateAutoCharts() {
+    const base = _autoBase()
+    if (!base) return
+    const { ds, metricCols, dims, primaryMetric, dateCol } = base
+    const charts: ChartFormItem[] = []
 
-    // 图表：自动配置（对齐 dashboard_gen.py 逻辑）
-    config.value.charts = []
-    const dims = ds.chartDimensions
-    const primaryMetric = ds.primaryMetric || (metricCols.length > 0 ? metricCols[0] : null)
-
-    // 按维度唯一值数量分类
     for (const dim of dims.slice(0, 3)) {
       const cls = ds.classifications[dim]
       const uniqueCount = cls?.uniqueCount ?? 0
-
       if (uniqueCount <= 8) {
-        // 低基数维度 → doughnut(计数) + bar(主指标)
-        config.value.charts.push({
-          id: crypto.randomUUID(),
-          type: 'doughnut',
-          title: `${dim} 占比`,
-          dimension: dim,
-          metric: 'count',
-        })
+        charts.push({ id: crypto.randomUUID(), type: 'doughnut', title: `${dim} 占比`, dimension: dim, metric: 'count' })
         if (primaryMetric) {
-          config.value.charts.push({
-            id: crypto.randomUUID(),
-            type: 'bar',
-            title: `${dim} 对比`,
-            dimension: dim,
-            metrics: [primaryMetric],
-          })
+          charts.push({ id: crypto.randomUUID(), type: 'bar', title: `${dim} 对比`, dimension: dim, metrics: [primaryMetric] })
         }
       } else if (uniqueCount <= 20) {
-        // 中基数维度 → horizontal_bar
-        config.value.charts.push({
-          id: crypto.randomUUID(),
-          type: 'horizontal_bar',
-          title: `${dim} 排行`,
-          dimension: dim,
-          metric: primaryMetric || undefined,
-          metrics: primaryMetric ? [primaryMetric] : undefined,
-        })
+        charts.push({ id: crypto.randomUUID(), type: 'horizontal_bar', title: `${dim} 排行`, dimension: dim, metric: primaryMetric || undefined, metrics: primaryMetric ? [primaryMetric] : undefined })
       }
     }
-
-    // 主指标 → histogram
     if (primaryMetric) {
-      config.value.charts.push({
-        id: crypto.randomUUID(),
-        type: 'histogram',
-        title: `${primaryMetric} 分布`,
-        metric: primaryMetric,
-      })
+      charts.push({ id: crypto.randomUUID(), type: 'histogram', title: '{metric} 分布', metric: primaryMetric })
     }
-
-    // 日期列 + 主指标 → line 趋势
-    const dateCol = ds.headers.find((h) => ds.classifications[h]?.type === 'date')
     if (dateCol && primaryMetric) {
-      config.value.charts.push({
-        id: crypto.randomUUID(),
-        type: 'line',
-        title: `${primaryMetric} 月度趋势`,
-        dateColumn: dateCol,
-        metric: primaryMetric,
-      })
+      charts.push({ id: crypto.randomUUID(), type: 'line', title: '{metric} 月度趋势', dateColumn: dateCol, metric: primaryMetric })
     }
+    // 基础图表最多 6 张
+    const basic = charts.slice(0, 6)
 
-    // 最多 6 张基础图表
-    config.value.charts = config.value.charts.slice(0, 6)
-
-    // ====== 高级分析图表 ======
-
-    // 时序分析：有日期列 + 主指标
+    // 高级分析
     if (dateCol && primaryMetric) {
-      config.value.charts.push({
-        id: crypto.randomUUID(),
-        type: 'timeseries',
-        title: `${primaryMetric} 时序分析`,
-        dateColumn: dateCol,
-        metric: primaryMetric,
-      })
+      basic.push({ id: crypto.randomUUID(), type: 'timeseries', title: '{metric} 时序分析', dateColumn: dateCol, metric: primaryMetric })
     }
-
-    // 十分位分析：有主指标
     if (primaryMetric) {
-      config.value.charts.push({
-        id: crypto.randomUUID(),
-        type: 'decile',
-        title: `${primaryMetric} 十分位分析`,
-        metric: primaryMetric,
-      })
+      basic.push({ id: crypto.randomUUID(), type: 'decile', title: '{metric} 十分位分析', metric: primaryMetric })
     }
-
-    // 聚类分析：2+ 指标列
     if (metricCols.length >= 2) {
-      config.value.charts.push({
-        id: crypto.randomUUID(),
-        type: 'cluster',
-        title: '聚类分析',
-        metrics: metricCols.slice(0, 5),
-        clusterMetrics: metricCols.slice(0, 5),
-        k: 3,
-      })
+      basic.push({ id: crypto.randomUUID(), type: 'cluster', title: '聚类分析', metrics: metricCols.slice(0, 5), clusterMetrics: metricCols.slice(0, 5), k: 3 })
     }
+    config.value.charts = basic
+  }
 
-    // 表格排序
+  function generateAutoTable() {
+    const base = _autoBase()
+    if (!base) return
+    const { ds, metricCols, excluded } = base
     config.value.table = {
-      sortBy: ds.primaryMetric || metricCols[0] || '',
+      sortBy: (ds.primaryMetric && !excluded.has(ds.primaryMetric) ? ds.primaryMetric : metricCols[0]) || '',
       topN: 15,
-      columns: ds.headers.slice(),
+      columns: ds.headers.filter((h) => !excluded.has(h)),
     }
+  }
+
+  // 全部自动生成（兼容旧接口）
+  function generateAutoConfig() {
+    generateAutoTitle()
+    generateAutoFilters()
+    generateAutoKpis()
+    generateAutoCharts()
+    generateAutoTable()
   }
 
   function editTitle(title: string) {
@@ -227,16 +202,101 @@ export const useConfigStore = defineStore('config', () => {
       charts: [],
       table: { sortBy: '', topN: 15, columns: [] },
     }
+    sectionSnapshots.value = {}
+  }
+
+  // ====== 各区域独立保存/重置 ======
+
+  const sectionGetters: Record<ConfigSection, () => any> = {
+    title: () => config.value.title,
+    filters: () => [...config.value.filters],
+    kpis: () => JSON.parse(JSON.stringify(config.value.kpis)),
+    charts: () => JSON.parse(JSON.stringify(config.value.charts)),
+    table: () => JSON.parse(JSON.stringify(config.value.table)),
+  }
+
+  const sectionSetters: Record<ConfigSection, (data: any) => void> = {
+    title: (v) => { config.value.title = v },
+    filters: (v) => { config.value.filters = v },
+    kpis: (v) => { config.value.kpis = v },
+    charts: (v) => { config.value.charts = v },
+    table: (v) => { config.value.table = v },
+  }
+
+  const sectionAutoGens: Record<ConfigSection, () => void> = {
+    title: generateAutoTitle,
+    filters: generateAutoFilters,
+    kpis: generateAutoKpis,
+    charts: generateAutoCharts,
+    table: generateAutoTable,
+  }
+
+  /** 保存/解除单个区域（toggle） */
+  function saveSection(section: ConfigSection) {
+    if (isSectionSaved(section)) {
+      // 已保存 → 解除保存
+      delete sectionSnapshots.value[section]
+    } else {
+      // 未保存 → 保存快照
+      sectionSnapshots.value[section] = sectionGetters[section]()
+    }
+  }
+
+  /** 恢复单个区域到上次保存 */
+  function restoreSection(section: ConfigSection) {
+    if (sectionSnapshots.value[section] !== undefined) {
+      sectionSetters[section](JSON.parse(JSON.stringify(sectionSnapshots.value[section])))
+    }
+  }
+
+  /** 重置单个区域为自动推荐 */
+  function resetSectionToAuto(section: ConfigSection) {
+    sectionAutoGens[section]()
+    delete sectionSnapshots.value[section]
+  }
+
+  /** 检查区域是否已保存（有快照且当前值与快照一致） */
+  function isSectionSaved(section: ConfigSection): boolean {
+    const snap = sectionSnapshots.value[section]
+    if (snap === undefined) return false
+    return JSON.stringify(sectionGetters[section]()) === JSON.stringify(snap)
+  }
+
+  /** 全部保存/解除 */
+  function saveAll() {
+    const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table']
+    if (sections.every((s) => isSectionSaved(s))) {
+      // 全部已保存 → 全部解除
+      sectionSnapshots.value = {}
+    } else {
+      for (const sec of sections) {
+        sectionSnapshots.value[sec] = sectionGetters[sec]()
+      }
+    }
+  }
+
+  /** 全部重置为自动 */
+  function resetAllToAuto() {
+    sectionSnapshots.value = {}
+    generateAutoConfig()
   }
 
   const hasData = computed(() => dataStore.dataSet !== null)
   const hasConfig = computed(() => config.value.charts.length > 0)
+  const hasSnapshot = computed(() => snapshot.value !== null)
 
   return {
     config,
+    sectionSnapshots,
     hasData,
     hasConfig,
     generateAutoConfig,
+    saveSection,
+    restoreSection,
+    resetSectionToAuto,
+    isSectionSaved,
+    saveAll,
+    resetAllToAuto,
     editTitle,
     addKpi,
     removeKpi,

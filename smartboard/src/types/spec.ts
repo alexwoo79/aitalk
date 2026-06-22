@@ -27,13 +27,14 @@ export interface KpiSpec {
   formula?: {
     variables: { column: string; agg: string; filter?: string }[]
     expression: string
+    filter?: string
   }
 }
 
 /** 图表 */
 export interface ChartSpec {
   type: 'bar' | 'doughnut' | 'horizontal_bar' | 'histogram' | 'line'
-    | 'timeseries' | 'decile' | 'cluster'
+  | 'timeseries' | 'decile' | 'cluster'
   title: string
   dimension?: string
   metric?: string
@@ -45,6 +46,8 @@ export interface ChartSpec {
   agg?: string
   k?: number
   _skip?: boolean
+  /** 行级筛选条件，格式: "列名 运算符 值" */
+  filter?: string
 }
 
 /** 筛选项 */

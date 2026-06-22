@@ -16,7 +16,7 @@
       <button class="btn" @click="dataStore.clearData()">关闭</button>
     </div>
 
-    <DataPreview v-if="dataStore.dataSet" :data-set="dataStore.dataSet" @next="goToConfig" />
+    <DataPreview v-if="dataStore.dataSet" :data-set="dataStore.dataSet" @next="goToConfig" @toggleExclude="onToggleExclude" />
   </div>
 </template>
 
@@ -32,8 +32,17 @@ const dataStore = useDataStore()
 const configStore = useConfigStore()
 
 function onFileLoaded() {
-  // Auto-generate config when data is loaded
-  configStore.generateAutoConfig()
+  // Auto-generate config when data is loaded (only if nothing saved yet)
+  if (Object.keys(configStore.sectionSnapshots).length === 0) {
+    configStore.generateAutoConfig()
+  }
+}
+
+function onToggleExclude() {
+  // Re-generate config when columns are excluded/restored (only if nothing saved)
+  if (Object.keys(configStore.sectionSnapshots).length === 0) {
+    configStore.generateAutoConfig()
+  }
 }
 
 function goToConfig() {

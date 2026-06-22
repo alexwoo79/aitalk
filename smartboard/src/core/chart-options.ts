@@ -5,6 +5,16 @@
 import type { ChartSpec } from '@/types/spec'
 import { aggregate } from '@/core/aggregator'
 
+// ====== 动态标题解析 ======
+/** 将标题中的 {metric} / {metrics} 替换为实际选中的指标名 */
+export function resolveTitle(title: string, metrics: string[]): string {
+  if (!title) return ''
+  if (metrics.length === 0) return title
+  return title
+    .replace('{metrics}', metrics.join('、'))
+    .replace('{metric}', metrics[0])
+}
+
 // ====== Color palette ======
 export const COLORS = [
   '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',

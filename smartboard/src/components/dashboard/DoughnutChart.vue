@@ -1,5 +1,6 @@
 <template>
     <div class="basic-chart-wrap">
+        <h3 class="chart-title">{{ displayTitle }}</h3>
         <div v-if="availableMetrics.length > 1" class="metric-selector">
             <label>指标</label>
             <select v-model="selectedMetric" class="input input-sm metric-select">
@@ -18,7 +19,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
-import { buildDoughnutOption } from '@/core/chart-options'
+import { buildDoughnutOption, resolveTitle } from '@/core/chart-options'
 import { useTheme } from '@/composables/use-theme'
 
 const { theme } = useTheme()
@@ -35,6 +36,7 @@ const selectedMetric = ref(defaultMetric)
 watch(() => props.chart.metric, (v) => { if (v) selectedMetric.value = v })
 
 const effectiveChart = computed<ChartSpec>(() => ({ ...props.chart, metric: selectedMetric.value }))
+const displayTitle = computed(() => resolveTitle(props.chart.title, selectedMetric.value ? [selectedMetric.value] : []))
 const option = computed(() => buildDoughnutOption(effectiveChart.value, props.rows))
 
 const containerRef = ref<HTMLElement | null>(null)

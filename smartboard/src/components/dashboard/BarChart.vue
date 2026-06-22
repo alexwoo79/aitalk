@@ -1,5 +1,6 @@
 <template>
     <div class="basic-chart-wrap" ref="wrapRef">
+        <h3 class="chart-title">{{ displayTitle }}</h3>
         <div v-if="availableMetrics.length > 0" class="metric-toggle">
             <button v-for="m in availableMetrics" :key="m" class="period-btn"
                 :class="{ active: activeMetrics.includes(m) }" @click="toggleMetric(m)">
@@ -22,7 +23,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
-import { buildBarOption } from '@/core/chart-options'
+import { buildBarOption, resolveTitle } from '@/core/chart-options'
 import { useTheme } from '@/composables/use-theme'
 
 const { theme } = useTheme()
@@ -48,6 +49,7 @@ function toggleMetric(m: string) {
 }
 
 const effectiveChart = computed<ChartSpec>(() => ({ ...props.chart, metrics: activeMetrics.value }))
+const displayTitle = computed(() => resolveTitle(props.chart.title, activeMetrics.value))
 const option = computed(() => {
     const opt = buildBarOption(effectiveChart.value, props.rows)
     if (stacked.value && opt.series && Array.isArray(opt.series)) {

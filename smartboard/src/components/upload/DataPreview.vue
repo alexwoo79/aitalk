@@ -12,10 +12,27 @@
 
     <!-- 列分类结果 -->
     <div class="section">
-      <h4>列分类结果</h4>
+      <div class="section-header">
+        <h4>列分类结果</h4>
+        <div class="exclude-controls">
+          <span class="exclude-hint click-hint">💡 点击卡片选择排除</span>
+          <span v-if="excludedCount > 0" class="exclude-hint">
+            已排除 {{ excludedCount }} 列
+            <button class="btn-link" @click="resetExcluded">重置</button>
+          </span>
+        </div>
+      </div>
       <div class="col-grid">
-        <div v-for="col in dataSet.headers" :key="col" class="col-card"
-          :class="'role-' + dataSet.classifications[col]?.role">
+        <div
+          v-for="col in dataSet.headers"
+          :key="col"
+          class="col-card"
+          :class="[
+            'role-' + dataSet.classifications[col]?.role,
+            { excluded: dataStore.excludedColumns.has(col) }
+          ]"
+          @click="onToggleExclude(col)"
+        >
           <div class="col-icon">
             <span>{{ roleIcon(dataSet.classifications[col]?.role) }}</span>
           </div>
@@ -25,6 +42,7 @@
               {{ typeLabel(dataSet.classifications[col]?.type) }} · {{ roleLabel(dataSet.classifications[col]?.role) }}
             </div>
           </div>
+          <div class="col-exclude-mark" v-if="dataStore.excludedColumns.has(col)">✕</div>
         </div>
       </div>
     </div>
@@ -33,24 +51,24 @@
     <div v-if="dataSet.primaryMetric" class="section">
       <h4>自动检测</h4>
       <div class="detection-info">
-        <span>主指标：<strong>{{ dataSet.primaryMetric }}</strong></span>
-        <span>图表维度：<strong>{{ dataSet.chartDimensions.join(', ') || '无' }}</strong></span>
+        <span>主指标：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ? '（已排除）' : dataSet.primaryMetric }}</strong></span>
+        <span>图表维度：<strong>{{ dataSet.chartDimensions.filter(d => !dataStore.excludedColumns.has(d)).join(', ') || '无' }}</strong></span>
       </div>
     </div>
 
     <!-- 样本数据 -->
     <div class="section">
-      <h4>样本数据（前 5 行）</h4>
+      <h4>样本数据（前 5 行，{{ visibleHeaders.length }}/{{ dataSet.headers.length }} 列）</h4>
       <div class="table-wrapper">
         <table class="sample-table">
           <thead>
             <tr>
-              <th v-for="col in dataSet.headers" :key="col">{{ col }}</th>
+              <th v-for="col in visibleHeaders" :key="col" :class="{ 'col-excluded-th': dataStore.excludedColumns.has(col) }">{{ col }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(row, i) in dataSet.rows.slice(0, 5)" :key="i">
-              <td v-for="col in dataSet.headers" :key="col">{{ truncate(row[col]) }}</td>
+              <td v-for="col in visibleHeaders" :key="col">{{ truncate(row[col]) }}</td>
             </tr>
           </tbody>
         </table>
@@ -60,10 +78,30 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { DataSet } from '@/types/data'
+import { useDataStore } from '@/stores/data-store'
 
 defineProps<{ dataSet: DataSet }>()
-defineEmits<{ next: [] }>()
+const emit = defineEmits<{ next: []; toggleExclude: [] }>()
+
+const dataStore = useDataStore()
+
+const excludedCount = computed(() => dataStore.excludedColumns.size)
+
+const visibleHeaders = computed(() =>
+  (dataStore.dataSet?.headers ?? []).filter((h) => !dataStore.excludedColumns.has(h)),
+)
+
+function onToggleExclude(col: string) {
+  dataStore.toggleExcludeColumn(col)
+  emit('toggleExclude')
+}
+
+function resetExcluded() {
+  dataStore.clearExcluded()
+  emit('toggleExclude')
+}
 
 const typeLabels: Record<string, string> = {
   numeric: '数值',
@@ -177,6 +215,47 @@ function truncate(val: string | number | undefined): string {
   color: var(--text-primary);
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-header h4 {
+  margin-bottom: 0;
+}
+
+.exclude-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exclude-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.exclude-hint.click-hint {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.btn-link:hover {
+  color: var(--primary-hover);
+}
+
 /* Column grid */
 .col-grid {
   display: grid;
@@ -191,6 +270,27 @@ function truncate(val: string | number | undefined): string {
   padding: 18px;
   border-radius: 12px;
   border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.col-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.col-card.excluded {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+  border-style: dashed;
+  border-color: var(--role-ignore-text, #999);
+}
+
+.col-card.excluded:hover {
+  opacity: 0.65;
+  filter: grayscale(0.3);
 }
 
 .col-card.role-metric {
@@ -245,6 +345,24 @@ function truncate(val: string | number | undefined): string {
 .col-meta {
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+/* Exclude mark */
+.col-exclude-mark {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 /* Detection info */

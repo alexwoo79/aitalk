@@ -1,6 +1,14 @@
 /**
  * 条件筛选引擎 — 解析并应用 "列名 运算符 值" 表达式
- * 被 preview-store 和 DashboardView 共享
+ *
+ * 分隔符规则:
+ *   &  → AND（所有组必须满足）
+ *   |  → OR （组内任一条件满足即可）
+ *
+ * 示例:
+ *   "地区 = 北京 & 金额 > 100"        → 地区=北京 AND 金额>100
+ *   "地区 = 北京 | 地区 = 上海"       → 地区=北京 OR 地区=上海
+ *   "地区 = 北京 | 地区 = 上海 & 金额 > 100" → (地区=北京 OR 地区=上海) AND 金额>100
  */
 
 export function parseFilter(
@@ -25,23 +33,27 @@ export function applyFilter(
 ): Record<string, string | number>[] {
   let result = rows
 
-  // 单条件
-  if (filter && filter.trim()) {
-    const parsed = parseFilter(filter)
-    if (parsed) {
-      result = result.filter((r) => matchRow(r, parsed))
-    }
-  }
+  // 合并 filter 和 conditions（用 & 连接）
+  const allConds: string[] = []
+  if (filter && filter.trim()) allConds.push(filter.trim())
+  if (conditions && conditions.trim()) allConds.push(conditions.trim())
+  const fullExpr = allConds.join(' & ')
+  if (!fullExpr) return result
 
-  // 多条件（; 分隔）
-  if (conditions && conditions.trim()) {
-    const conds = conditions.split(';').map((c) => c.trim()).filter((c) => c)
-    for (const cond of conds) {
-      const parsed = parseFilter(cond)
-      if (parsed) {
-        result = result.filter((r) => matchRow(r, parsed))
-      }
-    }
+  // 按 & 拆分为 AND 组
+  const andGroups = fullExpr.split('&').map((g) => g.trim()).filter((g) => g)
+
+  for (const group of andGroups) {
+    // 按 | 拆分为 OR 子条件
+    const orConds = group.split('|').map((c) => c.trim()).filter((c) => c)
+    const parsedOrConds = orConds.map(parseFilter).filter((p): p is NonNullable<ReturnType<typeof parseFilter>> => p !== null)
+
+    if (parsedOrConds.length === 0) continue
+
+    // AND 组: 至少一个 OR 条件匹配
+    result = result.filter((r) =>
+      parsedOrConds.some((parsed) => matchRow(r, parsed)),
+    )
   }
 
   return result

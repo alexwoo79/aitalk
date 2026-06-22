@@ -1,7 +1,8 @@
 <template>
   <div class="decile-chart" style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <h3 class="chart-title">{{ displayTitle }}</h3>
     <!-- 指标选择 -->
-    <div v-if="activeMetrics.length > 1" class="metric-selector">
+    <div class="metric-selector">
       <label>分析指标</label>
       <select v-model="selectedMetric" class="metric-select">
         <option v-for="m in activeMetrics" :key="m" :value="m">{{ m }}</option>
@@ -57,6 +58,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart, LineChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
+import { resolveTitle } from '@/core/chart-options'
 import { useTheme } from '@/composables/use-theme'
 import { computeDeciles } from '@/core/analysis'
 
@@ -68,9 +70,11 @@ const props = defineProps<{
   rows: Record<string, string | number>[]
   metric: string
   metrics?: string[]
+  title?: string
 }>()
 
 const selectedMetric = ref(props.metric)
+const displayTitle = computed(() => resolveTitle(props.title || '十分位分析', selectedMetric.value ? [selectedMetric.value] : []))
 watch(() => props.metric, (v) => { selectedMetric.value = v })
 
 const activeMetrics = computed(() =>

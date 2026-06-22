@@ -1,5 +1,6 @@
 <template>
   <div class="timeseries-chart" style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <h3 class="chart-title">{{ displayTitle }}</h3>
     <!-- 指标切换 -->
     <div v-if="activeMetrics.length > 1" class="metric-toggle">
       <button v-for="m in activeMetrics" :key="m" class="period-btn" :class="{ active: selectedMetric === m }"
@@ -87,6 +88,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent, GridComponent, DataZoomComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
+import { resolveTitle } from '@/core/chart-options'
 import { useTheme } from '@/composables/use-theme'
 import { computeTimeseries } from '@/core/analysis'
 
@@ -99,6 +101,7 @@ const props = defineProps<{
   dateColumn: string
   metric: string
   metrics?: string[]
+  title?: string
 }>()
 
 const COLORS = {
@@ -116,6 +119,7 @@ const periods = [
 
 const period = ref<'month' | 'quarter' | 'year'>('month')
 const selectedMetric = ref(props.metric)
+const displayTitle = computed(() => resolveTitle(props.title || '时序分析', selectedMetric.value ? [selectedMetric.value] : []))
 
 // 当 metric/metrics 变化时重置选中指标
 watch(() => props.metric, (v) => { selectedMetric.value = v })

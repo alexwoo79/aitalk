@@ -1,5 +1,6 @@
 <template>
   <div class="cluster-chart" style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <h3 class="chart-title">{{ displayTitle }}</h3>
     <!-- 轴选择器（3+ 指标时显示） -->
     <div v-if="availableAxes.length > 2" class="axis-selector">
       <div class="axis-group">
@@ -75,6 +76,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { ScatterChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
+import { resolveTitle } from '@/core/chart-options'
 import { useTheme } from '@/composables/use-theme'
 import { computeClusters } from '@/core/analysis'
 
@@ -91,11 +93,14 @@ const props = defineProps<{
   rows: Record<string, string | number>[]
   metrics: string[]
   k?: number
+  title?: string
 }>()
 
 const availableAxes = computed(() => props.metrics || [])
 const xCol = ref(availableAxes.value[0] || '')
 const yCol = ref(availableAxes.value[1] || availableAxes.value[0] || '')
+
+const displayTitle = computed(() => resolveTitle(props.title || '聚类分析', [xCol.value, yCol.value].filter(Boolean)))
 
 // 当 metrics 改变时更新轴
 watch(availableAxes, (axes) => {

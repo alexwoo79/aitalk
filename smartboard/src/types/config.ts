@@ -22,6 +22,7 @@ export interface KpiFormItem {
   formula?: {
     variables: { column: string; agg: string; filter?: string }[]
     expression: string
+    filter?: string
   }
 }
 
@@ -37,6 +38,8 @@ export interface ChartFormItem {
   agg?: string
   k?: number
   clusterMetrics?: string[]
+  /** 行级筛选条件，格式: "列名 运算符 值" */
+  filter?: string
 }
 
 /** 图表类型选项 */

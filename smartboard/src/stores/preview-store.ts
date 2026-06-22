@@ -22,6 +22,8 @@ export const usePreviewStore = defineStore('preview', () => {
     const cfg = configStore.config
     if (!ds || !cfg) return null
 
+    const excluded = dataStore.excludedColumns
+
     const kpis: KpiSpec[] = cfg.kpis.map((k) => ({
       column: k.column,
       label: k.label,
@@ -42,19 +44,20 @@ export const usePreviewStore = defineStore('preview', () => {
       agg: c.agg,
       k: c.k,
       clusterMetrics: c.clusterMetrics,
+      filter: c.filter,
     }))
 
     const filters: FilterSpec[] = cfg.filters.map((f) => ({ column: f }))
 
     const table: TableSpec = {
-      columns: cfg.table.columns.length > 0 ? cfg.table.columns : ds.headers,
+      columns: cfg.table.columns.length > 0 ? cfg.table.columns : ds.headers.filter((h) => !excluded.has(h)),
       sortBy: cfg.table.sortBy,
       topN: cfg.table.topN,
     }
 
-    // Date range detection
+    // Date range detection（跳过已排除的列）
     let dateRangeSpec: DashboardSpec['dateRange'] | undefined
-    const dateCol = ds.headers.find((h) => ds.classifications[h]?.type === 'date')
+    const dateCol = ds.headers.find((h) => ds.classifications[h]?.type === 'date' && !excluded.has(h))
     if (dateCol) {
       const dates = ds.rows
         .map((r) => String(r[dateCol] ?? ''))
@@ -67,8 +70,8 @@ export const usePreviewStore = defineStore('preview', () => {
 
     return {
       title: cfg.title || 'Dashboard',
-      primaryMetric: ds.primaryMetric,
-      chartDimensions: ds.chartDimensions,
+      primaryMetric: ds.primaryMetric && !excluded.has(ds.primaryMetric) ? ds.primaryMetric : null,
+      chartDimensions: ds.chartDimensions.filter((d) => !excluded.has(d)),
       columns: ds.classifications,
       kpis,
       charts,
@@ -96,9 +99,9 @@ export const usePreviewStore = defineStore('preview', () => {
       }
     }
 
-    // Apply date range
+    // Apply date range（跳过已排除的列）
     if (dateRange.value.start && dateRange.value.end) {
-      const dateCol = ds.headers.find((h) => ds.classifications[h]?.type === 'date')
+      const dateCol = ds.headers.find((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
       if (dateCol) {
         const start = dateRange.value.start
         const end = dateRange.value.end
@@ -157,9 +160,12 @@ export const usePreviewStore = defineStore('preview', () => {
 
     // 公式 KPI
     if (kpi.formula && kpi.formula.variables.length > 0) {
-      const varValues = kpi.formula.variables.map((v) =>
-        computeColumnValue(v.column, v.agg, rows, v.filter),
-      )
+      const sharedFilter = kpi.formula.filter || kpi.filter
+      const varValues = kpi.formula.variables.map((v) => {
+        // 变量筛选 & 共享筛选（用 & 连接叠加）
+        const combined = [v.filter, sharedFilter].filter(Boolean).join(' & ')
+        return computeColumnValue(v.column, v.agg, rows, combined || undefined)
+      })
       try {
         let expr = kpi.formula.expression
         for (let i = 0; i < varValues.length; i++) {

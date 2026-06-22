@@ -10,6 +10,10 @@
         <div class="config-header-top">
           <button class="btn btn-ghost" @click="$router.push('/')">← 返回上传</button>
           <h2>配置 Dashboard</h2>
+          <div class="header-actions">
+            <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved ? '✅ 已保存（点击解除）' : '💾 全部保存' }}</button>
+            <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">↺ 全部重置</button>
+          </div>
         </div>
         <p class="subtitle">基于自动推荐配置，你可以自由调整每一项</p>
       </div>
@@ -19,13 +23,25 @@
         <div class="config-panel">
           <!-- 标题 -->
           <section class="config-section">
-            <h3>看板标题</h3>
+            <div class="section-header-row">
+              <h3>看板标题</h3>
+              <div class="section-actions">
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('title') }" @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('title')">↺</button>
+              </div>
+            </div>
             <input v-model="configStore.config.title" class="input" placeholder="输入看板标题" />
           </section>
 
           <!-- 筛选项 -->
           <section class="config-section">
-            <h3>筛选项 ({{ configStore.config.filters.length }})</h3>
+            <div class="section-header-row">
+              <h3>筛选项 ({{ configStore.config.filters.length }})</h3>
+              <div class="section-actions">
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('filters') }" @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('filters')">↺</button>
+              </div>
+            </div>
             <div class="filter-chips">
               <label v-for="col in dimensionCols" :key="col" class="chip"
                 :class="{ active: configStore.config.filters.includes(col) }">
@@ -38,7 +54,13 @@
 
           <!-- KPI 卡片 -->
           <section class="config-section">
-            <h3>KPI 卡片 ({{ configStore.config.kpis.length }}) <span class="drag-hint">⋮⋮ 拖拽排序</span></h3>
+            <div class="section-header-row">
+              <h3>KPI 卡片 ({{ configStore.config.kpis.length }}) <span class="drag-hint">⋮⋮ 拖拽排序</span></h3>
+              <div class="section-actions">
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('kpis') }" @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('kpis')">↺</button>
+              </div>
+            </div>
             <div class="kpi-list" data-drag-list="kpi">
               <div v-for="(kpi, i) in configStore.config.kpis" :key="i" class="kpi-item" :data-drag-idx="i"
                 :class="{ 'drag-placeholder': dragPlaceholder === i && dragList === 'kpi' }">
@@ -61,7 +83,13 @@
 
           <!-- 图表块 -->
           <section class="config-section">
-            <h3>图表 ({{ configStore.config.charts.length }}) <span class="drag-hint">⋮⋮ 拖拽排序</span></h3>
+            <div class="section-header-row">
+              <h3>图表 ({{ configStore.config.charts.length }}) <span class="drag-hint">⋮⋮ 拖拽排序</span></h3>
+              <div class="section-actions">
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('charts') }" @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('charts')">↺</button>
+              </div>
+            </div>
             <div class="chart-list" data-drag-list="chart">
               <div v-for="(chart, ci) in configStore.config.charts" :key="chart.id" class="chart-item"
                 :data-drag-idx="ci" :class="{ 'drag-placeholder': dragPlaceholder === ci && dragList === 'chart' }">
@@ -89,7 +117,13 @@
 
           <!-- 表格配置 -->
           <section class="config-section">
-            <h3>数据表</h3>
+            <div class="section-header-row">
+              <h3>数据表</h3>
+              <div class="section-actions">
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('table') }" @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('table')">↺</button>
+              </div>
+            </div>
             <div class="table-config-row">
               <label>排序列</label>
               <select v-model="configStore.config.table.sortBy" class="input select-sm">
@@ -140,6 +174,8 @@
             <button class="btn btn-primary btn-lg" @click="goToDashboard">
               生成 Dashboard →
             </button>
+            <div class="save-status" v-if="allSaved">✅ 全部已保存，切换页面不会丢失</div>
+            <div class="save-status unsaved" v-else>⚠️ 已保存 {{ savedCount }}/5 区域，修改后按钮自动恢复 💾</div>
           </div>
         </div>
       </div>
@@ -180,12 +216,12 @@
                 <div class="filter-wrap">
                   <input v-model="kpiForm.filter" class="input" placeholder="留空=全部" list="filter-cols" />
                   <datalist id="filter-cols">
-                    <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
-                    <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
-                    <option v-for="col in allHeaders" :key="col + '_gt'" :value="col + ' > '" />
-                    <option v-for="col in allHeaders" :key="col + '_lt'" :value="col + ' < '" />
+                    <option v-for="col in filterableColumns" :key="col" :value="col + ' = '" />
+                    <option v-for="col in filterableColumns" :key="col + '_ne'" :value="col + ' != '" />
+                    <option v-for="col in filterableColumns" :key="col + '_gt'" :value="col + ' > '" />
+                    <option v-for="col in filterableColumns" :key="col + '_lt'" :value="col + ' < '" />
                   </datalist>
-                  <span class="filter-hint">格式: 列名 运算符 值。输入列名时自动补全</span>
+                  <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。输入列名时自动补全</span>
                 </div>
               </div>
             </template>
@@ -207,18 +243,24 @@
                     <option value="min">最小</option>
                     <option value="max">最大</option>
                   </select>
-                  <input v-model="v.filter" class="input input-sm formula-filter" placeholder="筛选(可选) 留空=全部"
+                  <input v-model="v.filter" class="input input-sm formula-filter" placeholder="列筛选"
                     list="filter-cols-formula" />
                   <button v-if="kpiForm.variables.length > 1" class="btn-icon" @click="kpiForm.variables.splice(vi, 1)"
                     title="移除">✕</button>
                 </div>
                 <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">+ 添加变量</button>
-                <datalist id="filter-cols-formula">
-                  <option v-for="col in allHeaders" :key="col" :value="col + ' = '" />
-                  <option v-for="col in allHeaders" :key="col + '_ne'" :value="col + ' != '" />
-                  <option v-for="col in allHeaders" :key="col + '_gt'" :value="col + ' > '" />
-                  <option v-for="col in allHeaders" :key="col + '_lt'" :value="col + ' < '" />
-                </datalist>
+
+                <div class="formula-label">共享筛选 <span class="formula-hint">叠加在变量筛选之上</span></div>
+                <div class="filter-wrap">
+                  <input v-model="kpiForm.filter" class="input" placeholder="留空=全部" list="filter-cols-formula" />
+                  <datalist id="filter-cols-formula">
+                    <option v-for="col in filterableColumns" :key="col" :value="col + ' = '" />
+                    <option v-for="col in filterableColumns" :key="col + '_ne'" :value="col + ' != '" />
+                    <option v-for="col in filterableColumns" :key="col + '_gt'" :value="col + ' > '" />
+                    <option v-for="col in filterableColumns" :key="col + '_lt'" :value="col + ' < '" />
+                  </datalist>
+                  <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。将叠加到每个变量的列筛选之上</span>
+                </div>
 
                 <div class="formula-label">运算表达式 <span class="formula-hint">双击变量名插入</span></div>
                 <div class="formula-btns">
@@ -276,7 +318,7 @@
                 <option v-for="opt in CHART_TYPES" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
               <label>标题</label>
-              <input v-model="chartForm.title" class="input" placeholder="图表标题" />
+              <input v-model="chartForm.title" class="input" placeholder="图表标题，支持 {metric} / {metrics} 动态替换" />
 
               <template v-if="isBasicChart(chartForm.type)">
                 <label>维度</label>
@@ -362,6 +404,19 @@
                   <option v-for="col in allMetricCols" :key="col" :value="col">{{ col }}</option>
                 </select>
               </template>
+
+              <!-- 筛选条件（通用） -->
+              <label>筛选条件</label>
+              <div class="filter-wrap">
+                <input v-model="chartForm.filter" class="input" placeholder="留空=全部数据，如: 地区 = 北京" list="chart-filter-cols" />
+                <datalist id="chart-filter-cols">
+                  <option v-for="col in filterableColumns" :key="col" :value="col + ' = '" />
+                  <option v-for="col in filterableColumns" :key="col + '_ne'" :value="col + ' != '" />
+                  <option v-for="col in filterableColumns" :key="col + '_gt'" :value="col + ' > '" />
+                  <option v-for="col in filterableColumns" :key="col + '_lt'" :value="col + ' < '" />
+                </datalist>
+                <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。如「地区 = 北京 | 地区 = 上海」</span>
+              </div>
             </div>
           </div>
           <div class="modal-footer">
@@ -379,12 +434,24 @@ import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
+import type { ConfigSection } from '@/stores/config-store'
 import { CHART_TYPES, AGG_OPTIONS, KPI_FORMAT_OPTIONS } from '@/types/config'
 import type { ChartFormItem } from '@/types/config'
 
 const router = useRouter()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
+
+// 全部区域是否都已保存（与快照一致）
+const allSaved = computed(() => {
+  const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table']
+  return sections.every((s) => configStore.isSectionSaved(s))
+})
+
+const savedCount = computed(() => {
+  const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table']
+  return sections.filter((s) => configStore.isSectionSaved(s)).length
+})
 
 // ====== Drag state ======
 const dragList = ref<'kpi' | 'chart' | null>(null)
@@ -483,20 +550,25 @@ function onPointerUp(e: PointerEvent) {
 const numericCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric' && ds.classifications[h]?.role === 'metric')
+  return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric' && ds.classifications[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
 })
 
 const dimensionCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
   return ds.headers.filter(
-    (h) => ds.classifications[h]?.role === 'dimension' && ds.classifications[h]?.type === 'categorical',
+    (h) => ds.classifications[h]?.role === 'dimension' && ds.classifications[h]?.type === 'categorical' && !dataStore.excludedColumns.has(h),
   )
 })
 
 const allHeaders = computed(() => {
   return dataStore.dataSet?.headers ?? []
 })
+
+/** 未排除的列（供筛选器 datalist 使用，避免引用已排除列） */
+const filterableColumns = computed(() =>
+  allHeaders.value.filter((h) => !dataStore.excludedColumns.has(h)),
+)
 
 function chartTypeLabel(type: string): string {
   return CHART_TYPES.find((t) => t.value === type)?.label ?? type
@@ -530,7 +602,7 @@ const kpiForm = reactive({
 const allNumericCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric')
+  return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric' && !dataStore.excludedColumns.has(h))
 })
 
 const canSaveKpi = computed(() => {
@@ -576,8 +648,9 @@ function openEditKpi(idx: number) {
   const kpi = configStore.config.kpis[idx]
   if (kpi.formula) {
     kpiForm.useFormula = true
-    kpiForm.variables = kpi.formula.variables.map(v => ({ ...v, filter: v.filter || '' }))
+    kpiForm.variables = kpi.formula.variables.map(v => ({ column: v.column, agg: v.agg, filter: v.filter || '' }))
     kpiForm.expression = kpi.formula.expression
+    kpiForm.filter = kpi.formula.filter || ''
     kpiForm.column = ''
     kpiForm.agg = 'sum'
   } else {
@@ -585,7 +658,7 @@ function openEditKpi(idx: number) {
     kpiForm.column = kpi.column
     kpiForm.agg = kpi.agg
     kpiForm.filter = kpi.filter || ''
-    kpiForm.variables = [{ column: '', agg: 'sum', filter: '' }, { column: '', agg: 'sum', filter: '' }]
+    kpiForm.variables = [{ column: '', agg: 'sum' }, { column: '', agg: 'sum' }]
     kpiForm.expression = '[0] + [1]'
   }
   kpiForm.label = kpi.label
@@ -612,6 +685,7 @@ function saveKpi() {
         filter: v.filter.trim() || undefined,
       })),
       expression: kpiForm.expression.trim(),
+      filter: kpiForm.filter.trim() || undefined,
     }
   } else {
     // 从公式切换为单列时，清除旧的 formula
@@ -647,18 +721,19 @@ const chartForm = reactive({
   agg: 'sum',
   k: 3,
   clusterMetrics: [] as string[],
+  filter: '',
 })
 
 const allMetricCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.role === 'metric')
+  return ds.headers.filter((h) => ds.classifications[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
 })
 
 const dateCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.type === 'date')
+  return ds.headers.filter((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
 })
 
 function isBasicChart(type: string): boolean {
@@ -691,6 +766,7 @@ function resetChartForm() {
   chartForm.agg = 'sum'
   chartForm.k = 3
   chartForm.clusterMetrics = []
+  chartForm.filter = ''
 }
 
 function openAddChart() {
@@ -710,6 +786,7 @@ function openEditChart(chart: ChartFormItem) {
   chartForm.agg = chart.agg || 'sum'
   chartForm.k = chart.k || 3
   chartForm.clusterMetrics = chart.clusterMetrics ? [...chart.clusterMetrics] : []
+  chartForm.filter = chart.filter || ''
   showChartEditor.value = true
 }
 
@@ -760,6 +837,9 @@ function saveChart() {
     base.k = chartForm.k
   }
 
+  // 通用：筛选条件
+  base.filter = chartForm.filter.trim() || undefined
+
   if (editingChartId.value) {
     configStore.updateChart(editingChartId.value, base)
   } else {
@@ -804,6 +884,13 @@ function cancelChartEdit() {
   left: 0;
 }
 
+.header-actions {
+  position: absolute;
+  right: 0;
+  display: flex;
+  gap: 8px;
+}
+
 .config-header h2 {
   font-size: 22px;
   font-weight: 600;
@@ -836,11 +923,82 @@ function cancelChartEdit() {
   padding: 20px;
 }
 
+/* Section header with per-section save/reset */
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.section-header-row h3 {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.section-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .config-section h3 {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 12px;
   color: var(--text-primary);
+}
+
+.btn-save {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.btn-save:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-save.saved {
+  background: #16a34a;
+  color: white;
+  border-color: #16a34a;
+}
+
+.btn-save.saved:hover {
+  background: #15803d;
+  border-color: #15803d;
+  color: white;
+}
+
+.btn-reset-sec {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reset-sec:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.btn-save:disabled,
+.btn-reset-sec:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .select-sm {
@@ -1274,6 +1432,22 @@ function cancelChartEdit() {
   font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+/* Save status indicator */
+.save-status {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  text-align: center;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.save-status.unsaved {
+  background: #fffbeb;
+  color: #92400e;
 }
 
 /* Buttons — ConfigView-specific overrides */
