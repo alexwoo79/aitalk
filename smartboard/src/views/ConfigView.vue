@@ -658,7 +658,7 @@ function openEditKpi(idx: number) {
     kpiForm.column = kpi.column
     kpiForm.agg = kpi.agg
     kpiForm.filter = kpi.filter || ''
-    kpiForm.variables = [{ column: '', agg: 'sum' }, { column: '', agg: 'sum' }]
+    kpiForm.variables = [{ column: '', agg: 'sum', filter: '' }, { column: '', agg: 'sum', filter: '' }]
     kpiForm.expression = '[0] + [1]'
   }
   kpiForm.label = kpi.label

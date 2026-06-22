@@ -283,7 +283,7 @@ export const useConfigStore = defineStore('config', () => {
 
   const hasData = computed(() => dataStore.dataSet !== null)
   const hasConfig = computed(() => config.value.charts.length > 0)
-  const hasSnapshot = computed(() => snapshot.value !== null)
+  const hasSnapshot = computed(() => sectionSnapshots.value !== null)
 
   return {
     config,
