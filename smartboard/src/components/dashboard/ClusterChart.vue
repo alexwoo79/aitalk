@@ -33,7 +33,7 @@
       <div class="cluster-summary">
         <span v-for="(s, i) in clusterSummary" :key="i" class="summary-chip" :style="{ borderColor: clusterColor(i) }">
           <strong>聚类 {{ i + 1 }}</strong>
-          {{ s.count }} 个 · 中心 ({{ fmtValue(s.cx, cd.colX) }}, {{ fmtValue(s.cy, cd.colY) }})
+          {{ s.count }} 个 · 中心 ({{ fmtValue(s.cx, clusterData.colX) }}, {{ fmtValue(s.cy, clusterData.colY) }})
         </span>
       </div>
       <!-- 明细表 -->
