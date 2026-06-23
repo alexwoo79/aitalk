@@ -300,6 +300,12 @@
               <template v-if="kpiForm.format === 'currency'">
                 <label>前缀</label>
                 <input v-model="kpiForm.prefix" class="input input-sm" placeholder="¥" maxlength="4" />
+                <label>单位</label>
+                <select v-model="kpiForm.unit" class="input select-sm">
+                  <option value="yuan">元</option>
+                  <option value="wan">万元</option>
+                  <option value="yi">亿元</option>
+                </select>
               </template>
             </div>
           </div>
@@ -343,10 +349,30 @@
                     {{ col }}
                   </label>
                 </div>
-                <label>聚合</label>
-                <select v-model="chartForm.agg" class="input select-sm">
-                  <option v-for="opt in AGG_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
+                <div v-if="chartForm.metrics.length > 0" class="metric-formats">
+                  <div class="mf-title">各指标聚合与格式</div>
+                  <div v-for="m in chartForm.metrics" :key="m" class="mf-row">
+                    <span class="mf-name">{{ m }}</span>
+                    <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
+                      <option value="sum">求和</option>
+                      <option value="avg">均值</option>
+                      <option value="count">计数</option>
+                      <option value="min">最小</option>
+                      <option value="max">最大</option>
+                    </select>
+                    <select v-model="chartForm.metricFormats[m].format" class="input input-sm mf-sel">
+                      <option value="">数字</option>
+                      <option value="integer">整数</option>
+                      <option value="percent">百分比</option>
+                      <option value="currency">货币</option>
+                    </select>
+                    <select v-if="chartForm.metricFormats[m]?.format === 'currency'" v-model="chartForm.metricFormats[m].unit" class="input input-sm mf-unit">
+                      <option value="yuan">元</option>
+                      <option value="wan">万元</option>
+                      <option value="yi">亿元</option>
+                    </select>
+                  </div>
+                </div>
               </template>
 
               <template v-if="chartForm.type === 'timeseries'">
@@ -442,7 +468,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
@@ -611,6 +637,7 @@ const kpiForm = reactive({
   agg: 'sum' as string,
   format: 'number' as string,
   prefix: '',
+  unit: 'yuan' as string,
   filter: '',
   variables: [] as KpiVariable[],
   expression: '',
@@ -625,7 +652,7 @@ const allNumericCols = computed(() => {
 const canSaveKpi = computed(() => {
   if (!kpiForm.label.trim()) return false
   if (kpiForm.useFormula) {
-    return kpiForm.variables.length >= 2 && kpiForm.variables.every(v => v.column) && kpiForm.expression.trim()
+    return kpiForm.variables.length >= 1 && kpiForm.variables.every(v => v.column) && kpiForm.expression.trim()
   }
   return !!kpiForm.column
 })
@@ -681,6 +708,7 @@ function openEditKpi(idx: number) {
   kpiForm.label = kpi.label
   kpiForm.format = kpi.format
   kpiForm.prefix = kpi.prefix
+  kpiForm.unit = kpi.unit || 'yuan'
   showKpiEditor.value = true
 }
 
@@ -692,6 +720,7 @@ function saveKpi() {
     agg: kpiForm.useFormula ? 'sum' : kpiForm.agg,
     format: kpiForm.format,
     prefix: kpiForm.prefix,
+    unit: kpiForm.format === 'currency' ? kpiForm.unit : undefined,
     filter: kpiForm.useFormula ? undefined : (kpiForm.filter.trim() || undefined),
   }
   if (kpiForm.useFormula) {
@@ -739,6 +768,10 @@ const chartForm = reactive({
   k: 3,
   clusterMetrics: [] as string[],
   filter: '',
+  format: '' as string,
+  unit: 'yuan' as string,
+  metricFormats: {} as Record<string, { format: string; unit: string }>,
+  metricAggs: {} as Record<string, string>,
 })
 
 const allMetricCols = computed(() => {
@@ -751,6 +784,16 @@ const dateCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
   return ds.headers.filter((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
+})
+
+// 切换为基本图表类型时，默认选中第一个指标
+watch(() => chartForm.type, (t) => {
+  if (isBasicChart(t) && chartForm.metrics.length === 0 && allMetricCols.value.length > 0) {
+    const first = allMetricCols.value[0]
+    chartForm.metrics = [first]
+    chartForm.metricFormats[first] = { format: '', unit: 'yuan' }
+    chartForm.metricAggs[first] = 'sum'
+  }
 })
 
 function isBasicChart(type: string): boolean {
@@ -784,11 +827,22 @@ function resetChartForm() {
   chartForm.k = 3
   chartForm.clusterMetrics = []
   chartForm.filter = ''
+  chartForm.format = ''
+  chartForm.unit = 'yuan'
+  chartForm.metricFormats = {}
+  chartForm.metricAggs = {}
 }
 
 function openAddChart() {
   resetChartForm()
   editingChartId.value = null
+  // 默认选中第一个指标
+  if (allMetricCols.value.length > 0) {
+    const first = allMetricCols.value[0]
+    chartForm.metrics = [first]
+    chartForm.metricFormats[first] = { format: '', unit: 'yuan' }
+    chartForm.metricAggs[first] = 'sum'
+  }
   showChartEditor.value = true
 }
 
@@ -804,13 +858,32 @@ function openEditChart(chart: ChartFormItem) {
   chartForm.k = chart.k || 3
   chartForm.clusterMetrics = chart.clusterMetrics ? [...chart.clusterMetrics] : []
   chartForm.filter = chart.filter || ''
+  chartForm.format = chart.format || ''
+  chartForm.unit = chart.unit || 'yuan'
+  chartForm.metricFormats = chart.metricFormats ? JSON.parse(JSON.stringify(chart.metricFormats)) : {}
+  chartForm.metricAggs = chart.metricAggs ? JSON.parse(JSON.stringify(chart.metricAggs)) : {}
+  // 确保已选指标都有条目
+  chartForm.metrics.forEach((m) => {
+    if (!chartForm.metricFormats[m]) chartForm.metricFormats[m] = { format: '', unit: 'yuan' }
+    if (!chartForm.metricAggs[m]) chartForm.metricAggs[m] = 'sum'
+  })
   showChartEditor.value = true
 }
 
 function toggleChartMetric(col: string) {
   const idx = chartForm.metrics.indexOf(col)
-  if (idx !== -1) chartForm.metrics.splice(idx, 1)
-  else chartForm.metrics.push(col)
+  if (idx !== -1) {
+    chartForm.metrics.splice(idx, 1)
+    delete chartForm.metricFormats[col]
+  } else {
+    chartForm.metrics.push(col)
+    if (!chartForm.metricFormats[col]) {
+      chartForm.metricFormats[col] = { format: '', unit: 'yuan' }
+    }
+    if (!chartForm.metricAggs[col]) {
+      chartForm.metricAggs[col] = 'sum'
+    }
+  }
   if (chartForm.metrics.length > 0 && !chartForm.metric) {
     chartForm.metric = chartForm.metrics[0]
   }
@@ -856,6 +929,20 @@ function saveChart() {
 
   // 通用：筛选条件
   base.filter = chartForm.filter.trim() || undefined
+  // 通用：数字格式
+  base.format = chartForm.format || undefined
+  base.unit = chartForm.format === 'currency' ? chartForm.unit as any : undefined
+  // 各指标独立格式（过滤空值）
+  const mf: Record<string, any> = {}
+  const ma: Record<string, string> = {}
+  for (const m of chartForm.metrics) {
+    const f = chartForm.metricFormats[m]
+    if (f && f.format) mf[m] = { format: f.format, unit: f.unit || 'yuan' }
+    const a = chartForm.metricAggs[m]
+    if (a && a !== 'sum') ma[m] = a
+  }
+  base.metricFormats = Object.keys(mf).length > 0 ? mf : undefined
+  base.metricAggs = Object.keys(ma).length > 0 ? ma : undefined
 
   if (editingChartId.value) {
     configStore.updateChart(editingChartId.value, base)
@@ -1383,6 +1470,55 @@ function cancelChartEdit() {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
+}
+
+.no-metric-hint {
+  font-size: 12px;
+  color: #f59e0b;
+  padding: 4px 0;
+}
+
+.metric-formats {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  margin-left: 94px;
+}
+
+.mf-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.mf-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mf-name {
+  font-size: 12px;
+  color: var(--text-primary);
+  width: 60px;
+  text-align: right;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.mf-sel {
+  width: 84px;
+}
+
+.mf-agg {
+  width: 72px;
+}
+
+.mf-unit {
+  width: 72px;
 }
 
 /* Table config */

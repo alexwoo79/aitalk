@@ -21,11 +21,47 @@ export const COLORS = [
   '#06B6D4', '#84CC16', '#F97316', '#14B8A6', '#6366F1', '#D946EF',
 ]
 
+// ====== Aggregation helper ======
+export function applyAgg(arr: number[], agg: string): number {
+  if (!arr.length) return 0
+  switch (agg) {
+    case 'sum': return arr.reduce((a, b) => a + b, 0)
+    case 'avg': return arr.reduce((a, b) => a + b, 0) / arr.length
+    case 'min': return Math.min(...arr)
+    case 'max': return Math.max(...arr)
+    case 'count': return arr.length
+    default: return arr.reduce((a, b) => a + b, 0)
+  }
+}
+
 // ====== Formatting utilities ======
 export function fmt(n: number | null | undefined, dec?: number): string {
   if (n == null || isNaN(n)) return '0'
   const d = dec !== undefined ? dec : 2
   return Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: d })
+}
+
+/** 根据图表配置格式化数值（支持图表级 + 指标级格式） */
+export function fmtByChart(n: number | null | undefined, chart: { format?: string; unit?: string; metricFormats?: Record<string, { format?: string; unit?: string }> }, metricName?: string): string {
+  if (n == null || isNaN(n)) return '0'
+  // 优先用指标级格式
+  const mf = metricName && chart.metricFormats?.[metricName]
+  const fmtType = mf?.format || chart.format || ''
+  const unitType = mf?.unit || chart.unit || 'yuan'
+  if (!fmtType || fmtType === 'number') return fmt(n)
+  if (fmtType === 'integer') return fmt(n, 0)
+  if (fmtType === 'percent') {
+    const v = n <= 1 && n >= -1 ? n * 100 : n
+    return v.toFixed(1) + '%'
+  }
+  if (fmtType === 'currency') {
+    let v = n
+    let suffix = ''
+    if (unitType === 'wan') { v = n / 10000; suffix = '万' }
+    else if (unitType === 'yi') { v = n / 100000000; suffix = '亿' }
+    return '¥' + fmt(v, v >= 100 ? 0 : 2) + suffix
+  }
+  return fmt(n)
 }
 
 export function fmtCompact(n: number | null | undefined): string {
@@ -68,22 +104,25 @@ export function buildBarOption(
   }
   const labels = Object.keys(groups).sort()
 
-  const series = metricCols.map((m, mi) => ({
-    name: m,
-    type: 'bar' as const,
-    data: labels.map((k) => {
-      const arr = groups[k]?.[m] || []
-      return arr.length ? arr.reduce((a, b) => a + b, 0) : 0
-    }),
-    itemStyle: { borderRadius: [4, 4, 0, 0] as [number, number, number, number], color: COLORS[mi % COLORS.length] },
-  }))
+  const series = metricCols.map((m, mi) => {
+    const aggFn = chart.metricAggs?.[m] || chart.agg || 'sum'
+    return {
+      name: m,
+      type: 'bar' as const,
+      data: labels.map((k) => {
+        const arr = groups[k]?.[m] || []
+        return applyAgg(arr, aggFn)
+      }),
+      itemStyle: { borderRadius: [4, 4, 0, 0] as [number, number, number, number], color: COLORS[mi % COLORS.length] },
+    }
+  })
 
   return {
     tooltip: {
       trigger: 'axis' as const,
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
-        return params.map((p: any) => `${p.seriesName}: ${fmt(p.value)}`).join('<br/>')
+        return params.map((p: any) => `${p.seriesName}: ${fmtByChart(p.value, chart, p.seriesName)}`).join('<br/>')
       },
     },
     legend: metricCols.length > 1 ? { top: 0, textStyle: { fontSize: 11 } } : undefined,
@@ -135,20 +174,23 @@ export function buildHorizontalBarOption(
   const sortedLabels = sorted.map((s) => s.label)
 
   // Per-metric series
-  const series = metricCols.map((m, mi) => ({
-    name: m,
-    type: 'bar' as const,
-    data: sortedLabels.map((k) => {
-      const arr = groups[k]?.[m] || []
-      return arr.length ? arr.reduce((a, b) => a + b, 0) : 0
-    }),
-    itemStyle: {
-      borderRadius: mi === metricCols.length - 1
-        ? [0, 4, 4, 0] as [number, number, number, number]
-        : [0, 0, 0, 0] as [number, number, number, number],
-      color: COLORS[mi % COLORS.length],
-    },
-  }))
+  const series = metricCols.map((m, mi) => {
+    const aggFn = chart.metricAggs?.[m] || chart.agg || 'sum'
+    return {
+      name: m,
+      type: 'bar' as const,
+      data: sortedLabels.map((k) => {
+        const arr = groups[k]?.[m] || []
+        return applyAgg(arr, aggFn)
+      }),
+      itemStyle: {
+        borderRadius: mi === metricCols.length - 1
+          ? [0, 4, 4, 0] as [number, number, number, number]
+          : [0, 0, 0, 0] as [number, number, number, number],
+        color: COLORS[mi % COLORS.length],
+      },
+    }
+  })
 
   // Dynamic left margin
   const estLabelWidth = sortedLabels.reduce((m, l) => {
@@ -163,7 +205,7 @@ export function buildHorizontalBarOption(
       trigger: 'axis' as const,
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
-        return params.map((p: any) => `${p.seriesName}: ${fmt(p.value)}`).join('<br/>')
+        return params.map((p: any) => `${p.seriesName}: ${fmtByChart(p.value, chart, p.seriesName)}`).join('<br/>')
       },
     },
     legend: metricCols.length > 1 ? { top: 0, textStyle: { fontSize: 11 } } : undefined,
@@ -328,7 +370,7 @@ export function buildLineOption(
       trigger: 'axis' as const,
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
-        return params.map((p: any) => `${p.seriesName}: ${fmt(p.value)}`).join('<br/>')
+        return params.map((p: any) => `${p.seriesName}: ${fmtByChart(p.value, chart, p.seriesName)}`).join('<br/>')
       },
     },
     grid: { left: 60, right: 20, top: 10, bottom: 60 },

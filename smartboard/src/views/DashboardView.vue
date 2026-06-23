@@ -85,7 +85,7 @@
               <span>{{ kpiIcon(kpi, i) }}</span>
             </div>
             <div class="kpi-content">
-              <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix)
+              <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix, kpi.unit)
               }}</span>
               <span class="kpi-label">{{ kpi.label }}</span>
             </div>
@@ -418,7 +418,7 @@ async function saveDashboard() {
   const filterSpecs = s.filters.map(f => ({ column: f.column }))
   const kpiSpecs = s.kpis.map(k => ({
     column: k.column, label: k.label, agg: k.agg,
-    format: k.format, prefix: k.prefix || '',
+    format: k.format, prefix: k.prefix || '', unit: k.unit || 'yuan',
   }))
   // 全部指标列（当 chart.metrics 为空时回退使用，排除已排除的列）
   const allMetricCols = headers.filter((h) => cls[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
@@ -434,6 +434,10 @@ async function saveDashboard() {
       clusterMetrics: (c.clusterMetrics && c.clusterMetrics.length > 0) ? c.clusterMetrics : allMetricCols,
       k: c.k || 3,
       filter: c.filter || '',
+      format: c.format || '',
+      unit: c.unit || 'yuan',
+      metricFormats: c.metricFormats || {},
+      metricAggs: c.metricAggs || {},
     }))
   const tblCols = s.table.columns
   const tblSort = s.table.sortBy
@@ -565,6 +569,7 @@ if(ocs.length)res=res.filter(function(r){return ocs.some(function(p){return mR(r
 
 function fmt(n,d){if(n==null||isNaN(n))return'0';return Number(n).toLocaleString('zh-CN',{maximumFractionDigits:d!=null?d:2})}
 function fmtC(n){if(n==null||isNaN(n))return'0';var a=Math.abs(n);if(a>=1e8)return(n/1e8).toFixed(1)+'亿';if(a>=1e4)return(n/1e4).toFixed(1)+'万';return fmt(n)}
+function fmtCh(n,ch,mn){if(n==null||isNaN(n))return'0';var mf=mn&&ch.metricFormats&&ch.metricFormats[mn];var ft=mf&&mf.format?mf.format:(ch.format||'');var ut=mf&&mf.unit?mf.unit:(ch.unit||'yuan');if(!ft||ft==='number')return fmt(n);if(ft==='integer')return fmt(n,0);if(ft==='percent'){var pv=n<=1&&n>=-1?n*100:n;return pv.toFixed(1)+'%'};if(ft==='currency'){var v2=n,s='';if(ut==='wan'){v2=n/10000;s='万'}else if(ut==='yi'){v2=n/1e8;s='亿'}return'¥'+fmt(v2,v2>=100?0:2)+s}return fmt(n)}
 function gn(v){if(v==null||v==='')return NaN;if(typeof v==='number')return v;var s=String(v).trim();if(s.endsWith('%'))s=s.slice(0,-1);s=s.replace(/,/g,'');var n=parseFloat(s);return isNaN(n)?NaN:n}
 
 // ---- filter ----
@@ -594,13 +599,16 @@ var tx=['#1e40af','#065f46','#92400e','#991b1b','#5b21b6','#155e75'];
 var ic=['📊','📈','📋','💰','💵','👥'];
 KS.forEach(function(k,i){var vs=rows.map(function(r){var v=r[k.column];if(v==null||v==='')return 0;if(typeof v==='number')return v;var s=String(v).replace(/,/g,'').replace(/%/g,'').trim();var n=Number(s);return isNaN(n)?0:n});
 var val=0;if(k.agg==='count')val=rows.length;else if(k.agg==='sum')val=vs.reduce(function(a,b){return a+b},0);else if(k.agg==='avg')val=vs.length?vs.reduce(function(a,b){return a+b},0)/vs.length:0;else if(k.agg==='min')val=Math.min.apply(null,vs);else if(k.agg==='max')val=Math.max.apply(null,vs);else val=vs.reduce(function(a,b){return a+b},0);
-var dv='';if(k.format==='percent'){var v2=(val<=1&&val>=-1)?val*100:val;dv=v2.toFixed(1)+'%'}else if(k.format==='currency')dv=(k.prefix||'')+(k.prefix?'':'¥')+fmt(val,0);else if(k.format==='integer')dv=(k.prefix||'')+fmt(val,0);else dv=(k.prefix||'')+fmt(val);
+var dv='';if(k.format==='percent'){var v2=(val<=1&&val>=-1)?val*100:val;dv=v2.toFixed(1)+'%'}else if(k.format==='currency'){var cv=val,cs='';if(k.unit==='wan'){cv=val/10000;cs='万'}else if(k.unit==='yi'){cv=val/100000000;cs='亿'}dv=(k.prefix||'')+(k.prefix?'':'¥')+fmt(cv,cv>=100?0:2)+cs}else if(k.format==='integer')dv=(k.prefix||'')+fmt(val,0);else dv=(k.prefix||'')+fmt(val);
 var card=document.createElement('div');card.className='kpi-card';card.style.cssText='background:'+bg[i%bg.length]+';color:'+tx[i%tx.length];
 card.innerHTML='<div class="kpi-icon"><span>'+ic[i%ic.length]+'</span></div><div class="kpi-content"><span class="kpi-value">'+dv+'</span><span class="kpi-label">'+k.label+'</span></div>';el.appendChild(card)})}
 
 // ---- aggregation helper ----
 function agg(rows,dc,mc,ag){var g={};rows.forEach(function(r){var k=String(r[dc]||'未知');if(!g[k])g[k]=[];if(mc&&mc!=='count'){var v=gn(r[mc]);if(!isNaN(v))g[k].push(v)}else g[k].push(1)});
 return Object.entries(g).map(function(e){var l=e[0],a=e[1];var v=0;if(!mc||mc==='count')v=a.length;else if(ag==='sum')v=a.reduce(function(x,y){return x+y},0);else if(ag==='avg')v=a.length?a.reduce(function(x,y){return x+y},0)/a.length:0;else if(ag==='min')v=Math.min.apply(null,a);else if(ag==='max')v=Math.max.apply(null,a);return{label:l,value:v}})}
+// ---- apply agg to numeric array ----
+function appAgg(arr,ag){if(!arr.length)return 0;switch(ag){case'sum':return arr.reduce(function(a,b){return a+b},0);case'avg':return arr.reduce(function(a,b){return a+b},0)/arr.length;case'min':return Math.min.apply(null,arr);case'max':return Math.max.apply(null,arr);case'count':return arr.length;default:return arr.reduce(function(a,b){return a+b},0)}}
+function getAgg(ch,m){return(ch.metricAggs&&ch.metricAggs[m])||ch.agg||'sum'}
 
 // ---- timeseries computation ----
 function compTS(rows,dc,mc,pd){pd=pd||'month';var g={};rows.forEach(function(r){var d=String(r[dc]||'').trim();var m=d.match(/^(\\d{4})[-/.](\\d{1,2})/);if(!m)return;
@@ -644,17 +652,17 @@ function buildBarOpt(ch,rows){
   if(!dimCol||ms.length===0)return null;
   var groups={};rows.forEach(function(r){var k=String(r[dimCol]||'未知');if(!groups[k])groups[k]={};ms.forEach(function(m){if(!groups[k][m])groups[k][m]=[];var v=gn(r[m]);if(!isNaN(v))groups[k][m].push(v)})});
   var labels=Object.keys(groups).sort();
-  var series=ms.map(function(m,mi){return{name:m,type:'bar',data:labels.map(function(k){var arr=groups[k]&&groups[k][m]||[];return arr.length?arr.reduce(function(a,b){return a+b},0):0}),itemStyle:{borderRadius:[4,4,0,0],color:COL[mi%COL.length]}}});
-  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmt(x.value)}).join('<br/>')}},legend:ms.length>1?{bottom:0,textStyle:{fontSize:11}}:undefined,grid:{left:60,right:20,top:20,bottom:ms.length>1?40:50},xAxis:{type:'category',data:labels,axisLabel:{rotate:labels.length>8?30:0,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},series:series};
+  var series=ms.map(function(m,mi){var af=getAgg(ch,m);return{name:m,type:'bar',data:labels.map(function(k){var arr=groups[k]&&groups[k][m]||[];return appAgg(arr,af)}),itemStyle:{borderRadius:[4,4,0,0],color:COL[mi%COL.length]}}});
+  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmtCh(x.value,ch,x.seriesName)}).join('<br/>')}},legend:ms.length>1?{bottom:0,textStyle:{fontSize:11}}:undefined,grid:{left:60,right:20,top:20,bottom:ms.length>1?40:50},xAxis:{type:'category',data:labels,axisLabel:{rotate:labels.length>8?30:0,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},series:series};
 }
 
 // ---- Horizontal Bar ----
 function buildHBarOpt(ch,rows){
   var dimCol=ch.dimension;var mc=ch.metric||(ch.metrics&&ch.metrics[0]);
-  var ad=agg(rows,dimCol,mc,ch.agg||'sum');ad.sort(function(a,b){return a.value-b.value});
+  var ad=agg(rows,dimCol,mc,getAgg(ch,mc));ad.sort(function(a,b){return a.value-b.value});
   var maxW=0;ad.forEach(function(d){var w=0;for(var i=0;i<d.label.length;i++)w+=d.label.charCodeAt(i)>127?12:7;maxW=Math.max(maxW,w)});
   var gl=Math.max(40,maxW+20);
-  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.name+': '+fmt(x.value)}).join('<br/>')}},grid:{left:gl,right:30,top:10,bottom:20},xAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},yAxis:{type:'category',data:ad.map(function(d){return d.label}),axisLabel:{fontSize:11}},series:[{type:'bar',data:ad.map(function(d){return d.value}),itemStyle:{borderRadius:[0,4,4,0],color:COL[0]}}]};
+  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.name+': '+fmtCh(x.value,ch,x.name)}).join('<br/>')}},grid:{left:gl,right:30,top:10,bottom:20},xAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},yAxis:{type:'category',data:ad.map(function(d){return d.label}),axisLabel:{fontSize:11}},series:[{type:'bar',data:ad.map(function(d){return d.value}),itemStyle:{borderRadius:[0,4,4,0],color:COL[0]}}]};
 }
 
 // ---- Doughnut ----
@@ -687,7 +695,7 @@ function buildLineOpt(ch,rows){
   var mo={};rows.forEach(function(r){var d=String(r[dc]||'').trim();var m=d.match(/^(\\d{4})[-/.](\\d{1,2})/);if(!m)return;var ym=m[1]+'-'+m[2].padStart(2,'0');if(!mo[ym])mo[ym]=[];var v=gn(r[mc]);if(!isNaN(v))mo[ym].push(v)});
   var sm=Object.keys(mo).sort();if(!sm.length)return null;
   var sums=sm.map(function(k){return mo[k].reduce(function(a,b){return a+b},0)});
-  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmt(x.value)}).join('<br/>')}},grid:{left:60,right:20,top:10,bottom:60},xAxis:{type:'category',data:sm,axisLabel:{rotate:30,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},dataZoom:[{type:'inside'}],series:[{type:'line',name:mc,data:sums,smooth:true,lineStyle:{color:COL[0],width:2},itemStyle:{color:COL[0]},areaStyle:{color:COL[0]+'22'}}]};
+  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmtCh(x.value,ch,x.seriesName)}).join('<br/>')}},grid:{left:60,right:20,top:10,bottom:60},xAxis:{type:'category',data:sm,axisLabel:{rotate:30,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},dataZoom:[{type:'inside'}],series:[{type:'line',name:mc,data:sums,smooth:true,lineStyle:{color:COL[0],width:2},itemStyle:{color:COL[0]},areaStyle:{color:COL[0]+'22'}}]};
 }
 
 // ==================== RENDER CHARTS GRID ====================
@@ -776,14 +784,14 @@ function buildBarOpt2(ch,rows,ms){
   var dimCol=ch.dimension;if(!dimCol||ms.length===0)return null;
   var groups={};rows.forEach(function(r){var k=String(r[dimCol]||'未知');if(!groups[k])groups[k]={};ms.forEach(function(m){if(!groups[k][m])groups[k][m]=[];var v=gn(r[m]);if(!isNaN(v))groups[k][m].push(v)})});
   var labels=Object.keys(groups).sort();
-  var series=ms.map(function(m,mi){return{name:m,type:'bar',data:labels.map(function(k){var arr=groups[k]&&groups[k][m]||[];return arr.length?arr.reduce(function(a,b){return a+b},0):0}),itemStyle:{borderRadius:[4,4,0,0],color:COL[mi%COL.length]}}});
-  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmt(x.value)}).join('<br/>')}},legend:ms.length>1?{bottom:0,textStyle:{fontSize:11}}:undefined,grid:{left:60,right:20,top:20,bottom:ms.length>1?40:50},xAxis:{type:'category',data:labels,axisLabel:{rotate:labels.length>8?30:0,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},series:series};
+  var series=ms.map(function(m,mi){var af=getAgg(ch,m);return{name:m,type:'bar',data:labels.map(function(k){var arr=groups[k]&&groups[k][m]||[];return appAgg(arr,af)}),itemStyle:{borderRadius:[4,4,0,0],color:COL[mi%COL.length]}}});
+  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmtCh(x.value,ch,x.seriesName)}).join('<br/>')}},legend:ms.length>1?{bottom:0,textStyle:{fontSize:11}}:undefined,grid:{left:60,right:20,top:20,bottom:ms.length>1?40:50},xAxis:{type:'category',data:labels,axisLabel:{rotate:labels.length>8?30:0,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},series:series};
 }
 function buildHBarOpt2(ch,rows,mc){
-  var dimCol=ch.dimension;var ad=agg(rows,dimCol,mc,ch.agg||'sum');ad.sort(function(a,b){return a.value-b.value});
+  var dimCol=ch.dimension;var ad=agg(rows,dimCol,mc,getAgg(ch,mc));ad.sort(function(a,b){return a.value-b.value});
   var maxW=0;ad.forEach(function(d){var w=0;for(var i=0;i<d.label.length;i++)w+=d.label.charCodeAt(i)>127?12:7;maxW=Math.max(maxW,w)});
   var gl=Math.max(40,maxW+20);
-  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.name+': '+fmt(x.value)}).join('<br/>')}},grid:{left:gl,right:30,top:10,bottom:20},xAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},yAxis:{type:'category',data:ad.map(function(d){return d.label}),axisLabel:{fontSize:11}},series:[{type:'bar',data:ad.map(function(d){return d.value}),itemStyle:{borderRadius:[0,4,4,0],color:COL[0]}}]};
+  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.name+': '+fmtCh(x.value,ch,x.name)}).join('<br/>')}},grid:{left:gl,right:30,top:10,bottom:20},xAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},yAxis:{type:'category',data:ad.map(function(d){return d.label}),axisLabel:{fontSize:11}},series:[{type:'bar',data:ad.map(function(d){return d.value}),itemStyle:{borderRadius:[0,4,4,0],color:COL[0]}}]};
 }
 
 // ---- timeseries chart render ----
@@ -804,7 +812,7 @@ function renderTimeseriesChart(card,ch,rows,mc,pd){
   var tD=td.trend.concat(new Array(td.fc.labels.length).fill(null));
   var fD=new Array(td.labels.length-1).fill(null);fD.push(td.values[td.values.length-1]);td.fc.values.forEach(function(v){fD.push(v)});
 
-  var opt={tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.filter(function(x){return x.value!=null}).map(function(x){return x.seriesName+': '+fmt(x.value)}).join('<br/>')}},
+  var opt={tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.filter(function(x){return x.value!=null}).map(function(x){return x.seriesName+': '+fmtCh(x.value,ch,x.seriesName)}).join('<br/>')}},
     legend:{top:0,left:'center',textStyle:{fontSize:11}},
     grid:{left:60,right:20,top:40,bottom:60},
     xAxis:{type:'category',data:allL,axisLabel:{rotate:30,fontSize:10}},
@@ -844,7 +852,7 @@ function renderDecileChart(card,ch,rows,mc){
   var ob=card.querySelector('.detail-toggle');if(ob)ob.remove();
 
   var dd=compDec(rows,mc);if(!dd){wrap.textContent='数据不足，无法生成十分位分析';return}
-  var opt={tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmt(x.value)}).join('<br/>')}},
+  var opt={tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmtCh(x.value,ch,x.seriesName)}).join('<br/>')}},
     legend:{top:0,left:'center',textStyle:{fontSize:11}},
     grid:{left:60,right:60,top:40,bottom:30},
     xAxis:{type:'category',data:dd.map(function(d){return d.label}),axisLabel:{fontSize:11}},
@@ -1033,13 +1041,19 @@ function kpiIcon(kpi: KpiSpec, _index: number): string {
 }
 
 // ====== KPI value formatting (matches dashboard_gen.py) ======
-function formatKpiValue(value: number, format: string, prefix: string): string {
+function formatKpiValue(value: number, format: string, prefix: string, unit?: string): string {
   const p = prefix || ''
   if (format === 'percent') {
     const v = value <= 1 && value >= -1 ? value * 100 : value
     return v.toFixed(1) + '%'
   }
-  if (format === 'currency') return p + (prefix ? '' : '¥') + fmt(value, 0)
+  if (format === 'currency') {
+    let v = value
+    let suffix = ''
+    if (unit === 'wan') { v = value / 10000; suffix = '万' }
+    else if (unit === 'yi') { v = value / 100000000; suffix = '亿' }
+    return p + (prefix ? '' : '¥') + fmt(v, v >= 100 ? 0 : 2) + suffix
+  }
   if (format === 'integer') return p + fmt(value, 0)
   return p + fmt(value, value % 1 === 0 ? 0 : 2)
 }

@@ -16,6 +16,8 @@ export interface KpiFormItem {
   agg: 'sum' | 'avg' | 'count' | 'min' | 'max'
   format: string
   prefix: string
+  /** 货币单位: 元 / 万元 / 亿元（仅 format='currency' 时生效） */
+  unit?: 'yuan' | 'wan' | 'yi'
   /** 行筛选（单列 + 公式均可用） */
   filter?: string
   /** 多列公式 KPI */
@@ -40,6 +42,14 @@ export interface ChartFormItem {
   clusterMetrics?: string[]
   /** 行级筛选条件，格式: "列名 运算符 值" */
   filter?: string
+  /** 数字格式 */
+  format?: string
+  /** 货币单位（仅 format='currency'） */
+  unit?: 'yuan' | 'wan' | 'yi'
+  /** 各指标独立格式（key=指标名），覆盖全局 format/unit */
+  metricFormats?: Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi' }>
+  /** 各指标独立聚合方式（key=指标名），覆盖全局 agg */
+  metricAggs?: Record<string, string>
 }
 
 /** 图表类型选项 */

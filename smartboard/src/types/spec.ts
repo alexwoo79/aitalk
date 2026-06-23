@@ -23,6 +23,8 @@ export interface KpiSpec {
   prefix: string
   icon?: string
   filter?: string
+  /** 货币单位: 元 / 万元 / 亿元（仅 format='currency' 时生效） */
+  unit?: 'yuan' | 'wan' | 'yi'
   /** 多列公式 KPI */
   formula?: {
     variables: { column: string; agg: string; filter?: string }[]
@@ -48,6 +50,14 @@ export interface ChartSpec {
   _skip?: boolean
   /** 行级筛选条件，格式: "列名 运算符 值" */
   filter?: string
+  /** 数字格式 */
+  format?: string
+  /** 货币单位（仅 format='currency'） */
+  unit?: 'yuan' | 'wan' | 'yi'
+  /** 各指标独立格式（key=指标名），覆盖全局 format/unit */
+  metricFormats?: Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi' }>
+  /** 各指标独立聚合方式（key=指标名），覆盖全局 agg */
+  metricAggs?: Record<string, string>
 }
 
 /** 筛选项 */

@@ -30,6 +30,7 @@ export const usePreviewStore = defineStore('preview', () => {
       agg: k.agg,
       format: k.format,
       prefix: k.prefix,
+      unit: k.unit,
       filter: k.filter,
       formula: k.formula,
     }))
@@ -45,6 +46,10 @@ export const usePreviewStore = defineStore('preview', () => {
       k: c.k,
       clusterMetrics: c.clusterMetrics,
       filter: c.filter,
+      format: c.format,
+      unit: c.unit,
+      metricFormats: c.metricFormats,
+      metricAggs: c.metricAggs,
     }))
 
     const filters: FilterSpec[] = cfg.filters.map((f) => ({ column: f }))
