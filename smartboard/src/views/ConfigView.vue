@@ -52,6 +52,64 @@
             </div>
           </section>
 
+          <!-- 全局指标格式默认值 -->
+          <section class="config-section">
+            <div class="section-header-row">
+              <h3>全局指标格式</h3>
+              <div class="section-actions">
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('metricDefaults') }" @click="saveMetricDefaults">{{ configStore.isSectionSaved('metricDefaults') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="resetMetricDefaults">↺</button>
+              </div>
+            </div>
+            <p class="sec-desc">设定各指标列的默认显示格式，KPI / 图表中未单独设定时自动生效。</p>
+            <div class="metric-defaults-table">
+              <div class="md-header">
+                <span class="md-col-name">指标列</span>
+                <span class="md-col-fmt">格式</span>
+                <span class="md-col-unit">单位</span>
+                <span class="md-col-prefix">前缀</span>
+                <span class="md-col-dec">小数位</span>
+                <span class="md-col-cb"><label title="KPI">🃏</label></span>
+                <span class="md-col-cb"><label title="图表">📊</label></span>
+                <span class="md-col-cb"><label title="数据表">📋</label></span>
+              </div>
+              <div v-for="col in allMetricCols" :key="col" class="md-row">
+                <span class="md-col-name">{{ col }}</span>
+                <select v-model="metricDefaultsForm[col].format" class="input input-sm md-sel">
+                  <option value="">(未设定)</option>
+                  <option value="number">数字</option>
+                  <option value="integer">整数</option>
+                  <option value="percent">百分比</option>
+                  <option value="currency">货币</option>
+                </select>
+                <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].unit" class="input input-sm md-sel">
+                  <option value="yuan">元</option>
+                  <option value="wan">万元</option>
+                  <option value="yi">亿元</option>
+                </select>
+                <span v-else class="md-na">—</span>
+                <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].prefix" class="input input-sm md-sel">
+                  <option value="">无</option>
+                  <option value="¥">¥</option>
+                  <option value="$">$</option>
+                  <option value="€">€</option>
+                  <option value="£">£</option>
+                </select>
+                <span v-else class="md-na">—</span>
+                <input v-model.number="metricDefaultsForm[col].decimals" type="number" class="input input-sm md-dec" min="0" max="6" step="1" />
+                <label class="md-cb" :class="{ active: hasSection(col, 'kpi') }">
+                  <input type="checkbox" :checked="hasSection(col, 'kpi')" @change="toggleSection(col, 'kpi')" />
+                </label>
+                <label class="md-cb" :class="{ active: hasSection(col, 'chart') }">
+                  <input type="checkbox" :checked="hasSection(col, 'chart')" @change="toggleSection(col, 'chart')" />
+                </label>
+                <label class="md-cb" :class="{ active: hasSection(col, 'table') }">
+                  <input type="checkbox" :checked="hasSection(col, 'table')" @change="toggleSection(col, 'table')" />
+                </label>
+              </div>
+            </div>
+          </section>
+
           <!-- KPI 卡片 -->
           <section class="config-section">
             <div class="section-header-row">
@@ -350,7 +408,7 @@
                   </label>
                 </div>
                 <div v-if="chartForm.metrics.length > 0" class="metric-formats">
-                  <div class="mf-title">各指标聚合与格式</div>
+                  <div class="mf-title">各指标聚合</div>
                   <div v-for="m in chartForm.metrics" :key="m" class="mf-row">
                     <span class="mf-name">{{ m }}</span>
                     <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
@@ -359,17 +417,6 @@
                       <option value="count">计数</option>
                       <option value="min">最小</option>
                       <option value="max">最大</option>
-                    </select>
-                    <select v-model="chartForm.metricFormats[m].format" class="input input-sm mf-sel">
-                      <option value="">数字</option>
-                      <option value="integer">整数</option>
-                      <option value="percent">百分比</option>
-                      <option value="currency">货币</option>
-                    </select>
-                    <select v-if="chartForm.metricFormats[m]?.format === 'currency'" v-model="chartForm.metricFormats[m].unit" class="input input-sm mf-unit">
-                      <option value="yuan">元</option>
-                      <option value="wan">万元</option>
-                      <option value="yi">亿元</option>
                     </select>
                   </div>
                 </div>
@@ -390,6 +437,19 @@
                     {{ col }}
                   </label>
                 </div>
+                <div v-if="chartForm.metrics.length > 0" class="metric-formats">
+                  <div class="mf-title">各指标聚合</div>
+                  <div v-for="m in chartForm.metrics" :key="m" class="mf-row">
+                    <span class="mf-name">{{ m }}</span>
+                    <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
+                      <option value="sum">求和</option>
+                      <option value="avg">均值</option>
+                      <option value="count">计数</option>
+                      <option value="min">最小</option>
+                      <option value="max">最大</option>
+                    </select>
+                  </div>
+                </div>
               </template>
 
               <template v-if="chartForm.type === 'decile'">
@@ -401,6 +461,19 @@
                       hidden />
                     {{ col }}
                   </label>
+                </div>
+                <div v-if="chartForm.metrics.length > 0" class="metric-formats">
+                  <div class="mf-title">各指标聚合</div>
+                  <div v-for="m in chartForm.metrics" :key="m" class="mf-row">
+                    <span class="mf-name">{{ m }}</span>
+                    <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
+                      <option value="sum">求和</option>
+                      <option value="avg">均值</option>
+                      <option value="count">计数</option>
+                      <option value="min">最小</option>
+                      <option value="max">最大</option>
+                    </select>
+                  </div>
                 </div>
               </template>
 
@@ -416,11 +489,24 @@
                     {{ col }}
                   </label>
                 </div>
+                <div v-if="chartForm.clusterMetrics.length > 0" class="metric-formats">
+                  <div class="mf-title">各指标聚合</div>
+                  <div v-for="m in chartForm.clusterMetrics" :key="m" class="mf-row">
+                    <span class="mf-name">{{ m }}</span>
+                    <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
+                      <option value="sum">求和</option>
+                      <option value="avg">均值</option>
+                      <option value="count">计数</option>
+                      <option value="min">最小</option>
+                      <option value="max">最大</option>
+                    </select>
+                  </div>
+                </div>
               </template>
 
               <template v-if="chartForm.type === 'histogram'">
                 <label>指标</label>
-                <select v-model="chartForm.metric" class="input select-sm">
+                <select v-model="chartForm.metric" class="input select-sm" @change="onHistogramMetricChange">
                   <option value="">选择指标...</option>
                   <option v-for="col in allMetricCols" :key="col" :value="col">{{ col }}</option>
                 </select>
@@ -429,14 +515,36 @@
               <template v-if="chartForm.type === 'line'">
                 <label>日期列</label>
                 <select v-model="chartForm.dateColumn" class="input select-sm">
-                  <option value="">选择日期列...</option>
+                  <option value="">无（使用维度）</option>
                   <option v-for="col in dateCols" :key="col" :value="col">{{ col }}</option>
                 </select>
-                <label>指标</label>
-                <select v-model="chartForm.metric" class="input select-sm">
-                  <option value="">选择指标...</option>
-                  <option v-for="col in allMetricCols" :key="col" :value="col">{{ col }}</option>
+                <label>维度</label>
+                <select v-model="chartForm.dimension" class="input select-sm">
+                  <option value="">(无)</option>
+                  <option v-for="col in dimensionCols" :key="col" :value="col">{{ col }}</option>
                 </select>
+                <label>指标</label>
+                <div class="metric-chips">
+                  <label v-for="col in allMetricCols" :key="col" class="chip sm"
+                    :class="{ active: chartForm.metrics.includes(col) }">
+                    <input type="checkbox" :checked="chartForm.metrics.includes(col)" @change="toggleChartMetric(col)"
+                      hidden />
+                    {{ col }}
+                  </label>
+                </div>
+                <div v-if="chartForm.metrics.length > 0" class="metric-formats">
+                  <div class="mf-title">各指标聚合</div>
+                  <div v-for="m in chartForm.metrics" :key="m" class="mf-row">
+                    <span class="mf-name">{{ m }}</span>
+                    <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
+                      <option value="sum">求和</option>
+                      <option value="avg">均值</option>
+                      <option value="count">计数</option>
+                      <option value="min">最小</option>
+                      <option value="max">最大</option>
+                    </select>
+                  </div>
+                </div>
               </template>
 
               <!-- 筛选条件（通用） -->
@@ -635,7 +743,7 @@ const kpiForm = reactive({
   column: '',
   label: '',
   agg: 'sum' as string,
-  format: 'number' as string,
+  format: 'global' as string,
   prefix: '',
   unit: 'yuan' as string,
   filter: '',
@@ -679,7 +787,7 @@ function openAddKpi() {
   kpiForm.column = ''
   kpiForm.label = ''
   kpiForm.agg = 'sum'
-  kpiForm.format = 'number'
+  kpiForm.format = 'global'
   kpiForm.prefix = ''
   kpiForm.filter = ''
   kpiForm.variables = [{ column: '', agg: 'sum', filter: '' }, { column: '', agg: 'sum', filter: '' }]
@@ -768,9 +876,9 @@ const chartForm = reactive({
   k: 3,
   clusterMetrics: [] as string[],
   filter: '',
-  format: '' as string,
+  format: 'global' as string,
   unit: 'yuan' as string,
-  metricFormats: {} as Record<string, { format: string; unit: string }>,
+  metricFormats: {} as Record<string, { format: string; unit: string; prefix?: string; decimals?: number }>,
   metricAggs: {} as Record<string, string>,
 })
 
@@ -786,15 +894,67 @@ const dateCols = computed(() => {
   return ds.headers.filter((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
 })
 
-// 切换为基本图表类型时，默认选中第一个指标
-watch(() => chartForm.type, (t) => {
-  if (isBasicChart(t) && chartForm.metrics.length === 0 && allMetricCols.value.length > 0) {
-    const first = allMetricCols.value[0]
-    chartForm.metrics = [first]
-    chartForm.metricFormats[first] = { format: '', unit: 'yuan' }
-    chartForm.metricAggs[first] = 'sum'
+// ====== 全局指标聚合 ======
+function initMetricDefaultsForm() {
+  const form: Record<string, { format: string; unit: string; prefix: string; decimals: number; sections: string[] }> = {}
+  const cfg = configStore.config.metricDefaults || {}
+  for (const col of allMetricCols.value) {
+    const d = cfg[col] || {}
+    form[col] = {
+      format: d.format || 'global',
+      unit: d.unit || 'yuan',
+      prefix: d.prefix || '',
+      decimals: d.decimals !== undefined ? d.decimals : 2,
+      sections: d.sections ? [...d.sections] : [],
+    }
+  }
+  return form
+}
+const metricDefaultsForm = reactive(initMetricDefaultsForm())
+// Re-init when data changes (new columns)
+watch(allMetricCols, () => {
+  const newForm = initMetricDefaultsForm()
+  for (const key of Object.keys(newForm)) {
+    if (!metricDefaultsForm[key]) {
+      metricDefaultsForm[key] = newForm[key]
+    }
   }
 })
+
+function hasSection(col: string, section: string): boolean {
+  return metricDefaultsForm[col]?.sections.includes(section)
+}
+function toggleSection(col: string, section: string) {
+  const arr = metricDefaultsForm[col].sections
+  const idx = arr.indexOf(section)
+  if (idx !== -1) arr.splice(idx, 1)
+  else arr.push(section)
+}
+
+// ====== 保存/重置全局格式 ======
+function saveMetricDefaults() {
+  const cfg: Record<string, any> = {}
+  for (const col of allMetricCols.value) {
+    const f = metricDefaultsForm[col]
+    if (!f || !f.format || f.format === 'global') continue
+    cfg[col] = {
+      format: f.format,
+      unit: f.format === 'currency' ? f.unit : undefined,
+      prefix: f.format === 'currency' ? (f.prefix || '') : undefined,
+      decimals: f.decimals,
+      sections: f.sections.length > 0 ? [...f.sections] : undefined,
+    }
+  }
+  configStore.config.metricDefaults = Object.keys(cfg).length > 0 ? cfg : undefined
+  configStore.saveSection('metricDefaults')
+}
+function resetMetricDefaults() {
+  configStore.resetSectionToAuto('metricDefaults')
+  const newForm = initMetricDefaultsForm()
+  for (const key of Object.keys(newForm)) {
+    metricDefaultsForm[key] = { ...newForm[key] }
+  }
+}
 
 function isBasicChart(type: string): boolean {
   return ['bar', 'horizontal_bar', 'doughnut'].includes(type)
@@ -809,7 +969,7 @@ const canSaveChart = computed(() => {
     case 'histogram': case 'decile':
       return !!f.metric || f.metrics.length > 0
     case 'line': case 'timeseries':
-      return !!f.dateColumn && (!!f.metric || f.metrics.length > 0)
+      return (!!f.dateColumn || !!f.dimension) && (!!f.metric || f.metrics.length > 0)
     case 'cluster':
       return f.clusterMetrics.length >= 2
     default: return false
@@ -827,7 +987,7 @@ function resetChartForm() {
   chartForm.k = 3
   chartForm.clusterMetrics = []
   chartForm.filter = ''
-  chartForm.format = ''
+  chartForm.format = 'global'
   chartForm.unit = 'yuan'
   chartForm.metricFormats = {}
   chartForm.metricAggs = {}
@@ -836,13 +996,6 @@ function resetChartForm() {
 function openAddChart() {
   resetChartForm()
   editingChartId.value = null
-  // 默认选中第一个指标
-  if (allMetricCols.value.length > 0) {
-    const first = allMetricCols.value[0]
-    chartForm.metrics = [first]
-    chartForm.metricFormats[first] = { format: '', unit: 'yuan' }
-    chartForm.metricAggs[first] = 'sum'
-  }
   showChartEditor.value = true
 }
 
@@ -858,15 +1011,30 @@ function openEditChart(chart: ChartFormItem) {
   chartForm.k = chart.k || 3
   chartForm.clusterMetrics = chart.clusterMetrics ? [...chart.clusterMetrics] : []
   chartForm.filter = chart.filter || ''
-  chartForm.format = chart.format || ''
+  chartForm.format = chart.format || 'global'
   chartForm.unit = chart.unit || 'yuan'
   chartForm.metricFormats = chart.metricFormats ? JSON.parse(JSON.stringify(chart.metricFormats)) : {}
   chartForm.metricAggs = chart.metricAggs ? JSON.parse(JSON.stringify(chart.metricAggs)) : {}
-  // 确保已选指标都有条目
+  // 确保已选指标都有条目，旧数据中 '' 或 'number' 统一修正为 'global'
   chartForm.metrics.forEach((m) => {
-    if (!chartForm.metricFormats[m]) chartForm.metricFormats[m] = { format: '', unit: 'yuan' }
+    if (!chartForm.metricFormats[m] || !chartForm.metricFormats[m].format || chartForm.metricFormats[m].format === 'number') {
+      chartForm.metricFormats[m] = { format: 'global', unit: 'yuan', prefix: '' }
+    }
     if (!chartForm.metricAggs[m]) chartForm.metricAggs[m] = 'sum'
   })
+  chartForm.clusterMetrics.forEach((m) => {
+    if (!chartForm.metricFormats[m] || !chartForm.metricFormats[m].format || chartForm.metricFormats[m].format === 'number') {
+      chartForm.metricFormats[m] = { format: 'global', unit: 'yuan', prefix: '' }
+    }
+    if (!chartForm.metricAggs[m]) chartForm.metricAggs[m] = 'sum'
+  })
+  // histogram single metric
+  if (chartForm.metric && !chartForm.metrics.includes(chartForm.metric)) {
+    if (!chartForm.metricFormats[chartForm.metric] || !chartForm.metricFormats[chartForm.metric].format || chartForm.metricFormats[chartForm.metric].format === 'number') {
+      chartForm.metricFormats[chartForm.metric] = { format: 'global', unit: 'yuan', prefix: '' }
+    }
+    if (!chartForm.metricAggs[chartForm.metric]) chartForm.metricAggs[chartForm.metric] = 'sum'
+  }
   showChartEditor.value = true
 }
 
@@ -878,7 +1046,7 @@ function toggleChartMetric(col: string) {
   } else {
     chartForm.metrics.push(col)
     if (!chartForm.metricFormats[col]) {
-      chartForm.metricFormats[col] = { format: '', unit: 'yuan' }
+      chartForm.metricFormats[col] = { format: 'global', unit: 'yuan', prefix: '' }
     }
     if (!chartForm.metricAggs[col]) {
       chartForm.metricAggs[col] = 'sum'
@@ -891,8 +1059,26 @@ function toggleChartMetric(col: string) {
 
 function toggleClusterMetric(col: string) {
   const idx = chartForm.clusterMetrics.indexOf(col)
-  if (idx !== -1) chartForm.clusterMetrics.splice(idx, 1)
-  else chartForm.clusterMetrics.push(col)
+  if (idx !== -1) {
+    chartForm.clusterMetrics.splice(idx, 1)
+    delete chartForm.metricFormats[col]
+  } else {
+    chartForm.clusterMetrics.push(col)
+    if (!chartForm.metricFormats[col]) {
+      chartForm.metricFormats[col] = { format: 'global', unit: 'yuan', prefix: '' }
+    }
+    if (!chartForm.metricAggs[col]) {
+      chartForm.metricAggs[col] = 'sum'
+    }
+  }
+}
+
+function onHistogramMetricChange() {
+  const m = chartForm.metric
+  if (m) {
+    if (!chartForm.metricFormats[m]) chartForm.metricFormats[m] = { format: 'global', unit: 'yuan', prefix: '' }
+    if (!chartForm.metricAggs[m]) chartForm.metricAggs[m] = 'sum'
+  }
 }
 
 function saveChart() {
@@ -912,8 +1098,10 @@ function saveChart() {
   } else if (chartForm.type === 'histogram') {
     base.metric = chartForm.metric || chartForm.metrics[0]
   } else if (chartForm.type === 'line') {
-    base.dateColumn = chartForm.dateColumn
-    base.metric = chartForm.metric || chartForm.metrics[0]
+    base.dateColumn = chartForm.dateColumn || undefined
+    base.dimension = chartForm.dimension || undefined
+    base.metrics = chartForm.metrics
+    base.metric = chartForm.metrics[0] || chartForm.metric
   } else if (chartForm.type === 'timeseries') {
     base.dateColumn = chartForm.dateColumn
     base.metric = chartForm.metrics[0] || chartForm.metric
@@ -929,20 +1117,20 @@ function saveChart() {
 
   // 通用：筛选条件
   base.filter = chartForm.filter.trim() || undefined
-  // 通用：数字格式
-  base.format = chartForm.format || undefined
-  base.unit = chartForm.format === 'currency' ? chartForm.unit as any : undefined
-  // 各指标独立格式（过滤空值）
-  const mf: Record<string, any> = {}
+  // 各指标聚合（保留聚合设定，格式统一走全局）
   const ma: Record<string, string> = {}
-  for (const m of chartForm.metrics) {
-    const f = chartForm.metricFormats[m]
-    if (f && f.format) mf[m] = { format: f.format, unit: f.unit || 'yuan' }
+  const allM: string[] = [...chartForm.metrics]
+  if (chartForm.metric && !allM.includes(chartForm.metric)) allM.push(chartForm.metric)
+  for (const m of chartForm.clusterMetrics) { if (!allM.includes(m)) allM.push(m) }
+  for (const m of allM) {
     const a = chartForm.metricAggs[m]
     if (a && a !== 'sum') ma[m] = a
   }
-  base.metricFormats = Object.keys(mf).length > 0 ? mf : undefined
   base.metricAggs = Object.keys(ma).length > 0 ? ma : undefined
+  // 格式不再独立保存，统一走全局默认
+  base.format = undefined
+  base.unit = undefined
+  base.metricFormats = undefined
 
   if (editingChartId.value) {
     configStore.updateChart(editingChartId.value, base)
@@ -1521,6 +1709,11 @@ function cancelChartEdit() {
   width: 72px;
 }
 
+.mf-prefix {
+  width: 48px;
+  text-align: center;
+}
+
 /* Table config */
 .table-config-row {
   display: flex;
@@ -1610,5 +1803,82 @@ function cancelChartEdit() {
 
 .btn-icon:hover {
   color: var(--error);
+}
+
+/* ====== Global Metric Defaults Table ====== */
+.metric-defaults-table {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.md-header {
+  display: grid;
+  grid-template-columns: 1fr 90px 64px 52px 56px 28px 28px 28px;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-hover);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.md-row {
+  display: grid;
+  grid-template-columns: 1fr 90px 64px 52px 56px 28px 28px 28px;
+  gap: 6px;
+  padding: 6px 12px;
+  align-items: center;
+  border-top: 1px solid var(--border-light);
+  font-size: 13px;
+}
+.md-col-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-col-cb {
+  text-align: center;
+  font-size: 12px;
+}
+.md-na {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+.md-sel {
+  width: 100%;
+  font-size: 12px;
+}
+.md-dec {
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  padding: 4px 2px;
+}
+.md-prefix {
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  padding: 4px 2px;
+}
+.md-cb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0;
+}
+.md-cb input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  margin: 0;
+}
+.sec-desc {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: -4px;
+  margin-bottom: 4px;
 }
 </style>

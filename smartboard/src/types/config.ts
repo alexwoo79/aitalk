@@ -1,5 +1,15 @@
 import type { ChartSpec } from './spec'
 
+/** 全局指标格式默认值 —— 在 ConfigView KPI 区域上方统一设定 */
+export interface MetricDefault {
+  format?: string        // 'number' | 'integer' | 'percent' | 'currency'
+  unit?: 'yuan' | 'wan' | 'yi'
+  prefix?: string
+  decimals?: number      // 小数位数，默认 2
+  /** 生效区域（未选中的区域不受全局影响） */
+  sections?: ('kpi' | 'chart' | 'table')[]
+}
+
 /** 用户配置（表单输出，等价于 YAML 模板） */
 export interface DashboardConfig {
   title: string
@@ -7,6 +17,8 @@ export interface DashboardConfig {
   filters: string[]
   charts: ChartFormItem[]
   table: { sortBy: string; topN: number; columns: string[] }
+  /** 全局指标格式默认值，按列名 key，KPI/图表单独设定会覆盖此值 */
+  metricDefaults?: Record<string, MetricDefault>
 }
 
 /** KPI 表单项 */
@@ -18,6 +30,8 @@ export interface KpiFormItem {
   prefix: string
   /** 货币单位: 元 / 万元 / 亿元（仅 format='currency' 时生效） */
   unit?: 'yuan' | 'wan' | 'yi'
+  /** 小数位数 */
+  decimals?: number
   /** 行筛选（单列 + 公式均可用） */
   filter?: string
   /** 多列公式 KPI */
@@ -47,7 +61,7 @@ export interface ChartFormItem {
   /** 货币单位（仅 format='currency'） */
   unit?: 'yuan' | 'wan' | 'yi'
   /** 各指标独立格式（key=指标名），覆盖全局 format/unit */
-  metricFormats?: Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi' }>
+  metricFormats?: Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi'; prefix?: string; decimals?: number }>
   /** 各指标独立聚合方式（key=指标名），覆盖全局 agg */
   metricAggs?: Record<string, string>
 }
@@ -75,6 +89,7 @@ export const AGG_OPTIONS = [
 
 /** KPI 格式选项 */
 export const KPI_FORMAT_OPTIONS = [
+  { value: 'global', label: '继承全局' },
   { value: 'number', label: '数字' },
   { value: 'currency', label: '货币' },
   { value: 'percent', label: '百分比' },

@@ -1,5 +1,5 @@
 <template>
-  <div class="cluster-chart" style="display:flex;flex-direction:column;flex:1;min-height:0">
+  <div class="basic-chart-wrap" ref="wrapRef" :class="{ 'is-fullscreen': isFullscreen }" @dblclick="toggleFullscreen">
     <h3 class="chart-title">{{ displayTitle }}</h3>
     <!-- 轴选择器（3+ 指标时显示） -->
     <div v-if="availableAxes.length > 2" class="axis-selector">
@@ -26,13 +26,14 @@
       <button class="table-toggle" @click="showTable = !showTable">
         {{ showTable ? '收起明细 ↑' : '展开明细表 ↓' }}
       </button>
+      <button v-if="tableRows.length" class="csv-download" :class="{ done: csvDone }" :disabled="csvDone" @click="downloadCsv">{{ csvDone ? '✅ 已下载' : '⬇ CSV' }}</button>
     </div>
     <div v-if="showTable && clusterData" class="cluster-table-wrap">
       <!-- 聚类汇总 -->
       <div class="cluster-summary">
         <span v-for="(s, i) in clusterSummary" :key="i" class="summary-chip" :style="{ borderColor: clusterColor(i) }">
           <strong>聚类 {{ i + 1 }}</strong>
-          {{ s.count }} 个 · 中心 ({{ fmtCompact(s.cx) }}, {{ fmtCompact(s.cy) }})
+          {{ s.count }} 个 · 中心 ({{ fmtValue(s.cx, cd.colX) }}, {{ fmtValue(s.cy, cd.colY) }})
         </span>
       </div>
       <!-- 明细表 -->
@@ -54,8 +55,8 @@
         <tbody>
           <tr v-for="(row, i) in tableRows" :key="i">
             <td class="cl-td">{{ row.label }}</td>
-            <td class="cl-td cl-num">{{ fmtCompact(row.x) }}</td>
-            <td class="cl-td cl-num">{{ fmtCompact(row.y) }}</td>
+            <td class="cl-td cl-num">{{ fmtValue(row.x, clusterData?.colX || '') }}</td>
+            <td class="cl-td cl-num">{{ fmtValue(row.y, clusterData?.colY || '') }}</td>
             <td class="cl-td cl-num">
               <span class="cluster-badge"
                 :style="{ background: clusterColor(row.cluster) + '22', color: clusterColor(row.cluster), borderColor: clusterColor(row.cluster) }">
@@ -70,17 +71,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { ScatterChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
+import { TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { resolveTitle } from '@/core/chart-options'
+import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
 import { useTheme } from '@/composables/use-theme'
 import { computeClusters } from '@/core/analysis'
 
-use([CanvasRenderer, ScatterChart, TooltipComponent, LegendComponent, GridComponent])
+use([CanvasRenderer, ScatterChart, TooltipComponent, LegendComponent, GridComponent, ToolboxComponent])
 
 const COLORS = [
   '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',
@@ -89,11 +90,25 @@ const COLORS = [
 
 const { theme } = useTheme()
 
+// Fullscreen
+const wrapRef = ref<HTMLElement | null>(null)
+const isFullscreen = ref(false)
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  if (isFullscreen.value) { document.addEventListener('keydown', onFullscreenEsc) }
+  else { document.removeEventListener('keydown', onFullscreenEsc) }
+}
+function onFullscreenEsc(e: KeyboardEvent) {
+  if (e.key === 'Escape') { isFullscreen.value = false; document.removeEventListener('keydown', onFullscreenEsc) }
+}
+
 const props = defineProps<{
   rows: Record<string, string | number>[]
   metrics: string[]
   k?: number
   title?: string
+  metricFormats?: Record<string, { format?: string; unit?: string; prefix?: string }>
+  metricAggs?: Record<string, string>
 }>()
 
 const availableAxes = computed(() => props.metrics || [])
@@ -111,6 +126,15 @@ watch(availableAxes, (axes) => {
 const clusterData = computed(() =>
   computeClusters(props.rows, props.metrics, props.k || 3, xCol.value, yCol.value),
 )
+
+const chartMeta = computed(() => ({
+  format: '', unit: 'yuan',
+  metricFormats: props.metricFormats || {},
+}))
+
+function fmtValue(n: number, metricName?: string): string {
+  return fmtByChart(n, chartMeta.value, metricName || '')
+}
 
 function fmtCompact(n: number): string {
   const a = Math.abs(n)
@@ -163,10 +187,12 @@ const option = computed(() => {
   }
 
   return {
+    _mf: props.metricFormats || {},
+    toolbox: buildToolbox(),
     tooltip: {
       formatter: (params: any) => {
         const [x, y] = params.value
-        return `${params.seriesName}<br/>X: ${fmtCompact(x)}<br/>Y: ${fmtCompact(y)}`
+        return `${params.seriesName}<br/>${cd.colX}: ${fmtValue(x, cd.colX)}<br/>${cd.colY}: ${fmtValue(y, cd.colY)}`
       },
     },
     legend: { top: 0, left: 'center', textStyle: { fontSize: 11 } },
@@ -243,6 +269,26 @@ const tableRows = computed<ClusterRow[]>(() => {
 
   return rows
 })
+
+function downloadCsv() {
+  const BOM = '\uFEFF'
+  const cd = clusterData.value
+  const header = '标签,' + (cd?.colX || 'X') + ',' + (cd?.colY || 'Y') + ',聚类'
+  const lines = tableRows.value.map(r =>
+    [r.label, r.x, r.y, '聚类' + (r.cluster + 1)].join(',')
+  )
+  const csv = BOM + header + '\n' + lines.join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'cluster_' + new Date().toISOString().slice(0, 10) + '.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+  csvDone.value = true
+  setTimeout(() => { csvDone.value = false }, 1500)
+}
+const csvDone = ref(false)
 </script>
 
 <style scoped>

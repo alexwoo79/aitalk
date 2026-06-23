@@ -1,5 +1,5 @@
 <template>
-  <div class="timeseries-chart" style="display:flex;flex-direction:column;flex:1;min-height:0">
+  <div class="basic-chart-wrap" ref="wrapRef" :class="{ 'is-fullscreen': isFullscreen }" @dblclick="toggleFullscreen">
     <h3 class="chart-title">{{ displayTitle }}</h3>
     <!-- 指标切换 -->
     <div v-if="activeMetrics.length > 1" class="metric-toggle">
@@ -40,6 +40,7 @@
       <button class="table-toggle" @click="showTable = !showTable">
         {{ showTable ? '收起明细 ↑' : '展开明细表 ↓' }}
       </button>
+      <button v-if="tableRows.length" class="csv-download" :class="{ done: csvDone }" :disabled="csvDone" @click="downloadCsv">{{ csvDone ? '✅ 已下载' : '⬇ CSV' }}</button>
     </div>
     <!-- 数据明细表 -->
     <div v-if="showTable && tsData" class="ts-table-wrap">
@@ -82,19 +83,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent, GridComponent, DataZoomComponent } from 'echarts/components'
+import { TooltipComponent, LegendComponent, GridComponent, DataZoomComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { resolveTitle } from '@/core/chart-options'
+import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
 import { useTheme } from '@/composables/use-theme'
 import { computeTimeseries } from '@/core/analysis'
 
-use([CanvasRenderer, LineChart, TooltipComponent, LegendComponent, GridComponent, DataZoomComponent])
+use([CanvasRenderer, LineChart, TooltipComponent, LegendComponent, GridComponent, DataZoomComponent, ToolboxComponent])
 
 const { theme } = useTheme()
+
+// Fullscreen
+const wrapRef = ref<HTMLElement | null>(null)
+const isFullscreen = ref(false)
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  if (isFullscreen.value) { document.addEventListener('keydown', onFullscreenEsc) }
+  else { document.removeEventListener('keydown', onFullscreenEsc) }
+}
+function onFullscreenEsc(e: KeyboardEvent) {
+  if (e.key === 'Escape') { isFullscreen.value = false; document.removeEventListener('keydown', onFullscreenEsc) }
+}
 
 const props = defineProps<{
   rows: Record<string, string | number>[]
@@ -102,6 +115,8 @@ const props = defineProps<{
   metric: string
   metrics?: string[]
   title?: string
+  metricFormats?: Record<string, { format?: string; unit?: string; prefix?: string }>
+  metricAggs?: Record<string, string>
 }>()
 
 const COLORS = {
@@ -144,6 +159,11 @@ const lastYoy = computed(() => {
   return last
 })
 
+const chartMeta = computed(() => ({
+  format: '', unit: 'yuan',
+  metricFormats: props.metricFormats || {},
+}))
+
 function fmtCompact(n: number): string {
   const a = Math.abs(n)
   if (a >= 1e8) return (n / 1e8).toFixed(1) + '亿'
@@ -151,8 +171,8 @@ function fmtCompact(n: number): string {
   return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
 
-function fmtValue(n: number): string {
-  return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+function fmtValue(n: number, metricName?: string): string {
+  return fmtByChart(n, chartMeta.value, metricName || selectedMetric.value)
 }
 
 const option = computed(() => {
@@ -168,13 +188,15 @@ const option = computed(() => {
   td.forecast.values.forEach((v) => forecastData.push(v))
 
   return {
+    _mf: props.metricFormats || {},
+    toolbox: buildToolbox(),
     tooltip: {
       trigger: 'axis',
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
         return params
           .filter((p: any) => p.value != null)
-          .map((p: any) => `${p.seriesName}: ${fmtValue(p.value)}`)
+          .map((p: any) => `${p.seriesName}: ${fmtValue(p.value, selectedMetric.value)}`)
           .join('<br/>')
       },
     },
@@ -308,6 +330,25 @@ function momStyle(v: number | null): Record<string, string> {
   if (v == null) return {}
   return { color: v >= 0 ? '#10B981' : '#EF4444' }
 }
+
+function downloadCsv() {
+  const BOM = '\uFEFF'
+  const header = '周期,实际值,MA3,环比%,同比%,趋势,预测'
+  const lines = tableRows.value.map(r =>
+    [r.period, r.value ?? '', r.ma ?? '', r.mom ?? '', r.yoy ?? '', r.trend ?? '', r.forecast ?? ''].join(',')
+  )
+  const csv = BOM + header + '\n' + lines.join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'timeseries_' + new Date().toISOString().slice(0, 10) + '.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+  csvDone.value = true
+  setTimeout(() => { csvDone.value = false }, 1500)
+}
+const csvDone = ref(false)
 </script>
 
 <style scoped>

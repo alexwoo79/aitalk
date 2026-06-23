@@ -1,5 +1,5 @@
 <template>
-  <div class="decile-chart" style="display:flex;flex-direction:column;flex:1;min-height:0">
+  <div class="basic-chart-wrap" ref="wrapRef" :class="{ 'is-fullscreen': isFullscreen }" @dblclick="toggleFullscreen">
     <h3 class="chart-title">{{ displayTitle }}</h3>
     <!-- 指标选择 -->
     <div class="metric-selector">
@@ -17,6 +17,7 @@
       <button class="table-toggle" @click="showTable = !showTable">
         {{ showTable ? '收起明细 ↑' : '展开明细表 ↓' }}
       </button>
+      <button v-if="tableRows.length" class="csv-download" :class="{ done: csvDone }" :disabled="csvDone" @click="downloadCsv">{{ csvDone ? '✅ 已下载' : '⬇ CSV' }}</button>
     </div>
     <div v-if="showTable && decData" class="dec-table-wrap">
       <table class="dec-table">
@@ -52,25 +53,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart, LineChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
+import { TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { resolveTitle } from '@/core/chart-options'
+import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
 import { useTheme } from '@/composables/use-theme'
 import { computeDeciles } from '@/core/analysis'
 
-use([CanvasRenderer, BarChart, LineChart, TooltipComponent, LegendComponent, GridComponent])
+use([CanvasRenderer, BarChart, LineChart, TooltipComponent, LegendComponent, GridComponent, ToolboxComponent])
 
 const { theme } = useTheme()
+
+// Fullscreen
+const wrapRef = ref<HTMLElement | null>(null)
+const isFullscreen = ref(false)
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  if (isFullscreen.value) { document.addEventListener('keydown', onFullscreenEsc) }
+  else { document.removeEventListener('keydown', onFullscreenEsc) }
+}
+function onFullscreenEsc(e: KeyboardEvent) {
+  if (e.key === 'Escape') { isFullscreen.value = false; document.removeEventListener('keydown', onFullscreenEsc) }
+}
 
 const props = defineProps<{
   rows: Record<string, string | number>[]
   metric: string
   metrics?: string[]
   title?: string
+  metricFormats?: Record<string, { format?: string; unit?: string; prefix?: string }>
+  metricAggs?: Record<string, string>
 }>()
 
 const selectedMetric = ref(props.metric)
@@ -83,6 +98,11 @@ const activeMetrics = computed(() =>
 
 const decData = computed(() => computeDeciles(props.rows, selectedMetric.value))
 
+const chartMeta = computed(() => ({
+  format: '', unit: 'yuan',
+  metricFormats: props.metricFormats || {},
+}))
+
 function fmtCompact(n: number): string {
   const a = Math.abs(n)
   if (a >= 1e8) return (n / 1e8).toFixed(1) + '亿'
@@ -91,7 +111,7 @@ function fmtCompact(n: number): string {
 }
 
 function fmtValue(n: number): string {
-  return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+  return fmtByChart(n, chartMeta.value, selectedMetric.value)
 }
 
 const option = computed(() => {
@@ -99,11 +119,16 @@ const option = computed(() => {
   if (!dd || dd.labels.length === 0) return null
 
   return {
+    _mf: props.metricFormats || {},
+    toolbox: buildToolbox(),
     tooltip: {
       trigger: 'axis',
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
-        return params.map((p: any) => `${p.seriesName}: ${fmtValue(p.value)}`).join('<br/>')
+        return params.map((p: any) => {
+          const v = p.seriesName === '数量' ? p.value.toLocaleString('zh-CN') : fmtValue(p.value)
+          return `${p.seriesName}: ${v}`
+        }).join('<br/>')
       },
     },
     legend: { top: 0, left: 'center', textStyle: { fontSize: 11 } },
@@ -188,6 +213,25 @@ const tableRows = computed<DecRow[]>(() => {
 
   return rows
 })
+
+function downloadCsv() {
+  const BOM = '\uFEFF'
+  const header = '分组,数量,合计,平均,范围'
+  const lines = tableRows.value.map(r =>
+    [r.label, r.count, r.sum, r.avg, r.range].join(',')
+  )
+  const csv = BOM + header + '\n' + lines.join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'decile_' + new Date().toISOString().slice(0, 10) + '.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+  csvDone.value = true
+  setTimeout(() => { csvDone.value = false }, 1500)
+}
+const csvDone = ref(false)
 </script>
 
 <style scoped>

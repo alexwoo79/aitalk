@@ -24,33 +24,62 @@ export const usePreviewStore = defineStore('preview', () => {
 
     const excluded = dataStore.excludedColumns
 
-    const kpis: KpiSpec[] = cfg.kpis.map((k) => ({
-      column: k.column,
-      label: k.label,
-      agg: k.agg,
-      format: k.format,
-      prefix: k.prefix,
-      unit: k.unit,
-      filter: k.filter,
-      formula: k.formula,
-    }))
+    const defaults = cfg.metricDefaults || {}
 
-    const charts: ChartSpec[] = cfg.charts.map((c) => ({
-      type: c.type,
-      title: c.title,
-      dimension: c.dimension,
-      metric: c.metric,
-      metrics: c.metrics,
-      dateColumn: c.dateColumn,
-      agg: c.agg,
-      k: c.k,
-      clusterMetrics: c.clusterMetrics,
-      filter: c.filter,
-      format: c.format,
-      unit: c.unit,
-      metricFormats: c.metricFormats,
-      metricAggs: c.metricAggs,
-    }))
+    const kpis: KpiSpec[] = cfg.kpis.map((k) => {
+      const def = defaults[k.column]
+      const useGlobal = def && (!def.sections || def.sections.includes('kpi'))
+      // 仅在 per-item 标记为继承全局时，才完整套用全局默认
+      if (useGlobal && (k.format === 'global' || k.format === 'number' || !k.format)) {
+        return {
+          column: k.column, label: k.label, agg: k.agg,
+          format: def.format || '',
+          prefix: def.prefix || '',
+          unit: def.unit,
+          decimals: def.decimals,
+          filter: k.filter,
+          formula: k.formula,
+        }
+      }
+      return {
+        column: k.column, label: k.label, agg: k.agg,
+        format: k.format, prefix: k.prefix, unit: k.unit,
+        decimals: k.decimals,
+        filter: k.filter,
+        formula: k.formula,
+      }
+    })
+
+    const charts: ChartSpec[] = cfg.charts.map((c) => {
+      // 收集该图表涉及的指标 + 全部启用了图表的全局格式（因 Dashboard 可切换额外指标）
+      const allMetrics = new Set<string>()
+      if (c.metrics) c.metrics.forEach(m => allMetrics.add(m))
+      if (c.metric) allMetrics.add(c.metric)
+      if (c.clusterMetrics) c.clusterMetrics.forEach(m => allMetrics.add(m))
+      // 也加入所有启用了 chart 的全局指标列，确保 Dashboard 切换指标时格式可用
+      for (const key of Object.keys(defaults)) {
+        const d = defaults[key]
+        if (d && (!d.sections || d.sections.includes('chart')) && d.format && d.format !== 'global') {
+          allMetrics.add(key)
+        }
+      }
+      const mf: Record<string, any> = {}
+      const ma: Record<string, string> = {}
+      for (const m of allMetrics) {
+        const def = defaults[m]
+        if (!def || (def.sections && !def.sections.includes('chart'))) continue
+        mf[m] = { format: def.format || '', unit: def.unit, prefix: def.prefix || '', decimals: def.decimals }
+      }
+      return {
+        type: c.type, title: c.title,
+        dimension: c.dimension, metric: c.metric, metrics: c.metrics,
+        dateColumn: c.dateColumn, agg: c.agg,
+        k: c.k, clusterMetrics: c.clusterMetrics,
+        filter: c.filter, format: undefined, unit: undefined,
+        metricFormats: Object.keys(mf).length > 0 ? mf : undefined,
+        metricAggs: c.metricAggs,
+      }
+    })
 
     const filters: FilterSpec[] = cfg.filters.map((f) => ({ column: f }))
 
@@ -84,6 +113,7 @@ export const usePreviewStore = defineStore('preview', () => {
       table,
       analyses: {},
       dateRange: dateRangeSpec,
+      metricDefaults: defaults,
     }
   }
 

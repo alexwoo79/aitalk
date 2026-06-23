@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type { DashboardConfig, KpiFormItem, ChartFormItem } from '@/types/config'
 import { useDataStore } from './data-store'
 
-export type ConfigSection = 'title' | 'filters' | 'kpis' | 'charts' | 'table'
+export type ConfigSection = 'title' | 'filters' | 'kpis' | 'charts' | 'table' | 'metricDefaults'
 
 export const useConfigStore = defineStore('config', () => {
   const config = ref<DashboardConfig>({
@@ -60,7 +60,7 @@ export const useConfigStore = defineStore('config', () => {
         column: col,
         label: col,
         agg: (cls.format === 'percent' ? 'avg' : 'sum') as 'sum' | 'avg',
-        format: cls.format,
+        format: 'global',
         prefix: cls.prefix,
       }
     })
@@ -213,6 +213,7 @@ export const useConfigStore = defineStore('config', () => {
     kpis: () => JSON.parse(JSON.stringify(config.value.kpis)),
     charts: () => JSON.parse(JSON.stringify(config.value.charts)),
     table: () => JSON.parse(JSON.stringify(config.value.table)),
+    metricDefaults: () => config.value.metricDefaults ? JSON.parse(JSON.stringify(config.value.metricDefaults)) : {},
   }
 
   const sectionSetters: Record<ConfigSection, (data: any) => void> = {
@@ -221,6 +222,7 @@ export const useConfigStore = defineStore('config', () => {
     kpis: (v) => { config.value.kpis = v },
     charts: (v) => { config.value.charts = v },
     table: (v) => { config.value.table = v },
+    metricDefaults: (v) => { config.value.metricDefaults = Object.keys(v).length > 0 ? v : undefined },
   }
 
   const sectionAutoGens: Record<ConfigSection, () => void> = {
@@ -229,6 +231,7 @@ export const useConfigStore = defineStore('config', () => {
     kpis: generateAutoKpis,
     charts: generateAutoCharts,
     table: generateAutoTable,
+    metricDefaults: () => { config.value.metricDefaults = undefined },
   }
 
   /** 保存/解除单个区域（toggle） */
@@ -264,7 +267,7 @@ export const useConfigStore = defineStore('config', () => {
 
   /** 全部保存/解除 */
   function saveAll() {
-    const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table']
+    const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table', 'metricDefaults']
     if (sections.every((s) => isSectionSaved(s))) {
       // 全部已保存 → 全部解除
       sectionSnapshots.value = {}

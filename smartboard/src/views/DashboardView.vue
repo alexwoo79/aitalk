@@ -85,7 +85,7 @@
               <span>{{ kpiIcon(kpi, i) }}</span>
             </div>
             <div class="kpi-content">
-              <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix, kpi.unit)
+              <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix, kpi.unit, kpi.decimals)
               }}</span>
               <span class="kpi-label">{{ kpi.label }}</span>
             </div>
@@ -105,14 +105,18 @@
               <TimeseriesChart :rows="filteredChartRows(chart)" :date-column="chart.dateColumn || spec.dateRange?.column || ''"
                 :metric="chart.metric || spec.primaryMetric || ''"
                 :metrics="chart.metrics && chart.metrics.length > 0 ? chart.metrics : allMetricCols"
-                :title="chart.title" />
+                :title="chart.title"
+                :metric-formats="chart.metricFormats || {}"
+                :metric-ags="chart.metricAggs || {}" />
             </template>
 
             <!-- 十分位分析 -->
             <template v-else-if="chart.type === 'decile'">
               <DecileChart :rows="filteredChartRows(chart)" :metric="chart.metric || spec.primaryMetric || ''"
                 :metrics="chart.metrics && chart.metrics.length > 0 ? chart.metrics : allMetricCols"
-                :title="chart.title" />
+                :title="chart.title"
+                :metric-formats="chart.metricFormats || {}"
+                :metric-ags="chart.metricAggs || {}" />
             </template>
 
             <!-- 聚类分析 -->
@@ -120,7 +124,9 @@
               <ClusterChart :rows="filteredChartRows(chart)"
                 :metrics="chart.clusterMetrics || chart.metrics || (spec.primaryMetric ? [spec.primaryMetric] : [])"
                 :k="chart.k"
-                :title="chart.title" />
+                :title="chart.title"
+                :metric-formats="chart.metricFormats || {}"
+                :metric-ags="chart.metricAggs || {}" />
             </template>
 
             <!-- 基础图表 -->
@@ -230,7 +236,8 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart, PieChart, LineChart, ScatterChart } from 'echarts/charts'
 import {
   TitleComponent, TooltipComponent, LegendComponent,
-  GridComponent, DataZoomComponent,
+  GridComponent, DataZoomComponent, ToolboxComponent,
+  MarkPointComponent, GraphicComponent,
 } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { VueDatePicker } from '@vuepic/vue-datepicker'
@@ -257,7 +264,8 @@ import { applyFilter } from '@/core/filter'
 use([
   CanvasRenderer, BarChart, PieChart, LineChart, ScatterChart,
   TitleComponent, TooltipComponent, LegendComponent,
-  GridComponent, DataZoomComponent,
+  GridComponent, DataZoomComponent, ToolboxComponent,
+  MarkPointComponent, GraphicComponent,
 ])
 
 const router = useRouter()
@@ -341,7 +349,7 @@ function toggleActiveColumn(col: string) {
   }
 }
 
-import { COLORS, fmt, fmtCompact, getNumericVal } from '@/core/chart-options'
+import { COLORS, fmt, fmtCompact, getNumericVal, fmtByChart } from '@/core/chart-options'
 
 // KPI card colors — theme-aware
 const KPI_BG_LIGHT = ['#EBF5FF', '#ECFDF5', '#FFFBEB', '#FEF2F2', '#F5F3FF', '#ECFEFF']
@@ -419,6 +427,7 @@ async function saveDashboard() {
   const kpiSpecs = s.kpis.map(k => ({
     column: k.column, label: k.label, agg: k.agg,
     format: k.format, prefix: k.prefix || '', unit: k.unit || 'yuan',
+    decimals: k.decimals,
   }))
   // 全部指标列（当 chart.metrics 为空时回退使用，排除已排除的列）
   const allMetricCols = headers.filter((h) => cls[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
@@ -479,6 +488,8 @@ h1{font-size:24px;font-weight:700;margin-bottom:20px}
 .chart-body-ts{position:relative;height:360px}
 .chart-body-cl{position:relative;height:380px}
 .chart-card-full{grid-column:1/-1}
+.chart-card.is-fullscreen{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:#fff;padding:24px}
+.chart-card.is-fullscreen .chart-body,.chart-card.is-fullscreen .chart-body-ts,.chart-card.is-fullscreen .chart-body-cl{flex:1;min-height:0;height:auto}
 .kpi-value{font-size:22px;font-weight:700;line-height:1.2;word-break:break-all}
 .table-card{background:white;border:1px solid #e2e8f0;border-radius:12px;padding:20px;overflow-x:auto;margin-top:24px}
 .table-card h3{font-size:15px;font-weight:600;margin-bottom:12px}
@@ -530,6 +541,7 @@ var CLS=${JSON.stringify(cls)};
 var FS=${JSON.stringify(filterSpecs)};
 var KS=${JSON.stringify(kpiSpecs)};
 var CS=${JSON.stringify(chartSpecs)};
+var MD=${JSON.stringify(s.metricDefaults || {})};
 var TC=${JSON.stringify(tblCols)};
 var TS='${tblSort}';
 var TN=${tblTopN};
@@ -569,7 +581,7 @@ if(ocs.length)res=res.filter(function(r){return ocs.some(function(p){return mR(r
 
 function fmt(n,d){if(n==null||isNaN(n))return'0';return Number(n).toLocaleString('zh-CN',{maximumFractionDigits:d!=null?d:2})}
 function fmtC(n){if(n==null||isNaN(n))return'0';var a=Math.abs(n);if(a>=1e8)return(n/1e8).toFixed(1)+'亿';if(a>=1e4)return(n/1e4).toFixed(1)+'万';return fmt(n)}
-function fmtCh(n,ch,mn){if(n==null||isNaN(n))return'0';var mf=mn&&ch.metricFormats&&ch.metricFormats[mn];var ft=mf&&mf.format?mf.format:(ch.format||'');var ut=mf&&mf.unit?mf.unit:(ch.unit||'yuan');if(!ft||ft==='number')return fmt(n);if(ft==='integer')return fmt(n,0);if(ft==='percent'){var pv=n<=1&&n>=-1?n*100:n;return pv.toFixed(1)+'%'};if(ft==='currency'){var v2=n,s='';if(ut==='wan'){v2=n/10000;s='万'}else if(ut==='yi'){v2=n/1e8;s='亿'}return'¥'+fmt(v2,v2>=100?0:2)+s}return fmt(n)}
+function fmtCh(n,ch,mn){if(n==null||isNaN(n))return'0';var mf=mn&&ch.metricFormats&&ch.metricFormats[mn];var ft=mf&&mf.format&&mf.format!=='global'?mf.format:(ch.format||'');var ut=mf&&mf.unit?mf.unit:(ch.unit||'yuan');var pf=mf&&mf.prefix?mf.prefix:'';var dc=mf&&mf.decimals!=null?mf.decimals:2;if(!ft||ft==='number'||ft==='global')return fmt(n,dc);if(ft==='integer')return fmt(n,0);if(ft==='percent'){var pv=n<=1&&n>=-1?n*100:n;return pv.toFixed(dc)+'%'};if(ft==='currency'){var v2=n,s='';if(ut==='wan'){v2=n/10000;s='万'}else if(ut==='yi'){v2=n/1e8;s='亿'}return pf+fmt(v2,v2>=100?0:dc)+s}return fmt(n,dc)}
 function gn(v){if(v==null||v==='')return NaN;if(typeof v==='number')return v;var s=String(v).trim();if(s.endsWith('%'))s=s.slice(0,-1);s=s.replace(/,/g,'');var n=parseFloat(s);return isNaN(n)?NaN:n}
 
 // ---- filter ----
@@ -599,7 +611,7 @@ var tx=['#1e40af','#065f46','#92400e','#991b1b','#5b21b6','#155e75'];
 var ic=['📊','📈','📋','💰','💵','👥'];
 KS.forEach(function(k,i){var vs=rows.map(function(r){var v=r[k.column];if(v==null||v==='')return 0;if(typeof v==='number')return v;var s=String(v).replace(/,/g,'').replace(/%/g,'').trim();var n=Number(s);return isNaN(n)?0:n});
 var val=0;if(k.agg==='count')val=rows.length;else if(k.agg==='sum')val=vs.reduce(function(a,b){return a+b},0);else if(k.agg==='avg')val=vs.length?vs.reduce(function(a,b){return a+b},0)/vs.length:0;else if(k.agg==='min')val=Math.min.apply(null,vs);else if(k.agg==='max')val=Math.max.apply(null,vs);else val=vs.reduce(function(a,b){return a+b},0);
-var dv='';if(k.format==='percent'){var v2=(val<=1&&val>=-1)?val*100:val;dv=v2.toFixed(1)+'%'}else if(k.format==='currency'){var cv=val,cs='';if(k.unit==='wan'){cv=val/10000;cs='万'}else if(k.unit==='yi'){cv=val/100000000;cs='亿'}dv=(k.prefix||'')+(k.prefix?'':'¥')+fmt(cv,cv>=100?0:2)+cs}else if(k.format==='integer')dv=(k.prefix||'')+fmt(val,0);else dv=(k.prefix||'')+fmt(val);
+var dc=k.decimals!=null?k.decimals:2;var dv='';if(k.format==='percent'){var v2=(val<=1&&val>=-1)?val*100:val;dv=v2.toFixed(dc)+'%'}else if(k.format==='currency'){var cv=val,cs='';if(k.unit==='wan'){cv=val/10000;cs='万'}else if(k.unit==='yi'){cv=val/100000000;cs='亿'}dv=(k.prefix||'')+(k.prefix?'':'¥')+fmt(cv,cv>=100?0:dc)+cs}else if(k.format==='integer')dv=(k.prefix||'')+fmt(val,0);else dv=(k.prefix||'')+fmt(val,dc);
 var card=document.createElement('div');card.className='kpi-card';card.style.cssText='background:'+bg[i%bg.length]+';color:'+tx[i%tx.length];
 card.innerHTML='<div class="kpi-icon"><span>'+ic[i%ic.length]+'</span></div><div class="kpi-content"><span class="kpi-value">'+dv+'</span><span class="kpi-label">'+k.label+'</span></div>';el.appendChild(card)})}
 
@@ -645,6 +657,8 @@ return{points:pts,centroids:cents,colX:cA,colY:cB}}
 function disposeCharts(){for(var i=0;i<ci.length;i++){try{ci[i].dispose()}catch(e){}}ci=[];}
 function hasEcharts(){return typeof echarts!=='undefined'&&echarts&&echarts.init}
 function initChart(dom,h){if(!hasEcharts())return null;if(!h)h='320px';dom.style.height=h;var c=echarts.init(dom);ci.push(c);window.addEventListener('resize',function(){c.resize()});return c}
+// Helper: replace chart in a wrapper — removes ALL old chart divs first
+function replaceChart(wrap,opt,h){if(!h)h='320px';var divs=wrap.querySelectorAll('div');for(var i=0;i<divs.length;i++){var d=divs[i];var dc=ci.find(function(c2){return c2&&c2.getDom()&&c2.getDom()===d});if(dc)dc.dispose();d.remove()}if(!opt)return null;var nd=document.createElement('div');nd.style.cssText='position:absolute;inset:0';wrap.appendChild(nd);var c=echarts.init(nd);ci.push(c);c.setOption(opt);return c}
 
 // ---- Bar (grouped, multi-metric) ----
 function buildBarOpt(ch,rows){
@@ -667,16 +681,21 @@ function buildHBarOpt(ch,rows){
 
 // ---- Doughnut ----
 function buildDoughnutOpt(ch,rows){
-  var dimCol=ch.dimension,mc=ch.metric;
-  if(!dimCol)return null;
+  return buildDoughnutOpt2(ch,rows,ch.metric)
+}
+function buildDoughnutOpt2(ch,rows,mc){
+  var dimCol=ch.dimension;if(!dimCol)return null;
   var ad;if(mc&&mc!=='count')ad=agg(rows,dimCol,mc,ch.agg||'sum');else{var freq={};rows.forEach(function(r){var k=String(r[dimCol]||'未知');freq[k]=(freq[k]||0)+1});ad=Object.entries(freq).map(function(e){return{label:e[0],value:e[1]}})}
   ad.sort(function(a,b){return b.value-a.value});
-  return{color:COL.slice(0,ad.length),tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},legend:{bottom:0,textStyle:{fontSize:11}},series:[{type:'pie',radius:['40%','65%'],center:['50%','45%'],avoidLabelOverlap:true,data:ad.map(function(d){return{name:d.label,value:d.value}}),label:{fontSize:11},itemStyle:{borderColor:'#fff',borderWidth:2}}]};
+  var total=ad.reduce(function(s,d){return s+d.value},0);
+  var MS=8,pd=ad;if(ad.length>MS){var top=ad.slice(0,MS-1),rest=ad.slice(MS-1);pd=top.concat([{label:'其他('+rest.length+'项)',value:rest.reduce(function(s,d){return s+d.value},0)}])}
+  return{color:COL.slice(0,pd.length),tooltip:{trigger:'item',formatter:function(p){return p.name+': '+fmtCh(p.value,ch,mc)+' ('+p.percent+'%)'}},legend:{bottom:0,textStyle:{fontSize:11}},graphic:{type:'text',left:'center',top:'42%',style:{text:fmtCh(total,ch,mc),textAlign:'center',fill:'auto',fontSize:18,fontWeight:'bold'}},series:[{type:'pie',radius:['45%','70%'],center:['50%','45%'],avoidLabelOverlap:true,data:pd.map(function(d){return{name:d.label,value:d.value}}),label:{fontSize:11,formatter:'{b}\\n{d}%'},itemStyle:{borderColor:'#fff',borderWidth:2}}]};
 }
 
 // ---- Histogram ----
-function buildHistOpt(ch,rows){
-  var col=ch.metric;if(!col)return null;
+function buildHistOpt(ch,rows){return buildHistOpt2(ch,rows,ch.metric)}
+function buildHistOpt2(ch,rows,col){
+  if(!col)return null;
   var vals=rows.map(function(r){return gn(r[col])}).filter(function(n){return!isNaN(n)});
   if(!vals.length)return null;
   var mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals);
@@ -689,14 +708,26 @@ function buildHistOpt(ch,rows){
   return{tooltip:{trigger:'axis'},grid:{left:50,right:20,top:10,bottom:gb},xAxis:{type:'category',data:lbs,axisLabel:{fontSize:10,rotate:35}},yAxis:{type:'value',min:0},series:[{type:'bar',data:bins,itemStyle:{borderRadius:[2,2,0,0],color:COL[2]}}]};
 }
 
-// ---- Line ----
+// ---- Line (multi-metric, date or dimension) ----
 function buildLineOpt(ch,rows){
-  var dc=ch.dateColumn,mc=ch.metric;if(!dc||!mc)return null;
-  var mo={};rows.forEach(function(r){var d=String(r[dc]||'').trim();var m=d.match(/^(\\d{4})[-/.](\\d{1,2})/);if(!m)return;var ym=m[1]+'-'+m[2].padStart(2,'0');if(!mo[ym])mo[ym]=[];var v=gn(r[mc]);if(!isNaN(v))mo[ym].push(v)});
-  var sm=Object.keys(mo).sort();if(!sm.length)return null;
-  var sums=sm.map(function(k){return mo[k].reduce(function(a,b){return a+b},0)});
-  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmtCh(x.value,ch,x.seriesName)}).join('<br/>')}},grid:{left:60,right:20,top:10,bottom:60},xAxis:{type:'category',data:sm,axisLabel:{rotate:30,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},dataZoom:[{type:'inside'}],series:[{type:'line',name:mc,data:sums,smooth:true,lineStyle:{color:COL[0],width:2},itemStyle:{color:COL[0]},areaStyle:{color:COL[0]+'22'}}]};
+  var ms=ch.metrics&&ch.metrics.length>0?ch.metrics:(ch.metric?[ch.metric]:[]);if(ms.length===0)return null;
+  var sd={},labels=[];
+  if(ch.dateColumn){rows.forEach(function(r){var d=String(r[ch.dateColumn]||'').trim();var m=d.match(/^(\\d{4})[-/.](\\d{1,2})/);if(!m)return;var ym=m[1]+'-'+m[2].padStart(2,'0');if(!sd[ym])sd[ym]={};ms.forEach(function(mc){if(!sd[ym][mc])sd[ym][mc]=[];var v=gn(r[mc]);if(!isNaN(v))sd[ym][mc].push(v)})});labels=Object.keys(sd).sort()}
+  else if(ch.dimension){rows.forEach(function(r){var k=String(r[ch.dimension]||'未知');if(!sd[k])sd[k]={};ms.forEach(function(mc){if(!sd[k][mc])sd[k][mc]=[];var v=gn(r[mc]);if(!isNaN(v))sd[k][mc].push(v)})});labels=Object.keys(sd).sort()}
+  else return null;
+  if(!labels.length)return null;
+  var series=ms.map(function(mc,mi){return{name:mc,type:'line',data:labels.map(function(l){var arr=sd[l]&&sd[l][mc]||[];return arr.length?arr.reduce(function(a,b){return a+b},0):0}),smooth:true,lineStyle:{color:COL[mi%COL.length],width:2},itemStyle:{color:COL[mi%COL.length]},areaStyle:{color:COL[mi%COL.length]+'22'}}});
+  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmtCh(x.value,ch,x.seriesName)}).join('<br/>')}},legend:ms.length>1?{top:0,textStyle:{fontSize:11}}:undefined,grid:{left:60,right:20,top:ms.length>1?30:10,bottom:60},xAxis:{type:'category',data:labels,axisLabel:{rotate:labels.length>8?30:0,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},dataZoom:[{type:'inside'}],series:series};
 }
+
+// ==================== FULLSCREEN ====================
+var fsCard=null;
+function toggleFullscreen(card){
+  if(fsCard&&fsCard!==card){fsCard.classList.remove('is-fullscreen')}
+  card.classList.toggle('is-fullscreen');
+  fsCard=card.classList.contains('is-fullscreen')?card:null
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&fsCard){fsCard.classList.remove('is-fullscreen');fsCard=null}})
 
 // ==================== RENDER CHARTS GRID ====================
 function rC(rows){var grid=document.getElementById('chartsGrid');
@@ -709,6 +740,7 @@ CS.forEach(function(ch,i){
   var isAn=ch.type==='timeseries'||ch.type==='decile'||ch.type==='cluster';
   var card=document.createElement('div');card.className=isAn?'chart-card chart-card-full':'chart-card';
   card.setAttribute('data-chart-idx',i);
+  card.ondblclick=function(e){e.stopPropagation();toggleFullscreen(card)};
   // dynamic title
   var ms0=ch.metrics&&ch.metrics.length>0?ch.metrics:(ch.metric?[ch.metric]:[]);
   var h3=document.createElement('h3');h3.textContent=rTit(ch.title,ms0);card.appendChild(h3);
@@ -757,41 +789,64 @@ CS.forEach(function(ch,i){
       renderClusterChart(card,ch,cRows,cm[0],cm[1]||cm[0]);
     }
   }else{
-    // basic: add metric toggle (bar/hbar support multi-metric)
+    // basic: metric toggle, sort, labels
     var bm=ch.metrics&&ch.metrics.length>0?ch.metrics:(ch.metric?[ch.metric]:[]);
-    if(bm.length>1&&(ch.type==='bar'||ch.type==='horizontal_bar')){
-      var bmb=document.createElement('div');bmb.className='metric-btns';var activeBms=bm.slice();
-      bm.forEach(function(m){var b=document.createElement('button');b.className='metric-btn active';b.textContent=m;b.onclick=function(){
-        if(activeBms.length>1||!b.classList.contains('active')){b.classList.toggle('active');
-        activeBms=[];bmb.querySelectorAll('.metric-btn.active').forEach(function(ab){activeBms.push(ab.textContent)});
-        h3.textContent=rTit(ch.title,activeBms);
-        var opt=null;if(ch.type==='bar')opt=buildBarOpt2(ch,cRows,activeBms);else opt=buildHBarOpt2(ch,cRows,activeBms[0]);
-        var wrap=card.querySelector('.chart-body');var old=wrap.querySelector('div');if(old)old.remove();if(opt){var c=initChart(wrap,'320px');if(c)c.setOption(opt)}}};bmb.appendChild(b)});card.appendChild(bmb)}
+    var activeBms=bm.slice();
+    if(bm.length>1){
+      var bmb=document.createElement('div');bmb.className='metric-btns';
+      if(ch.type==='doughnut'||ch.type==='histogram'){
+        // single-metric: dropdown
+        var ms=document.createElement('select');ms.style.cssText='padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px';
+        bm.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;ms.appendChild(o)});
+        ms.onchange=function(){var mc=ms.value;h3.textContent=rTit(ch.title,[mc]);var opt=null;if(ch.type==='doughnut')opt=buildDoughnutOpt2(ch,cRows,mc);else opt=buildHistOpt2(ch,cRows,mc);var wrap=card.querySelector('.chart-body');replaceChart(wrap,opt)};bmb.appendChild(ms);
+      }else{
+        // multi-metric: toggle buttons
+        bm.forEach(function(m){var b=document.createElement('button');b.className='metric-btn active';b.textContent=m;b.onclick=function(){
+          if(activeBms.length>1||!b.classList.contains('active')){b.classList.toggle('active');
+          activeBms=[];bmb.querySelectorAll('.metric-btn.active').forEach(function(ab){activeBms.push(ab.textContent)});
+          h3.textContent=rTit(ch.title,activeBms);
+          var opt=null;if(ch.type==='bar')opt=buildBarOpt2(ch,cRows,activeBms,showLabel,sortOrder);else if(ch.type==='horizontal_bar')opt=buildHBarOpt2(ch,cRows,activeBms[0],showLabel,sortOrder);else opt=buildLineOpt(ch,cRows);
+          var wrap=card.querySelector('.chart-body');replaceChart(wrap,opt)}};bmb.appendChild(b)});
+      }
+      card.appendChild(bmb)
+    }
+    // Sort + label toggle
+    var showLabel=true,sortOrder='none';
+    if(ch.type==='bar'||ch.type==='horizontal_bar'){
+      var stb=document.createElement('div');stb.style.cssText='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap';
+      var sl=document.createElement('select');sl.style.cssText='padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px';
+      [{v:'none',l:'自然'},{v:'asc',l:'升序'},{v:'desc',l:'降序'}].forEach(function(o){var op=document.createElement('option');op.value=o.v;op.textContent=o.l;sl.appendChild(op)});
+      sl.onchange=function(){sortOrder=sl.value;var opt=null;if(ch.type==='bar')opt=buildBarOpt2(ch,cRows,activeBms.length?activeBms:bm,showLabel,sortOrder);else opt=buildHBarOpt2(ch,cRows,(activeBms.length?activeBms[0]:bm[0]),showLabel,sortOrder);var wrap=card.querySelector('.chart-body');replaceChart(wrap,opt)};stb.appendChild(sl);
+      var lb=document.createElement('button');lb.textContent='标签';lb.style.cssText='padding:4px 12px;border-radius:16px;border:1px solid #e2e8f0;background:#3B82F6;color:#fff;font-size:12px;cursor:pointer';
+      lb.onclick=function(){showLabel=!showLabel;lb.style.background=showLabel?'#3B82F6':'#fff';lb.style.color=showLabel?'#fff':'#4a5568';var opt=null;if(ch.type==='bar')opt=buildBarOpt2(ch,cRows,activeBms.length?activeBms:bm,showLabel,sortOrder);else opt=buildHBarOpt2(ch,cRows,(activeBms.length?activeBms[0]:bm[0]),showLabel,sortOrder);var wrap=card.querySelector('.chart-body');replaceChart(wrap,opt)};stb.appendChild(lb);
+      card.appendChild(stb)
+    }
     var wrap=document.createElement('div');wrap.className='chart-body';wrap.id='chart-basic-'+i;card.appendChild(wrap);grid.appendChild(card);
     var opt=null;
-    if(ch.type==='bar')opt=buildBarOpt2(ch,cRows,bm);
-    else if(ch.type==='horizontal_bar')opt=buildHBarOpt2(ch,cRows,bm[0]);
-    else if(ch.type==='doughnut')opt=buildDoughnutOpt(ch,cRows);
-    else if(ch.type==='histogram')opt=buildHistOpt(ch,cRows);
+    if(ch.type==='bar')opt=buildBarOpt2(ch,cRows,bm,true,'none');
+    else if(ch.type==='horizontal_bar')opt=buildHBarOpt2(ch,cRows,bm[0],true,'none');
+    else if(ch.type==='doughnut')opt=buildDoughnutOpt2(ch,cRows,bm[0]);
+    else if(ch.type==='histogram')opt=buildHistOpt2(ch,cRows,bm[0]);
     else if(ch.type==='line')opt=buildLineOpt(ch,cRows);
     if(opt){var c=initChart(wrap,'320px');if(c)c.setOption(opt)}
   }
   }catch(e){console.error(e)}
 })}
 
-// ---- buildBarOpt variant that accepts metrics array directly ----
-function buildBarOpt2(ch,rows,ms){
+// ---- buildBarOpt variant that supports sort + labels ----
+function buildBarOpt2(ch,rows,ms,showLabel,sortOrder){
   var dimCol=ch.dimension;if(!dimCol||ms.length===0)return null;
   var groups={};rows.forEach(function(r){var k=String(r[dimCol]||'未知');if(!groups[k])groups[k]={};ms.forEach(function(m){if(!groups[k][m])groups[k][m]=[];var v=gn(r[m]);if(!isNaN(v))groups[k][m].push(v)})});
   var labels=Object.keys(groups).sort();
-  var series=ms.map(function(m,mi){var af=getAgg(ch,m);return{name:m,type:'bar',data:labels.map(function(k){var arr=groups[k]&&groups[k][m]||[];return appAgg(arr,af)}),itemStyle:{borderRadius:[4,4,0,0],color:COL[mi%COL.length]}}});
+  if(sortOrder&&sortOrder!=='none'){var af=getAgg(ch,ms[0]);var ts=labels.map(function(k){var arr=groups[k]&&groups[k][ms[0]]||[];return appAgg(arr,af)});var ix=labels.map(function(l,i){return{l:l,v:ts[i]}});ix.sort(function(a,b){return sortOrder==='asc'?a.v-b.v:b.v-a.v});labels=ix.map(function(x){return x.l})}
+  var series=ms.map(function(m,mi){var aff=getAgg(ch,m);return{name:m,type:'bar',data:labels.map(function(k){var arr=groups[k]&&groups[k][m]||[];return appAgg(arr,aff)}),label:showLabel?{show:true,position:'top',fontSize:11,formatter:function(p){return fmtCh(p.value,ch,p.seriesName)}}:undefined,itemStyle:{borderRadius:[4,4,0,0],color:COL[mi%COL.length]}}});
   return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.seriesName+': '+fmtCh(x.value,ch,x.seriesName)}).join('<br/>')}},legend:ms.length>1?{bottom:0,textStyle:{fontSize:11}}:undefined,grid:{left:60,right:20,top:20,bottom:ms.length>1?40:50},xAxis:{type:'category',data:labels,axisLabel:{rotate:labels.length>8?30:0,fontSize:11}},yAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},series:series};
 }
-function buildHBarOpt2(ch,rows,mc){
-  var dimCol=ch.dimension;var ad=agg(rows,dimCol,mc,getAgg(ch,mc));ad.sort(function(a,b){return a.value-b.value});
+function buildHBarOpt2(ch,rows,mc,showLabel,sortOrder){
+  var dimCol=ch.dimension;var ad=agg(rows,dimCol,mc,getAgg(ch,mc));if(sortOrder&&sortOrder!=='none')ad.sort(function(a,b){return sortOrder==='desc'?b.value-a.value:a.value-b.value});else ad.sort(function(a,b){return a.value-b.value});
   var maxW=0;ad.forEach(function(d){var w=0;for(var i=0;i<d.label.length;i++)w+=d.label.charCodeAt(i)>127?12:7;maxW=Math.max(maxW,w)});
   var gl=Math.max(40,maxW+20);
-  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.name+': '+fmtCh(x.value,ch,x.name)}).join('<br/>')}},grid:{left:gl,right:30,top:10,bottom:20},xAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},yAxis:{type:'category',data:ad.map(function(d){return d.label}),axisLabel:{fontSize:11}},series:[{type:'bar',data:ad.map(function(d){return d.value}),itemStyle:{borderRadius:[0,4,4,0],color:COL[0]}}]};
+  return{tooltip:{trigger:'axis',formatter:function(p){if(!Array.isArray(p))return'';return p.map(function(x){return x.name+': '+fmtCh(x.value,ch,x.name)}).join('<br/>')}},grid:{left:gl,right:30,top:10,bottom:20},xAxis:{type:'value',axisLabel:{fontSize:11,formatter:fmtC}},yAxis:{type:'category',data:ad.map(function(d){return d.label}),axisLabel:{fontSize:11}},series:[{type:'bar',data:ad.map(function(d){return d.value}),label:showLabel?{show:true,position:'right',fontSize:11,formatter:function(p){return fmtCh(p.value,ch,p.seriesName)}}:undefined,itemStyle:{borderRadius:[0,4,4,0],color:COL[0]}}]};
 }
 
 // ---- timeseries chart render ----
@@ -940,7 +995,7 @@ var sl=sorted.slice(0,tblTopN);var tw=document.createElement('div');tw.style.ove
 var h3=tb.querySelector('h3');h3.textContent='数据表 · '+Math.min(sl.length,tblTopN)+' / '+filtered.length+' 行';
 var html='<table><thead><tr><th class="rn">#</th>';
 tblCols.forEach(function(c){var ind=sc===c?(sd?' ↓':' ↑'):'';html+='<th onclick=\"st2(\\x27'+c+'\\x27)\">'+c+ind+'</th>'});
-html+='</tr></thead><tbody>';sl.forEach(function(r,i){html+='<tr><td class="rn">'+(i+1)+'</td>';tblCols.forEach(function(c){var v=r[c];if(v==null||v==='')v='—';else{var cl=CLS[c];if(cl&&cl.type==='numeric'&&cl.role==='metric'){var n=gn(v);if(!isNaN(n))v=fmt(n)}}html+='<td>'+v+'</td>'});html+='</tr>'});
+html+='</tr></thead><tbody>';sl.forEach(function(r,i){html+='<tr><td class="rn">'+(i+1)+'</td>';tblCols.forEach(function(c){var v=r[c];if(v==null||v==='')v='—';else{var cl=CLS[c];if(cl&&cl.type==='numeric'&&cl.role==='metric'){var n=gn(v);if(!isNaN(n)){var md=MD[c];if(md&&md.format&&md.format!=='global')v=fmtCh(n,{metricFormats:MD},c);else v=fmt(n)}}}html+='<td>'+v+'</td>'});html+='</tr>'});
 html+='</tbody></table>';tw.innerHTML=html;el.appendChild(tw)}
 function st2(c){if(sc===c)sd=!sd;else{sc=c;sd=false}rT(gf())}
 
@@ -1041,21 +1096,22 @@ function kpiIcon(kpi: KpiSpec, _index: number): string {
 }
 
 // ====== KPI value formatting (matches dashboard_gen.py) ======
-function formatKpiValue(value: number, format: string, prefix: string, unit?: string): string {
+function formatKpiValue(value: number, format: string, prefix: string, unit?: string, decimals?: number): string {
   const p = prefix || ''
+  const d = decimals !== undefined ? decimals : 2
   if (format === 'percent') {
     const v = value <= 1 && value >= -1 ? value * 100 : value
-    return v.toFixed(1) + '%'
+    return v.toFixed(d) + '%'
   }
   if (format === 'currency') {
     let v = value
     let suffix = ''
     if (unit === 'wan') { v = value / 10000; suffix = '万' }
     else if (unit === 'yi') { v = value / 100000000; suffix = '亿' }
-    return p + (prefix ? '' : '¥') + fmt(v, v >= 100 ? 0 : 2) + suffix
+    return p + (prefix ? '' : '¥') + fmt(v, v >= 100 ? 0 : d) + suffix
   }
   if (format === 'integer') return p + fmt(value, 0)
-  return p + fmt(value, value % 1 === 0 ? 0 : 2)
+  return p + fmt(value, value % 1 === 0 ? 0 : d)
 }
 
 // ====== Table cell formatting ======
@@ -1064,7 +1120,14 @@ function formatCellValue(val: string | number | undefined, col: string): string 
   const cls = dataStore.dataSet?.classifications[col]
   if (cls?.type === 'numeric' && cls.role === 'metric') {
     const n = getNumericVal(val)
-    if (!isNaN(n)) return fmt(n, 2)
+    if (!isNaN(n)) {
+      // Use global metric default if 'table' section is enabled
+      const def = spec.value?.metricDefaults?.[col]
+      if (def && (!def.sections || def.sections.includes('table')) && def.format) {
+        return fmtByChart(n, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
+      }
+      return fmt(n, 2)
+    }
   }
   return String(val)
 }

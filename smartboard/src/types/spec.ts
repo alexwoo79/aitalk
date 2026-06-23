@@ -12,6 +12,16 @@ export interface DashboardSpec {
   table: TableSpec
   analyses: Record<string, AnalysisResult>
   dateRange?: { column: string; min: string; max: string }
+  /** 全局指标格式默认值，按列名 key */
+  metricDefaults?: Record<string, MetricDefault>
+}
+
+export interface MetricDefault {
+  format?: string
+  unit?: 'yuan' | 'wan' | 'yi'
+  prefix?: string
+  decimals?: number
+  sections?: ('kpi' | 'chart' | 'table')[]
 }
 
 /** KPI 卡片 */
@@ -25,6 +35,8 @@ export interface KpiSpec {
   filter?: string
   /** 货币单位: 元 / 万元 / 亿元（仅 format='currency' 时生效） */
   unit?: 'yuan' | 'wan' | 'yi'
+  /** 小数位数 */
+  decimals?: number
   /** 多列公式 KPI */
   formula?: {
     variables: { column: string; agg: string; filter?: string }[]
@@ -55,7 +67,7 @@ export interface ChartSpec {
   /** 货币单位（仅 format='currency'） */
   unit?: 'yuan' | 'wan' | 'yi'
   /** 各指标独立格式（key=指标名），覆盖全局 format/unit */
-  metricFormats?: Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi' }>
+  metricFormats?: Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi'; prefix?: string; decimals?: number }>
   /** 各指标独立聚合方式（key=指标名），覆盖全局 agg */
   metricAggs?: Record<string, string>
 }
