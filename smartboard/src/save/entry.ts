@@ -14,10 +14,10 @@ import type { TimeseriesData, DecileData, ClusterData } from '@/core/analysis'
 
 // ====== Types ======
 interface ChartSpec {
-  type: string; title: string; dimension?: string; metric?: string;
+  type: 'bar' | 'horizontal_bar' | 'doughnut' | 'histogram' | 'line' | 'timeseries' | 'decile' | 'cluster'; title: string; dimension?: string; metric?: string;
   metrics?: string[]; dateColumn?: string; agg?: string;
   clusterMetrics?: string[]; k?: number; filter?: string;
-  format?: string; unit?: string; metricFormats?: Record<string, any>;
+  format?: string; unit?: 'yuan' | 'wan' | 'yi'; metricFormats?: Record<string, any>;
   metricAggs?: Record<string, string>;
 }
 
@@ -371,7 +371,7 @@ function buildClusterOption(cd: ClusterData, chart: ChartSpec): any {
     data: cd.centroids.map(c => [c.x, c.y]),
     symbolSize: 18, symbol: 'diamond',
     itemStyle: { color: '#1a202c', borderColor: '#fff', borderWidth: 2 }, z: 10,
-  })
+  } as any)
   return {
     tooltip: { formatter: (p: any) => { const xy = p.value; return `${p.seriesName}<br/>X: ${fmtCompact(xy[0])}<br/>Y: ${fmtCompact(xy[1])}` } },
     legend: { top: 0, left: 'center', textStyle: { fontSize: 11 } },
