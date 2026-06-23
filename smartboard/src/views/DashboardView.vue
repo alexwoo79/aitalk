@@ -159,7 +159,7 @@
             <h3>{{ t('dashboard.dataTable') }} · {{ tableRows.length }}<span v-if="tableSearch.trim()"> {{
               t('common.matched')
                 }}</span> / {{
-                  activeTopN }} {{ t('common.rows') }}</h3>
+                  activeTopN >= 999999 ? t('config.rowLimitAll') : activeTopN }} {{ t('common.rows') }}</h3>
             <div class="table-controls">
               <div class="control-group">
                 <input type="text" v-model="tableSearch" class="input input-xs table-search"
@@ -213,16 +213,17 @@
               <thead>
                 <tr>
                   <th class="row-num">#</th>
-                  <th v-for="col in activeColumns" :key="col" @click="toggleSort(col)" class="sortable">
+                  <th v-for="col in activeColumns" :key="col" @click="toggleSort(col)" class="sortable"
+                    :style="getColumnHeaderStyle(col)">
                     {{ col }}
                     <span v-if="sortCol === col" class="sort-indicator">{{ sortDir === 'desc' ? '↓' : '↑' }}</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, i) in tableRows" :key="i">
+                <tr v-for="(row, i) in tableRows" :key="i" :style="getRowColorStyle(row)">
                   <td class="row-num">{{ i + 1 }}</td>
-                  <td v-for="col in activeColumns" :key="col">
+                  <td v-for="col in activeColumns" :key="col" :style="getColumnCellStyle(col)">
                     {{ formatCellValue(row[col], col) }}
                   </td>
                 </tr>
@@ -345,8 +346,8 @@ function initTableState() {
   const s = spec.value
   if (s?.table) {
     activeColumns.value = s.table.columns.slice()
-    activeTopN.value = s.table.topN
-    sortCol.value = s.table.sortBy
+    activeTopN.value = s.table.rowLimit === 'all' ? 999999 : (s.table.rowLimit || 15)
+    sortCol.value = s.table.sortBy || ''
   }
 }
 
@@ -461,8 +462,10 @@ async function saveDashboard() {
       metricAggs: c.metricAggs || {},
     }))
   const tblCols = s.table.columns
-  const tblSort = s.table.sortBy
-  const tblTopN = s.table.topN
+  const tblSort = s.table.sortBy || ''
+  const tblRowLimit = s.table.rowLimit
+  const tblColColors = s.table.columnColors || {}
+  const tblRowCondColors = s.table.rowConditionColors || []
   const date = new Date().toISOString().slice(0, 10)
 
   // 使用模板文件生成 HTML
@@ -481,7 +484,9 @@ async function saveDashboard() {
     .replace(/\{\{METRIC_DEFAULTS_JSON\}\}/g, JSON.stringify(s.metricDefaults || {}))
     .replace(/\{\{TABLE_COLUMNS_JSON\}\}/g, JSON.stringify(tblCols))
     .replace(/\{\{TABLE_SORT_BY\}\}/g, tblSort)
-    .replace(/\{\{TABLE_TOP_N\}\}/g, String(tblTopN))
+    .replace(/\{\{TABLE_ROW_LIMIT\}\}/g, JSON.stringify(tblRowLimit))
+    .replace(/\{\{TABLE_COL_COLORS_JSON\}\}/g, JSON.stringify(tblColColors))
+    .replace(/\{\{TABLE_ROW_COND_COLORS_JSON\}\}/g, JSON.stringify(tblRowCondColors))
     .replace(/\{\{DATE_RANGE_JSON\}\}/g, JSON.stringify(s.dateRange || null))
     .replace(/\{\{DATE_START\}\}/g, previewStore.dateRange.start || '')
     .replace(/\{\{DATE_END\}\}/g, previewStore.dateRange.end || '')
@@ -629,6 +634,34 @@ function toggleSort(col: string) {
   }
 }
 
+// ====== Column & Row color helpers ======
+function getColumnHeaderStyle(col: string): Record<string, string> {
+  const cc = configStore.config.table.columnColors?.[col]
+  if (cc) return { backgroundColor: cc }
+  return {}
+}
+
+function getColumnCellStyle(col: string): Record<string, string> {
+  const cc = configStore.config.table.columnColors?.[col]
+  if (cc) return { backgroundColor: cc + '20' }
+  return {}
+}
+
+function getRowColorStyle(row: Record<string, any>): Record<string, string> {
+  const rules = configStore.config.table.rowConditionColors
+  if (!rules || rules.length === 0) return {}
+  for (const rule of rules) {
+    if (!rule.condition.trim() || !rule.color) continue
+    try {
+      const filtered = applyFilter([row], undefined, rule.condition)
+      if (filtered.length > 0) {
+        return { backgroundColor: rule.color + '30' }
+      }
+    } catch { /* skip invalid conditions */ }
+  }
+  return {}
+}
+
 // ====== Table rows with search + sorting ======
 const tableRows = computed(() => {
   const rows = previewStore.filteredRows.length > 0
@@ -667,7 +700,8 @@ const tableRows = computed(() => {
     })
   }
 
-  return sorted.slice(0, activeTopN.value)
+  const limit = activeTopN.value
+  return limit >= 999999 ? sorted : sorted.slice(0, limit)
 })
 
 // ====== Active rows (filtered or all) ======

@@ -85,8 +85,10 @@ export const usePreviewStore = defineStore('preview', () => {
 
     const table: TableSpec = {
       columns: cfg.table.columns.length > 0 ? cfg.table.columns : ds.headers.filter((h) => !excluded.has(h)),
-      sortBy: cfg.table.sortBy,
-      topN: cfg.table.topN,
+      sortBy: cfg.table.sortBy || '',
+      rowLimit: cfg.table.rowLimit,
+      columnColors: cfg.table.columnColors,
+      rowConditionColors: cfg.table.rowConditionColors,
     }
 
     // Date range detection（跳过已排除的列）

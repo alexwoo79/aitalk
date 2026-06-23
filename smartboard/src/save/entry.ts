@@ -37,7 +37,9 @@ interface DashboardData {
   metricDefaults: Record<string, any>
   tableColumns: string[]
   tableSortBy: string
-  tableTopN: number
+  tableRowLimit: number | 'all'
+  tableColColors?: Record<string, string>
+  tableRowCondColors?: { condition: string; color: string }[]
   dateRange?: { column: string; min: string; max: string } | null
   dateStart: string
   dateEnd: string
@@ -67,7 +69,7 @@ let DATA: DashboardData
 let filterValues: Record<string, string> = {}
 let condFilter = '', searchText = ''
 let sortCol = '', sortDir = false
-let tblSearch = '', tblCond = '', tblTopN = 15
+let tblSearch = '', tblCond = '', tblRowLimit: number | 'all' = 15
 let tblCols: string[] = []
 let chartInstances: any[] = []
 let dateStart = '', dateEnd = ''
@@ -670,10 +672,10 @@ function renderTable(rows: Record<string, string | number>[]) {
   const tbc = document.createElement('input'); tbc.type = 'text'; tbc.placeholder = t('dashboard.conditionPlaceholderShort') || 'Amount > 100'
   tbc.style.cssText = 'padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:160px'
   tbc.oninput = () => { tblCond = tbc.value; renderTableContent(rows, el, tb) }; tb.appendChild(tbc)
-  // TopN
-  const tbn = document.createElement('input'); tbn.type = 'number'; tbn.value = String(tblTopN); tbn.min = '5'; tbn.max = '500'
+  // RowLimit
+  const tbn = document.createElement('input'); tbn.type = 'number'; tbn.value = String(tblRowLimit === 'all' ? '' : tblRowLimit); tbn.min = '5'; tbn.max = '500'
   tbn.style.cssText = 'padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:60px'
-  tbn.onchange = () => { tblTopN = parseInt(tbn.value) || 15; renderTableContent(rows, el, tb) }; tb.appendChild(tbn)
+  tbn.onchange = () => { tblRowLimit = tbn.value === '' || tbn.value === 'all' ? 'all' : (parseInt(tbn.value) || 15); renderTableContent(rows, el, tb) }; tb.appendChild(tbn)
   // Column picker
   const ccp = document.createElement('details'); ccp.style.cssText = 'font-size:12px'
   const ccs = document.createElement('summary'); ccs.textContent = `${t('dashboard.columnsLabel')} (${tblCols.length}/${DATA.tableColumns.length})`; ccp.appendChild(ccs)
@@ -709,8 +711,9 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
       return String(a[sortCol] ?? '').localeCompare(String(b[sortCol] ?? '')) * (sortDir ? -1 : 1)
     })
   }
-  const sl = sorted.slice(0, tblTopN)
-  const h3 = tb.querySelector('h3')!; h3.textContent = `${t('dashboard.dataTable')} · ${Math.min(sl.length, tblTopN)} / ${filtered.length} ${t('common.rows')}`
+  const limit = tblRowLimit === 'all' ? sorted.length : tblRowLimit
+  const sl = sorted.slice(0, limit)
+  const h3 = tb.querySelector('h3')!; h3.textContent = `${t('dashboard.dataTable')} · ${sl.length} / ${filtered.length} ${t('common.rows')}`
 
   const tw = document.createElement('div'); tw.style.overflowX = 'auto'
   let html = '<table><thead><tr><th class="rn">#</th>'
@@ -763,7 +766,7 @@ export function initDashboard(data: DashboardData) {
   MSG = typeof __I18N__ !== 'undefined' ? __I18N__ : {}
   setToolboxLocale(data.locale || 'zh-CN')
   sortCol = data.tableSortBy; sortDir = false
-  tblTopN = data.tableTopN
+  tblRowLimit = data.tableRowLimit
   tblCols = data.tableColumns.slice()
   dateStart = data.dateStart
   dateEnd = data.dateEnd

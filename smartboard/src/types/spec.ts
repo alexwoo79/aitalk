@@ -77,11 +77,19 @@ export interface FilterSpec {
   column: string
 }
 
+/** 行条件颜色规则 */
+export interface RowConditionColor {
+  condition: string
+  color: string
+}
+
 /** 数据表 */
 export interface TableSpec {
   columns: string[]
   sortBy: string
-  topN: number
+  rowLimit: number | 'all'
+  columnColors?: Record<string, string>
+  rowConditionColors?: RowConditionColor[]
 }
 
 /** 分析结果（时序/十分位/聚类） */

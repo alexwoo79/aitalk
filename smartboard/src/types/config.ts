@@ -10,13 +10,35 @@ export interface MetricDefault {
   sections?: ('kpi' | 'chart' | 'table')[]
 }
 
+/** 行条件颜色规则 */
+export interface RowConditionColor {
+  /** 筛选条件，格式同 filter 语法: "列名 运算符 值" */
+  condition: string
+  /** CSS 颜色值，如 #ff0000 / rgb(255,0,0) */
+  color: string
+}
+
+/** 数据表配置 */
+export interface TableConfig {
+  /** 显示的列 */
+  columns: string[]
+  /** 排序列（可选），空字符串表示不排序 */
+  sortBy?: string
+  /** 行数限制：数字或 'all' 表示全部 */
+  rowLimit: number | 'all'
+  /** 列颜色：列名 -> CSS 颜色（背景色） */
+  columnColors?: Record<string, string>
+  /** 行条件颜色：满足条件时整行着色 */
+  rowConditionColors?: RowConditionColor[]
+}
+
 /** 用户配置（表单输出，等价于 YAML 模板） */
 export interface DashboardConfig {
   title: string
   kpis: KpiFormItem[]
   filters: string[]
   charts: ChartFormItem[]
-  table: { sortBy: string; topN: number; columns: string[] }
+  table: TableConfig
   /** 全局指标格式默认值，按列名 key，KPI/图表单独设定会覆盖此值 */
   metricDefaults?: Record<string, MetricDefault>
 }

@@ -203,15 +203,8 @@
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('table')">↺</button>
               </div>
             </div>
-            <div class="table-config-row">
-              <label>{{ t('config.sortColumn') }}</label>
-              <select v-model="configStore.config.table.sortBy" class="input select-sm">
-                <option v-for="col in numericCols" :key="col" :value="col">{{ col }}</option>
-              </select>
-              <label>{{ t('config.topNRows') }}</label>
-              <input type="number" v-model.number="configStore.config.table.topN" class="input input-sm" min="5"
-                max="500" />
-            </div>
+
+            <!-- 显示列：卡片式布局（轻量化） -->
             <div class="table-col-header">
               <span>{{ t('config.displayColumns') }} ({{ configStore.config.table.columns.length }}/{{ allHeaders.length
               }})</span>
@@ -220,13 +213,98 @@
               <button class="btn-link" @click="configStore.config.table.columns = []">{{ t('common.clearAll')
                 }}</button>
             </div>
-            <div class="filter-chips">
-              <label v-for="col in allHeaders" :key="col" class="chip"
-                :class="{ active: configStore.config.table.columns.includes(col) }">
-                <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
-                  @change="configStore.toggleTableColumn(col)" hidden />
-                {{ col }}
-              </label>
+            <div class="table-col-grid">
+              <div v-for="col in allHeaders" :key="col" class="table-col-card" :class="[
+                'role-' + (dataStore.dataSet?.classifications[col]?.role || 'ignore'),
+              ]" @click="configStore.toggleTableColumn(col)">
+                <label class="tcc-cb" @click.stop>
+                  <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
+                    @change="configStore.toggleTableColumn(col)" />
+                </label>
+                <div class="tcc-icon">
+                  <span>{{ roleIcon(dataStore.dataSet?.classifications[col]?.role) }}</span>
+                </div>
+                <div class="tcc-body">
+                  <div class="tcc-name">{{ col }}</div>
+                  <div class="tcc-meta">
+                    {{ typeLabel(dataStore.dataSet?.classifications[col]?.type) }} · {{
+                      roleLabel(dataStore.dataSet?.classifications[col]?.role) }}
+                  </div>
+                </div>
+                <!-- 颜色选择器 -->
+                <div class="tcc-color" @click.stop>
+                  <input type="color" class="color-picker-mini"
+                    :value="configStore.config.table.columnColors?.[col] || '#ffffff'"
+                    @input="(e) => configStore.setColumnColor(col, (e.target as HTMLInputElement).value)"
+                    :title="t('config.columnColor')" />
+                  <button v-if="configStore.config.table.columnColors?.[col]" class="tcc-color-clear"
+                    @click.stop="configStore.setColumnColor(col, '')" :title="t('config.removeColor')">✕</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 行数限制：All 或指定数量 -->
+            <div class="table-config-row">
+              <label>{{ t('config.rowLimit') }}</label>
+              <div class="row-limit-group">
+                <label class="chip" :class="{ active: configStore.config.table.rowLimit === 'all' }">
+                  <input type="radio" :checked="configStore.config.table.rowLimit === 'all'"
+                    @change="configStore.config.table.rowLimit = 'all'" hidden />
+                  {{ t('config.rowLimitAll') }}
+                </label>
+                <label class="chip" :class="{ active: typeof configStore.config.table.rowLimit === 'number' }">
+                  <input type="radio" :checked="typeof configStore.config.table.rowLimit === 'number'"
+                    @change="configStore.config.table.rowLimit = 15" hidden />
+                </label>
+                <select v-if="typeof configStore.config.table.rowLimit === 'number'"
+                  v-model.number="configStore.config.table.rowLimit" class="input select-sm" style="width:80px">
+                  <option v-for="n in [5, 10, 15, 20, 30, 50, 100, 200, 500]" :key="n" :value="n">{{ n }}</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 行条件颜色 -->
+            <div class="table-config-row" style="align-items:flex-start">
+              <label>{{ t('config.rowConditionColor') }}</label>
+              <div class="row-colors-list">
+                <div v-if="(configStore.config.table.rowConditionColors || []).length === 0" class="row-colors-empty">
+                  {{ t('config.rowConditionColorEmpty') }}
+                </div>
+                <div v-for="(rule, ri) in (configStore.config.table.rowConditionColors || [])" :key="'rc-' + ri"
+                  class="color-rule-row">
+                  <span class="rule-index">{{ ri + 1 }}</span>
+                  <div class="filter-wrap rule-condition">
+                    <input type="text" class="input input-sm" :value="rule.condition"
+                      :placeholder="t('config.rowConditionPlaceholder')" list="row-cond-cols"
+                      @input="(e) => rule.condition = (e.target as HTMLInputElement).value" />
+                  </div>
+                  <div class="rule-color-group">
+                    <input type="color" class="color-picker" :value="rule.color"
+                      @input="(e) => rule.color = (e.target as HTMLInputElement).value" />
+                    <input type="text" class="input input-sm rule-color-text" :value="rule.color"
+                      :placeholder="t('config.colorPlaceholder')"
+                      @input="(e) => rule.color = (e.target as HTMLInputElement).value" />
+                  </div>
+                  <button class="btn-icon rule-remove" @click="configStore.removeRowConditionColor(ri)"
+                    :title="t('config.removeColor')">✕</button>
+                </div>
+                <span class="filter-hint" style="margin-bottom:4px">{{ t('config.filterSyntax') }}</span>
+                <!-- 共享 datalist -->
+                <datalist id="row-cond-cols">
+                  <template v-for="col in filterableColumns" :key="col">
+                    <option :value="col + ' = '" />
+                    <option :value="col + ' != '" />
+                    <option v-if="isNumericCol(col)" :value="col + ' > '" />
+                    <option v-if="isNumericCol(col)" :value="col + ' < '" />
+                    <option v-if="!isNumericCol(col)" :value="col + ' in '" />
+                    <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
+                  </template>
+                </datalist>
+                <button class="btn btn-sm btn-add"
+                  @click="configStore.addRowConditionColor({ condition: '', color: '#ffff00' })">
+                  {{ t('config.rowConditionColorAdd') }}
+                </button>
+              </div>
             </div>
           </section>
         </div>
@@ -753,6 +831,39 @@ const filterableColumns = computed(() =>
 /** 判断列是否为数值类型（数值列用 > < >= <=，非数值列用 in ~） */
 function isNumericCol(col: string): boolean {
   return dataStore.dataSet?.classifications[col]?.type === 'numeric'
+}
+
+// ====== Column card helpers (参考首页列信息卡片) ======
+const roleIcons: Record<string, string> = {
+  metric: '📊',
+  dimension: '📋',
+  time_axis: '📅',
+  label: '🏷️',
+  ignore: '—',
+}
+function roleIcon(role?: string): string {
+  return role ? (roleIcons[role] ?? '') : ''
+}
+function typeLabel(type?: string): string {
+  if (!type) return ''
+  const map: Record<string, string> = {
+    numeric: t('classification.type.numeric'),
+    categorical: t('classification.type.categorical'),
+    date: t('classification.type.date'),
+    text: t('classification.type.text'),
+  }
+  return map[type] ?? type
+}
+function roleLabel(role?: string): string {
+  if (!role) return ''
+  const map: Record<string, string> = {
+    metric: t('classification.role.metric'),
+    dimension: t('classification.role.dimension'),
+    time_axis: t('classification.role.time_axis'),
+    label: t('classification.role.label'),
+    ignore: t('classification.role.ignore'),
+  }
+  return map[role] ?? role
 }
 
 function chartTypeLabel(type: string): string {
@@ -1748,7 +1859,139 @@ function cancelChartEdit() {
   text-align: center;
 }
 
-/* Table config */
+/* Table config - Column Card Grid (参考首页列信息卡片) */
+.table-col-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.table-col-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+.table-col-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+}
+
+.table-col-card.role-metric {
+  background: var(--role-metric-bg, #eff6ff);
+}
+
+.table-col-card.role-dimension {
+  background: var(--role-dimension-bg, #f0fdf4);
+}
+
+.table-col-card.role-time_axis {
+  background: var(--role-time-bg, #fefce8);
+}
+
+.table-col-card.role-label {
+  background: var(--role-label-bg, #fef2f2);
+}
+
+.table-col-card.role-ignore {
+  background: var(--role-ignore-bg, #f8fafc);
+  opacity: 0.65;
+}
+
+.tcc-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(128, 128, 128, .10);
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.tcc-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tcc-name {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tcc-meta {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+/* Checkbox inside card */
+.tcc-cb {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.tcc-cb input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  margin: 0;
+}
+
+.tcc-color {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.color-picker-mini {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.tcc-color-clear {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.tcc-color-clear:hover {
+  color: #ef4444;
+}
+
+/* Shared table config rows (row limit, row condition color) */
 .table-config-row {
   display: flex;
   align-items: center;
@@ -1766,9 +2009,87 @@ function cancelChartEdit() {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-size: 13px;
   color: var(--text-secondary);
+}
+
+.row-limit-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+
+.rule-index {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 18px;
+  text-align: center;
+  font-family: monospace;
+}
+
+.rule-condition {
+  flex: 1;
+  min-width: 140px;
+}
+
+.rule-color-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.rule-color-text {
+  width: 90px;
+}
+
+.rule-remove {
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.rule-remove:hover {
+  opacity: 1;
+}
+
+.row-colors-empty {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 8px 0 4px;
+}
+
+.color-picker {
+  width: 32px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.row-colors-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-1 {
+  flex: 1;
 }
 
 /* Preview panel */

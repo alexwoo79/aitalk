@@ -11,7 +11,7 @@ export const useConfigStore = defineStore('config', () => {
     kpis: [],
     filters: [],
     charts: [],
-    table: { sortBy: '', topN: 15, columns: [] },
+    table: { sortBy: '', rowLimit: 15, columns: [] },
   })
 
   const dataStore = useDataStore()
@@ -112,7 +112,7 @@ export const useConfigStore = defineStore('config', () => {
     const { ds, metricCols, excluded } = base
     config.value.table = {
       sortBy: (ds.primaryMetric && !excluded.has(ds.primaryMetric) ? ds.primaryMetric : metricCols[0]) || '',
-      topN: 15,
+      rowLimit: 15,
       columns: ds.headers.filter((h) => !excluded.has(h)),
     }
   }
@@ -194,13 +194,38 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
+  /** 设置/清除列颜色 */
+  function setColumnColor(column: string, color: string) {
+    if (!config.value.table.columnColors) {
+      config.value.table.columnColors = {}
+    }
+    if (color) {
+      config.value.table.columnColors[column] = color
+    } else {
+      delete config.value.table.columnColors[column]
+    }
+  }
+
+  /** 添加行条件颜色规则 */
+  function addRowConditionColor(rule: { condition: string; color: string }) {
+    if (!config.value.table.rowConditionColors) {
+      config.value.table.rowConditionColors = []
+    }
+    config.value.table.rowConditionColors.push(rule)
+  }
+
+  /** 移除行条件颜色规则 */
+  function removeRowConditionColor(index: number) {
+    config.value.table.rowConditionColors?.splice(index, 1)
+  }
+
   function resetConfig() {
     config.value = {
       title: '',
       kpis: [],
       filters: [],
       charts: [],
-      table: { sortBy: '', topN: 15, columns: [] },
+      table: { sortBy: '', rowLimit: 15, columns: [] },
     }
     sectionSnapshots.value = {}
   }
@@ -311,6 +336,9 @@ export const useConfigStore = defineStore('config', () => {
     reorderCharts,
     toggleFilter,
     toggleTableColumn,
+    setColumnColor,
+    addRowConditionColor,
+    removeRowConditionColor,
     resetConfig,
   }
 })
