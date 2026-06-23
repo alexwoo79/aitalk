@@ -1,22 +1,22 @@
 <template>
   <div class="config-view">
     <div v-if="!dataStore.dataSet" class="no-data">
-      <p>请先上传数据文件</p>
-      <button class="btn btn-sm btn-primary" @click="$router.push('/')">返回上传</button>
+      <p>{{ t('config.noData') }}</p>
+      <button class="btn btn-sm btn-primary" @click="$router.push('/')">{{ t('config.backToUpload') }}</button>
     </div>
 
     <template v-else>
       <div class="config-header">
         <div class="config-header-top">
-          <button class="btn btn-sm btn-ghost" @click="$router.push('/')">← 返回上传</button>
-          <h2>配置 Dashboard</h2>
+          <button class="btn btn-sm btn-ghost" @click="$router.push('/')">← {{ t('config.backToUpload') }}</button>
+          <h2>{{ t('config.title') }}</h2>
           <div class="header-actions">
             <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved
-              ? '✅ 已保存（点击解除）' : '💾 全部保存' }}</button>
+              ? t('config.saved') : t('config.saveAll') }}</button>
             <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">↺ 全部重置</button>
           </div>
         </div>
-        <p class="subtitle">基于自动推荐配置，你可以自由调整每一项</p>
+        <p class="subtitle">{{ t('config.hint') }}</p>
       </div>
 
       <div class="config-layout">
@@ -25,7 +25,7 @@
           <!-- 标题 -->
           <section class="config-section">
             <div class="section-header-row">
-              <h3>看板标题</h3>
+              <h3>{{ t('config.dashboardTitle') }}</h3>
               <div class="section-actions">
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('title') }"
                   @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾'
@@ -33,13 +33,13 @@
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('title')">↺</button>
               </div>
             </div>
-            <input v-model="configStore.config.title" class="input" placeholder="输入看板标题" />
+            <input v-model="configStore.config.title" class="input" :placeholder="t('config.titlePlaceholder')" />
           </section>
 
-          <!-- 筛选项 -->
+          <!-- {{ t('config.filters') }} -->
           <section class="config-section">
             <div class="section-header-row">
-              <h3>筛选项 ({{ configStore.config.filters.length }})</h3>
+              <h3>{{ t('config.filters') }} ({{ configStore.config.filters.length }})</h3>
               <div class="section-actions">
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('filters') }"
                   @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾'
@@ -60,14 +60,14 @@
           <!-- 全局指标格式默认值 -->
           <section class="config-section">
             <div class="section-header-row">
-              <h3>全局指标格式</h3>
+              <h3>{{ t('config.globalMetricFormat') }}</h3>
               <div class="section-actions">
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('metricDefaults') }"
                   @click="saveMetricDefaults">{{ configStore.isSectionSaved('metricDefaults') ? '✅' : '💾' }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="resetMetricDefaults">↺</button>
               </div>
             </div>
-            <p class="sec-desc">设定各指标列的默认显示格式，KPI / 图表中未单独设定时自动生效。</p>
+            <p class="sec-desc">{{ t('config.globalMetricHint') }}</p>
             <div class="metric-defaults-table">
               <div class="md-header">
                 <span class="md-col-name">指标列</span>
@@ -76,28 +76,28 @@
                 <span class="md-col-prefix">前缀</span>
                 <span class="md-col-dec">小数位</span>
                 <span class="md-col-cb"><label>KPI</label></span>
-                <span class="md-col-cb"><label>图表</label></span>
-                <span class="md-col-cb"><label>数据表</label></span>
+                <span class="md-col-cb"><label>{{ t('config.sections.chart') }}</label></span>
+                <span class="md-col-cb"><label>{{ t('config.sections.table') }}</label></span>
               </div>
               <div v-for="col in allMetricCols" :key="col" class="md-row">
                 <span class="md-col-name">{{ col }}</span>
                 <select v-model="metricDefaultsForm[col].format" class="input input-sm md-sel">
-                  <option value="">(未设定)</option>
-                  <option value="number">数字</option>
-                  <option value="integer">整数</option>
-                  <option value="percent">百分比</option>
-                  <option value="currency">货币</option>
+                  <option value="">{{ t('config.formatOptions.unset') }}</option>
+                  <option value="number">{{ t('config.formatOptions.number') }}</option>
+                  <option value="integer">{{ t('config.formatOptions.integer') }}</option>
+                  <option value="percent">{{ t('config.formatOptions.percent') }}</option>
+                  <option value="currency">{{ t('config.formatOptions.currency') }}</option>
                 </select>
                 <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].unit"
                   class="input input-sm md-sel">
-                  <option value="yuan">元</option>
-                  <option value="wan">万元</option>
-                  <option value="yi">亿元</option>
+                  <option value="yuan">{{ t('config.unitOptions.yuan') }}</option>
+                  <option value="wan">{{ t('config.unitOptions.wan') }}</option>
+                  <option value="yi">{{ t('config.unitOptions.yi') }}</option>
                 </select>
                 <span v-else class="md-na">—</span>
                 <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].prefix"
                   class="input input-sm md-sel">
-                  <option value="">无</option>
+                  <option value="">{{ t('common.none') }}</option>
                   <option value="¥">¥</option>
                   <option value="$">$</option>
                   <option value="€">€</option>
@@ -232,7 +232,7 @@
                 <span class="stat-value">{{ configStore.config.kpis.length }}</span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">筛选项</span>
+                <span class="stat-label">{{ t('config.filters') }}</span>
                 <span class="stat-value">{{ configStore.config.filters.length }}</span>
               </div>
               <div class="stat-item">
@@ -376,9 +376,9 @@
                 <input v-model="kpiForm.prefix" class="input input-sm" placeholder="¥" maxlength="4" />
                 <label>单位</label>
                 <select v-model="kpiForm.unit" class="input select-sm">
-                  <option value="yuan">元</option>
-                  <option value="wan">万元</option>
-                  <option value="yi">亿元</option>
+                  <option value="yuan">{{ t('config.unitOptions.yuan') }}</option>
+                  <option value="wan">{{ t('config.unitOptions.wan') }}</option>
+                  <option value="yi">{{ t('config.unitOptions.yi') }}</option>
                 </select>
               </template>
             </div>
@@ -594,6 +594,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
@@ -602,6 +603,7 @@ import { CHART_TYPES, AGG_OPTIONS, KPI_FORMAT_OPTIONS } from '@/types/config'
 import type { ChartFormItem } from '@/types/config'
 
 const router = useRouter()
+const { t } = useI18n()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
 

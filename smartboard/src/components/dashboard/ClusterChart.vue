@@ -4,13 +4,13 @@
     <!-- 轴选择器（3+ 指标时显示） -->
     <div v-if="availableAxes.length > 2" class="axis-selector">
       <div class="axis-group">
-        <label>X 轴</label>
+        <label>{{ t('chart.xAxis') }}</label>
         <select v-model="xCol" class="axis-select">
           <option v-for="col in availableAxes" :key="col" :value="col">{{ col }}</option>
         </select>
       </div>
       <div class="axis-group">
-        <label>Y 轴</label>
+        <label>{{ t('chart.yAxis') }}</label>
         <select v-model="yCol" class="axis-select">
           <option v-for="col in availableAxes" :key="col" :value="col">{{ col }}</option>
         </select>
@@ -21,14 +21,14 @@
       <v-chart ref="chartRef" :option="option" :theme="theme === 'dark' ? 'dark' : ''" autoresize
         style="flex:1;min-height:200px" />
     </div>
-    <div v-else class="no-data-msg">数据不足，无法执行聚类分析</div>
+    <div v-else class="no-data-msg">{{ t('chart.insufficientData', { name: t('chart.cluster') }) }}</div>
     <!-- 展开明细 -->
     <div v-if="clusterData" class="cluster-actions">
       <button class="table-toggle" @click="showTable = !showTable">
-        {{ showTable ? '收起明细 ↑' : '展开明细表 ↓' }}
+        {{ showTable ? t('common.collapse') : t('common.expand') }}
       </button>
       <button v-if="tableRows.length" class="csv-download" :class="{ done: csvDone }" :disabled="csvDone"
-        @click="downloadCsv">{{ csvDone ? '✅ 已下载' : '⬇ CSV' }}</button>
+        @click="downloadCsv">{{ csvDone ? t('common.downloaded') : t('common.downloadCSV') }}</button>
     </div>
     <div v-if="showTable && clusterData" class="cluster-table-wrap">
       <!-- 聚类汇总 -->
@@ -73,19 +73,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { ScatterChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
+import {  ref, computed, nextTick, watch } from 'vue'
+import {  use } from 'echarts/core'
+import {  CanvasRenderer } from 'echarts/renderers'
+import {  ScatterChart } from 'echarts/charts'
+import {  TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
-import { useChartDownload } from '@/composables/use-chart-download'
-import { save } from '@tauri-apps/plugin-dialog'
-import { writeTextFile } from '@tauri-apps/plugin-fs'
-import { useTheme } from '@/composables/use-theme'
-import { computeClusters } from '@/core/analysis'
+import {  resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
+import {  useChartDownload } from '@/composables/use-chart-download'
+import {  save } from '@tauri-apps/plugin-dialog'
+import {  writeTextFile } from '@tauri-apps/plugin-fs'
+import {  useTheme } from '@/composables/use-theme'
+import {  computeClusters } from '@/core/analysis'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 use([CanvasRenderer, ScatterChart, TooltipComponent, LegendComponent, GridComponent, ToolboxComponent])
 
 const COLORS = [

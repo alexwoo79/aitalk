@@ -1,14 +1,15 @@
 <template>
   <div class="file-uploader" :class="{ dragging }">
     <div class="upload-icon">📁</div>
-    <p class="upload-text">拖拽 CSV 或 XLSX 文件到此处</p>
-    <p class="upload-sub">或点击按钮选择文件</p>
-    <button class="btn-choose" @click="openDialog">选择文件</button>
+    <p class="upload-text">{{ t('upload.dropHint') }}</p>
+    <p class="upload-sub">{{ t('upload.clickHint') }}</p>
+    <button class="btn-choose" @click="openDialog">{{ t('upload.selectFile') }}</button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useDataStore } from '@/stores/data-store'
 import { readFile, readTextFile } from '@tauri-apps/plugin-fs'
@@ -17,6 +18,7 @@ import { parseFile } from '@/core/parser'
 import { classifyAllColumns, selectPrimaryMetric, selectChartDimensions } from '@/core/classifier'
 
 const emit = defineEmits<{ loaded: [] }>()
+const { t } = useI18n()
 const dataStore = useDataStore()
 const dragging = ref(false)
 
@@ -88,7 +90,7 @@ async function loadFilePath(filePath: string) {
     }
     emit('loaded')
   } catch (err: any) {
-    dataStore.error = err.message || '文件解析失败'
+    dataStore.error = err.message || t('upload.parseError')
   } finally {
     dataStore.loading = false
   }

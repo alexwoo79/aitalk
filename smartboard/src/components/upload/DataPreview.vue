@@ -4,21 +4,21 @@
     <div class="preview-header">
       <div class="file-info">
         <h3>{{ dataSet.fileName }}</h3>
-        <span class="badge">{{ dataSet.rows.length }} 行</span>
-        <span class="badge">{{ dataSet.headers.length }} 列</span>
+        <span class="badge">{{ dataSet.rows.length }} {{ t('common.rows') }}</span>
+        <span class="badge">{{ dataSet.headers.length }} {{ t('common.columns') }}</span>
       </div>
-      <button class="btn-next" @click="$emit('next')">下一步：配置 Dashboard →</button>
+      <button class="btn-next" @click="$emit('next')">{{ t('upload.nextStep') }}</button>
     </div>
 
     <!-- 列分类结果 -->
     <div class="section">
       <div class="section-header">
-        <h4>列分类结果</h4>
+        <h4>{{ t('upload.columnClassification') }}</h4>
         <div class="exclude-controls">
-          <span class="exclude-hint click-hint">💡 点击卡片选择排除</span>
+          <span class="exclude-hint click-hint">{{ t('upload.clickToExclude') }}</span>
           <span v-if="excludedCount > 0" class="exclude-hint">
-            已排除 {{ excludedCount }} 列
-            <button class="btn-link" @click="resetExcluded">重置</button>
+            {{ t('upload.excluded', { n: excludedCount }) }}
+            <button class="btn-link" @click="resetExcluded">{{ t('common.reset') }}</button>
           </span>
         </div>
       </div>
@@ -43,18 +43,20 @@
 
     <!-- 指标摘要 -->
     <div v-if="dataSet.primaryMetric" class="section">
-      <h4>自动检测</h4>
+      <h4>{{ t('upload.autoDetect') }}</h4>
       <div class="detection-info">
-        <span>主指标：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ? '（已排除）' : dataSet.primaryMetric
+        <span>{{ t('upload.primaryMetric') }}：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ?
+          t('upload.excludedHint') : dataSet.primaryMetric
             }}</strong></span>
-        <span>图表维度：<strong>{{dataSet.chartDimensions.filter(d => !dataStore.excludedColumns.has(d)).join(', ') || '无'
+        <span>{{ t('upload.chartDimensions') }}：<strong>{{dataSet.chartDimensions.filter(d =>
+          !dataStore.excludedColumns.has(d)).join(', ') || t('upload.noDimensions')
             }}</strong></span>
       </div>
     </div>
 
     <!-- 样本数据 -->
     <div class="section">
-      <h4>样本数据（前 5 行，{{ visibleHeaders.length }}/{{ dataSet.headers.length }} 列）</h4>
+      <h4>{{ t('upload.sampleData', { cols: visibleHeaders.length }) }}</h4>
       <div class="table-wrapper">
         <table class="sample-table">
           <thead>
@@ -79,6 +81,10 @@ import { computed } from 'vue'
 import type { DataSet } from '@/types/data'
 import { useDataStore } from '@/stores/data-store'
 
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 defineProps<{ dataSet: DataSet }>()
 const emit = defineEmits<{ next: []; toggleExclude: [] }>()
 
@@ -101,18 +107,18 @@ function resetExcluded() {
 }
 
 const typeLabels: Record<string, string> = {
-  numeric: '数值',
-  categorical: '分类',
-  date: '日期',
-  text: '文本',
+  numeric: t('classification.type.numeric'),
+  categorical: t('classification.type.categorical'),
+  date: t('classification.type.date'),
+  text: t('classification.type.text'),
 }
 
 const roleLabels: Record<string, string> = {
-  metric: '指标',
-  dimension: '维度',
-  time_axis: '时间轴',
-  label: '标签',
-  ignore: '忽略',
+  metric: t('classification.role.metric'),
+  dimension: t('classification.role.dimension'),
+  time_axis: t('classification.role.time_axis'),
+  label: t('classification.role.label'),
+  ignore: t('classification.role.ignore'),
 }
 
 function typeLabel(type?: string) {

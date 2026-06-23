@@ -20,7 +20,7 @@
       <v-chart ref="chartRef" :option="option" :theme="theme === 'dark' ? 'dark' : ''" autoresize
         style="flex:1;min-height:200px" />
     </div>
-    <div v-else class="no-data-msg">数据不足，无法生成时序分析</div>
+    <div v-else class="no-data-msg">{{ t('chart.insufficientData', { name: t('chart.timeseries') }) }}</div>
     <!-- 信息面板 -->
     <div v-if="tsData" class="ts-info">
       <span>最新: <strong>{{ tsData.labels[tsData.labels.length - 1] }}</strong></span>
@@ -39,10 +39,10 @@
         <span>下期预测: <strong>{{ fmtValue(tsData.forecast.values[0]) }}</strong></span>
       </template>
       <button class="table-toggle" @click="showTable = !showTable">
-        {{ showTable ? '收起明细 ↑' : '展开明细表 ↓' }}
+        {{ showTable ? t('common.collapse') : t('common.expand') }}
       </button>
       <button v-if="tableRows.length" class="csv-download" :class="{ done: csvDone }" :disabled="csvDone"
-        @click="downloadCsv">{{ csvDone ? '✅ 已下载' : '⬇ CSV' }}</button>
+        @click="downloadCsv">{{ csvDone ? t('common.downloaded') : t('common.downloadCSV') }}</button>
     </div>
     <!-- 数据明细表 -->
     <div v-if="showTable && tsData" class="ts-table-wrap">
@@ -85,19 +85,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent, GridComponent, DataZoomComponent, ToolboxComponent } from 'echarts/components'
+import {  ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
+import {  use } from 'echarts/core'
+import {  CanvasRenderer } from 'echarts/renderers'
+import {  LineChart } from 'echarts/charts'
+import {  TooltipComponent, LegendComponent, GridComponent, DataZoomComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
-import { useChartDownload } from '@/composables/use-chart-download'
-import { save } from '@tauri-apps/plugin-dialog'
-import { writeTextFile } from '@tauri-apps/plugin-fs'
-import { useTheme } from '@/composables/use-theme'
-import { computeTimeseries } from '@/core/analysis'
+import {  resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
+import {  useChartDownload } from '@/composables/use-chart-download'
+import {  save } from '@tauri-apps/plugin-dialog'
+import {  writeTextFile } from '@tauri-apps/plugin-fs'
+import {  useTheme } from '@/composables/use-theme'
+import {  computeTimeseries } from '@/core/analysis'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 use([CanvasRenderer, LineChart, TooltipComponent, LegendComponent, GridComponent, DataZoomComponent, ToolboxComponent])
 
 const { theme } = useTheme()

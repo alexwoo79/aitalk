@@ -5,14 +5,16 @@
       <button class="save-toast-close" @click="saveMsg = ''">✕</button>
     </div>
     <div v-if="!spec" class="no-data">
-      <p>请先配置 Dashboard</p>
-      <button class="btn btn-sm btn-primary" @click="$router.push('/config')">返回配置</button>
+      <p>{{ t('dashboard.noData') }}</p>
+      <button class="btn btn-sm btn-primary" @click="$router.push('/config')">{{ t('dashboard.backToConfigText')
+        }}</button>
     </div>
 
     <template v-else>
       <!-- 工具栏 -->
       <div class="dashboard-toolbar">
-        <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← 返回配置</button>
+        <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← {{ t('dashboard.backToConfigText')
+          }}</button>
         <h2 class="dashboard-title">{{ spec.title }}</h2>
       </div>
 
@@ -22,21 +24,22 @@
           <label>{{ f.column }}</label>
           <select v-model="previewStore.filterValues[f.column]" @change="onFilterChange"
             class="input input-sm filter-select">
-            <option value="__all__">全部</option>
+            <option value="__all__">{{ t('common.all') }}</option>
             <option v-for="opt in previewStore.getFilterOptions(f.column)" :key="opt" :value="opt">
               {{ opt }}
             </option>
           </select>
         </div>
         <div class="filter-item">
-          <label>搜索</label>
+          <label>{{ t('common.search') }}</label>
           <input type="text" v-model="previewStore.searchText" @input="onFilterChange"
-            class="input input-sm search-input" placeholder="输入关键字..." />
+            class="input input-sm search-input" :placeholder="t('dashboard.searchPlaceholder')" />
         </div>
         <div class="filter-item">
-          <label>条件</label>
+          <label>{{ t('common.condition') }}</label>
           <input type="text" v-model="previewStore.conditionFilter" @input="onFilterChange"
-            class="input input-sm condition-input" list="condition-cols" placeholder="如: 金额 > 100 | 金额 < 10" />
+            class="input input-sm condition-input" list="condition-cols"
+            :placeholder="t('dashboard.conditionPlaceholder')" />
           <datalist id="condition-cols">
             <template v-for="col in allHeaders" :key="col">
               <option :value="col + ' = '" />
@@ -49,22 +52,23 @@
           </datalist>
         </div>
         <div class="filter-actions">
-          <button class="btn btn-sm btn-reset" @click="resetFilters">重置筛选</button>
+          <button class="btn btn-sm btn-reset" @click="resetFilters">{{ t('dashboard.resetFilter') }}</button>
           <button class="btn btn-sm btn-clear" @click="clearDashboard">Clear</button>
           <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
         </div>
-        <span class="filter-count">当前筛选: {{ previewStore.rowCount }} 条记录</span>
+        <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
+          }}</span>
       </div>
 
       <!-- 日期范围 -->
       <div v-if="spec.dateRange" class="date-range-bar">
-        <span class="dr-label">时间切片: {{ spec.dateRange.column }}</span>
+        <span class="dr-label">{{ t('dashboard.timeSlice') }}: {{ spec.dateRange.column }}</span>
         <input type="date" v-model="dateStart" :min="spec.dateRange.min" :max="spec.dateRange.max"
           class="dr-date-input" />
-        <span class="dr-sep">至</span>
+        <span class="dr-sep">{{ t('dashboard.to') }}</span>
         <input type="date" v-model="dateEnd" :min="spec.dateRange.min" :max="spec.dateRange.max"
           class="dr-date-input" />
-        <span class="dr-info">{{ dateRangeCount }} / {{ totalRows }} 条</span>
+        <span class="dr-info">{{ t('dashboard.recordsCount', { filtered: dateRangeCount, total: totalRows }) }}</span>
         <div class="dr-presets">
           <button v-for="p in datePresets" :key="p.months" class="dr-preset"
             :class="{ active: isDatePresetActive(p.months) }" @click="applyDatePreset(p.months)">
@@ -75,7 +79,7 @@
 
       <!-- 已清空提示 -->
       <div v-if="dashboardCleared" class="cleared-msg">
-        Dashboard 已清空 — 拖拽上传 CSV / Excel 文件或点击"重置筛选"恢复数据
+        Dashboard 已清空 — 拖拽上传 CSV / Excel 文件或点击"{{ t('dashboard.resetFilter') }}"恢复数据
       </div>
 
       <template v-if="!dashboardCleared">
@@ -89,7 +93,7 @@
             <div class="kpi-content">
               <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix,
                 kpi.unit, kpi.decimals)
-              }}</span>
+                }}</span>
               <span class="kpi-label">{{ kpi.label }}</span>
             </div>
           </div>
@@ -152,16 +156,18 @@
           <div class="rs-handle rs-handle-s" @pointerdown.prevent="onResizeStart($event, 's')"></div>
           <div class="rs-handle rs-handle-se" @pointerdown.prevent="onResizeStart($event, 'se')"></div>
           <div class="table-toolbar">
-            <h3>数据表 · {{ tableRows.length }}<span v-if="tableSearch.trim()"> (匹配)</span> / {{ activeTopN }} 行</h3>
+            <h3>{{ t('dashboard.dataTable') }} · {{ tableRows.length }}<span v-if="tableSearch.trim()"> (匹配)</span> / {{
+              activeTopN }} 行</h3>
             <div class="table-controls">
               <div class="control-group">
-                <input type="text" v-model="tableSearch" class="input input-xs table-search" placeholder="搜索..." />
+                <input type="text" v-model="tableSearch" class="input input-xs table-search"
+                  :placeholder="t('dashboard.tableSearchPlaceholder')" />
                 <button v-if="tableSearch" class="search-clear" @click="tableSearch = ''">✕</button>
               </div>
               <div class="control-group">
-                <label>条件</label>
+                <label>{{ t('common.condition') }}</label>
                 <input type="text" v-model="tableCondition" class="input input-xs table-cond" list="table-cond-cols"
-                  placeholder="金额 > 100 | 金额 < 10" />
+                  :placeholder="t('dashboard.conditionPlaceholderShort')" />
                 <datalist id="table-cond-cols">
                   <template v-for="col in allHeaders" :key="col">
                     <option :value="col + ' = '" />
@@ -228,6 +234,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
+import zhCN from '@/i18n/zh-CN'
+import enUS from '@/i18n/en-US'
 import { useRouter } from 'vue-router'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -305,6 +314,7 @@ function onResizeEnd() {
   document.removeEventListener('pointerup', onResizeEnd)
 }
 const configStore = useConfigStore()
+const { t, locale } = useI18n()
 const previewStore = usePreviewStore()
 
 const spec = computed(() => previewStore.buildSpec())
@@ -472,6 +482,8 @@ async function saveDashboard() {
     .replace(/\{\{DATE_RANGE_JSON\}\}/g, JSON.stringify(s.dateRange || null))
     .replace(/\{\{DATE_START\}\}/g, previewStore.dateRange.start || '')
     .replace(/\{\{DATE_END\}\}/g, previewStore.dateRange.end || '')
+    .replace(/\{\{LOCALE\}\}/g, locale.value)
+    .replace(/\{\{I18N_JSON\}\}/g, JSON.stringify(locale.value === 'zh-CN' ? zhCN : enUS))
 
   const filePath = await save({
     defaultPath: `${title}_${date}.html`,
@@ -480,9 +492,9 @@ async function saveDashboard() {
   if (filePath) {
     try {
       await writeTextFile(filePath, html)
-      await message(`已保存到:\n${filePath}`, { title: '保存成功', kind: 'info' })
+      await message(t('dashboard.saveSuccess', { path: filePath }), { title: t('dashboard.saveSuccessTitle'), kind: 'info' })
     } catch (e: any) {
-      await message(`保存失败:\n${e?.message || e}`, { title: '保存失败', kind: 'error' })
+      await message(t('dashboard.saveFailed', { error: e?.message || e }), { title: t('dashboard.saveFailedTitle'), kind: 'error' })
     }
   }
 }
@@ -499,17 +511,17 @@ const datePresets = computed(() => {
   const presets: { label: string; months: number }[] = []
 
   // Monthly presets
-  if (totalMonths >= 3) presets.push({ label: '近3月', months: 3 })
-  if (totalMonths >= 6) presets.push({ label: '近半年', months: 6 })
+  if (totalMonths >= 3) presets.push({ label: t('dashboard.datePresets.last3Months'), months: 3 })
+  if (totalMonths >= 6) presets.push({ label: t('dashboard.datePresets.last6Months'), months: 6 })
 
   // Yearly presets — generate based on actual data span
   const totalYears = Math.floor(totalMonths / 12)
   for (let y = 1; y <= totalYears; y++) {
-    if (y === 1) presets.push({ label: '近1年', months: 12 })
-    else presets.push({ label: `近${y}年`, months: y * 12 })
+    if (y === 1) presets.push({ label: t('dashboard.datePresets.last1Year'), months: 12 })
+    else presets.push({ label: t('dashboard.datePresets.lastNYears', { n: y }), months: y * 12 })
   }
 
-  presets.push({ label: '全部', months: 0 })
+  presets.push({ label: t('dashboard.datePresets.all'), months: 0 })
   return presets
 })
 
@@ -579,8 +591,8 @@ function formatKpiValue(value: number, format: string, prefix: string, unit?: st
   if (format === 'currency') {
     let v = value
     let suffix = ''
-    if (unit === 'wan') { v = value / 10000; suffix = '万' }
-    else if (unit === 'yi') { v = value / 100000000; suffix = '亿' }
+    if (unit === 'wan') { v = value / 10000; suffix = t('common.unitShort.wan') }
+    else if (unit === 'yi') { v = value / 100000000; suffix = t('common.unitShort.yi') }
     return p + (prefix ? '' : '¥') + fmt(v, v >= 100 ? 0 : d) + suffix
   }
   if (format === 'integer') return p + fmt(value, 0)

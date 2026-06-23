@@ -7,30 +7,32 @@
                 {{ m }}
             </button>
             <span class="toggle-sep"></span>
-            <button class="period-btn" :class="{ active: showArea }" @click="showArea = !showArea" title="面积填充">
-                {{ showArea ? '◫ 面积' : '╱ 纯线' }}
+            <button class="period-btn" :class="{ active: showArea }" @click="showArea = !showArea" :title="t('chart.toggle.areaTitle')">
+                {{ showArea ? t('chart.toggle.area') : t('chart.toggle.line') }}
             </button>
             <span class="toggle-sep"></span>
-            <button class="period-btn" :class="{ active: smooth }" @click="smooth = !smooth" title="曲线平滑">
-                {{ smooth ? '~ 平滑' : '╱ 折线' }}
+            <button class="period-btn" :class="{ active: smooth }" @click="smooth = !smooth" :title="t('chart.toggle.smoothTitle')">
+                {{ smooth ? t('chart.toggle.smooth') : t('chart.toggle.sharp') }}
             </button>
         </div>
         <div class="chart-container" v-if="option" ref="containerRef">
             <v-chart :option="option" :theme="theme === 'dark' ? 'dark' : ''" autoresize style="width:100%;height:100%"
                 ref="chartRef" />
         </div>
-        <div v-else class="no-data-msg">暂无数据</div>
+        <div v-else class="no-data-msg">{{ t('common.noData') }}</div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
+import {  ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
-import { buildLineOption, resolveTitle, buildToolbox } from '@/core/chart-options'
-import { useChartDownload } from '@/composables/use-chart-download'
-import { useTheme } from '@/composables/use-theme'
+import {  buildLineOption, resolveTitle, buildToolbox } from '@/core/chart-options'
+import {  useChartDownload } from '@/composables/use-chart-download'
+import {  useTheme } from '@/composables/use-theme'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const { theme } = useTheme()
 const { downloadPNG, downloadCSV } = useChartDownload()
 

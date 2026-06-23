@@ -22,9 +22,13 @@
         <span>SmartBoard</span>
       </div>
       <StepIndicator :current="currentStep" />
-      <button class="theme-toggle" @click="toggleTheme" :title="theme === 'light' ? '切换暗色' : '切换亮色'">
+      <button class="theme-toggle" @click="toggleTheme"
+        :title="theme === 'light' ? t('theme.switchDark') : t('theme.switchLight')">
         {{ theme === 'light' ? '🌙' : '☀️' }}
       </button>
+      <select class="lang-switch" v-model="locale" @change="setLocale">
+        <option v-for="l in LOCALES" :key="l.key" :value="l.key">{{ l.label }}</option>
+      </select>
     </header>
     <main class="app-main">
       <router-view v-slot="{ Component }">
@@ -38,15 +42,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import StepIndicator from '@/components/common/StepIndicator.vue'
 import Toast from '@/components/common/Toast.vue'
 import { useTheme } from '@/composables/use-theme'
+import { LOCALES, type SupportedLocale } from '@/i18n'
 
 const route = useRoute()
 const toastRef = ref<InstanceType<typeof Toast> | null>(null)
 const { theme, toggle: toggleTheme } = useTheme()
+const { locale, t } = useI18n()
+
+function setLocale() {
+  localStorage.setItem('locale', locale.value)
+}
+
+// Restore saved locale
+onMounted(() => {
+  const saved = localStorage.getItem('locale') as SupportedLocale | null
+  if (saved && LOCALES.some(l => l.key === saved)) locale.value = saved
+})
 
 const stepMap: Record<string, number> = {
   upload: 1,
@@ -115,6 +132,22 @@ if (typeof window !== 'undefined') {
 
 .theme-toggle:hover {
   background: var(--bg-hover);
+}
+
+.lang-switch {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  height: 32px;
+  outline: none;
+}
+
+.lang-switch:focus {
+  border-color: var(--primary);
 }
 
 .app-main {

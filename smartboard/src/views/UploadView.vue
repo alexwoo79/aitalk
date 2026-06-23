@@ -1,33 +1,36 @@
 <template>
   <div class="upload-view">
     <div class="upload-section">
-      <h2>上传数据文件</h2>
-      <p class="subtitle">支持 CSV 和 XLSX 格式，系统将自动分析列结构</p>
+      <h2>{{ t('upload.title') }}</h2>
+      <p class="subtitle">{{ t('upload.subtitle') }}</p>
       <FileUploader @loaded="onFileLoaded" />
     </div>
 
     <div v-if="dataStore.loading" class="loading">
       <div class="spinner"></div>
-      <span>正在解析文件...</span>
+      <span>{{ t('upload.parsing') }}</span>
     </div>
 
     <div v-if="dataStore.error" class="error-banner">
       <span>{{ dataStore.error }}</span>
-      <button class="btn" @click="dataStore.clearData()">关闭</button>
+      <button class="btn" @click="dataStore.clearData()">{{ t('common.close') }}</button>
     </div>
 
-    <DataPreview v-if="dataStore.dataSet" :data-set="dataStore.dataSet" @next="goToConfig" @toggleExclude="onToggleExclude" />
+    <DataPreview v-if="dataStore.dataSet" :data-set="dataStore.dataSet" @next="goToConfig"
+      @toggleExclude="onToggleExclude" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import FileUploader from '@/components/upload/FileUploader.vue'
 import DataPreview from '@/components/upload/DataPreview.vue'
 
 const router = useRouter()
+const { t } = useI18n()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
 

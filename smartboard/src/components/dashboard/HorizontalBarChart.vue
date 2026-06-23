@@ -7,14 +7,14 @@
                 {{ m }}
             </button>
             <span class="toggle-sep"></span>
-            <button class="period-btn" :class="{ active: stacked }" @click="stacked = !stacked" title="切换堆叠 / 分组">
-                {{ stacked ? '◫ 堆叠' : '▦ 分组' }}
+            <button class="period-btn" :class="{ active: stacked }" @click="stacked = !stacked" :title="t('chart.toggle.stackTitle')">
+                {{ stacked ? t('chart.toggle.stacked') : t('chart.toggle.grouped') }}
             </button>
             <span class="toggle-sep"></span>
             <select v-model="sortOrder" class="input input-xs sort-select">
-                <option value="none">自然</option>
-                <option value="asc">升序</option>
-                <option value="desc">降序</option>
+                <option value="none">{{ t('chart.sort.natural') }}</option>
+                <option value="asc">{{ t('chart.sort.ascending') }}</option>
+                <option value="desc">{{ t('chart.sort.descending') }}</option>
             </select>
             <span class="toggle-sep"></span>
             <button class="period-btn" :class="{ active: showLabel }" @click="showLabel = !showLabel" title="数据标签">
@@ -30,13 +30,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import {  ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
-import { buildHorizontalBarOption, resolveTitle, buildToolbox } from '@/core/chart-options'
-import { useChartDownload } from '@/composables/use-chart-download'
-import { useTheme } from '@/composables/use-theme'
+import {  buildHorizontalBarOption, resolveTitle, buildToolbox } from '@/core/chart-options'
+import {  useChartDownload } from '@/composables/use-chart-download'
+import {  useTheme } from '@/composables/use-theme'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const { theme } = useTheme()
 const { downloadPNG, downloadCSV } = useChartDownload()
 

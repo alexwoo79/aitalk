@@ -7,7 +7,7 @@
             </select>
             <span v-if="availableMetrics.length > 1" class="toggle-sep"></span>
             <select v-model="bins" class="input input-xs sort-select">
-                <option :value="0">自动</option>
+                <option :value="0">{{ t('common.auto') }}</option>
                 <option :value="5">5</option>
                 <option :value="8">8</option>
                 <option :value="12">12</option>
@@ -18,18 +18,20 @@
             <v-chart :option="option" :theme="theme === 'dark' ? 'dark' : ''" autoresize style="width:100%;height:100%"
                 ref="chartRef" />
         </div>
-        <div v-else class="no-data-msg">暂无数据</div>
+        <div v-else class="no-data-msg">{{ t('common.noData') }}</div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
+import {  ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
-import { buildHistogramOption, resolveTitle, buildToolbox } from '@/core/chart-options'
-import { useChartDownload } from '@/composables/use-chart-download'
-import { useTheme } from '@/composables/use-theme'
+import {  buildHistogramOption, resolveTitle, buildToolbox } from '@/core/chart-options'
+import {  useChartDownload } from '@/composables/use-chart-download'
+import {  useTheme } from '@/composables/use-theme'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const { theme } = useTheme()
 const { downloadPNG, downloadCSV } = useChartDownload()
 

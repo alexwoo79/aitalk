@@ -6,7 +6,7 @@
                 <option v-for="m in availableMetrics" :key="m" :value="m">{{ m }}</option>
             </select>
             <span v-if="availableMetrics.length > 1" class="toggle-sep"></span>
-            <button class="period-btn" :class="{ active: showLabel }" @click="showLabel = !showLabel" title="数据标签">
+            <button class="period-btn" :class="{ active: showLabel }" @click="showLabel = !showLabel" :title="t('chart.toggle.dataLabel')">
                 标签
             </button>
         </div>
@@ -14,18 +14,20 @@
             <v-chart :option="option" :theme="theme === 'dark' ? 'dark' : ''" autoresize style="width:100%;height:100%"
                 ref="chartRef" />
         </div>
-        <div v-else class="no-data-msg">暂无数据</div>
+        <div v-else class="no-data-msg">{{ t('common.noData') }}</div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
+import {  ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
-import { buildDoughnutOption, resolveTitle, buildToolbox } from '@/core/chart-options'
-import { useChartDownload } from '@/composables/use-chart-download'
-import { useTheme } from '@/composables/use-theme'
+import {  buildDoughnutOption, resolveTitle, buildToolbox } from '@/core/chart-options'
+import {  useChartDownload } from '@/composables/use-chart-download'
+import {  useTheme } from '@/composables/use-theme'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const { theme } = useTheme()
 const { downloadPNG, downloadCSV } = useChartDownload()
 

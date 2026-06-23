@@ -3,7 +3,7 @@
     <h3 class="chart-title">{{ displayTitle }}</h3>
     <!-- 指标选择 -->
     <div class="metric-selector">
-      <label>分析指标</label>
+      
       <select v-model="selectedMetric" class="metric-select">
         <option v-for="m in activeMetrics" :key="m" :value="m">{{ m }}</option>
       </select>
@@ -12,14 +12,14 @@
       <v-chart ref="chartRef" :option="option" :theme="theme === 'dark' ? 'dark' : ''" autoresize
         style="flex:1;min-height:200px" />
     </div>
-    <div v-else class="no-data-msg">数据不足，无法生成十分位分析</div>
+    <div v-else class="no-data-msg">{{ t('chart.insufficientData', { name: t('chart.decile') }) }}</div>
     <!-- 展开明细 -->
     <div v-if="decData" class="dec-actions">
       <button class="table-toggle" @click="showTable = !showTable">
-        {{ showTable ? '收起明细 ↑' : '展开明细表 ↓' }}
+        {{ showTable ? t('common.collapse') : t('common.expand') }}
       </button>
       <button v-if="tableRows.length" class="csv-download" :class="{ done: csvDone }" :disabled="csvDone"
-        @click="downloadCsv">{{ csvDone ? '✅ 已下载' : '⬇ CSV' }}</button>
+        @click="downloadCsv">{{ csvDone ? t('common.downloaded') : t('common.downloadCSV') }}</button>
     </div>
     <div v-if="showTable && decData" class="dec-table-wrap">
       <table class="dec-table">
@@ -55,19 +55,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { BarChart, LineChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
+import {  ref, computed, nextTick, watch } from 'vue'
+import {  use } from 'echarts/core'
+import {  CanvasRenderer } from 'echarts/renderers'
+import {  BarChart, LineChart } from 'echarts/charts'
+import {  TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
-import { useChartDownload } from '@/composables/use-chart-download'
-import { save } from '@tauri-apps/plugin-dialog'
-import { writeTextFile } from '@tauri-apps/plugin-fs'
-import { useTheme } from '@/composables/use-theme'
-import { computeDeciles } from '@/core/analysis'
+import {  resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
+import {  useChartDownload } from '@/composables/use-chart-download'
+import {  save } from '@tauri-apps/plugin-dialog'
+import {  writeTextFile } from '@tauri-apps/plugin-fs'
+import {  useTheme } from '@/composables/use-theme'
+import {  computeDeciles } from '@/core/analysis'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 use([CanvasRenderer, BarChart, LineChart, TooltipComponent, LegendComponent, GridComponent, ToolboxComponent])
 
 const { theme } = useTheme()

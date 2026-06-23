@@ -875,6 +875,22 @@ var SmartboardRenderer = (function(exports) {
       colY
     };
   }
+  let MSG = {};
+  function t(path, params) {
+    const keys = path.split(".");
+    let val = MSG;
+    for (const k of keys) {
+      if (val == null) break;
+      val = val[k];
+    }
+    let result = typeof val === "string" ? val : path;
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        result = result.replace(`{${k}}`, String(v));
+      }
+    }
+    return result;
+  }
   let DATA;
   let filterValues = {};
   let condFilter = "", searchText = "";
@@ -968,7 +984,7 @@ var SmartboardRenderer = (function(exports) {
       const vs = Object.keys(uv).sort();
       const o0 = document.createElement("option");
       o0.value = "";
-      o0.textContent = "全部";
+      o0.textContent = t("common.all");
       sel.appendChild(o0);
       vs.forEach((v) => {
         const o = document.createElement("option");
@@ -985,7 +1001,7 @@ var SmartboardRenderer = (function(exports) {
     });
     const cf = document.createElement("input");
     cf.type = "text";
-    cf.placeholder = "条件筛选, 如: 金额 > 100 & 地区 = 北京";
+    cf.placeholder = t("dashboard.conditionPlaceholder") || "e.g. Amount > 100 & Region = Beijing";
     cf.style.cssText = "padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;min-width:200px";
     cf.oninput = () => {
       condFilter = cf.value;
@@ -1003,7 +1019,7 @@ var SmartboardRenderer = (function(exports) {
     bar.appendChild(si);
     const rb = document.createElement("button");
     rb.className = "btn";
-    rb.textContent = "重置筛选";
+    rb.textContent = t("dashboard.resetFilter");
     rb.onclick = () => {
       filterValues = {};
       condFilter = "";
@@ -1029,7 +1045,7 @@ var SmartboardRenderer = (function(exports) {
     bar.innerHTML = "";
     const lb = document.createElement("span");
     lb.className = "dr-label";
-    lb.textContent = "时间切片: " + dr.column;
+    lb.textContent = t("dashboard.timeSlice") + ": " + dr.column;
     bar.appendChild(lb);
     const si = document.createElement("input");
     si.type = "date";
@@ -1044,7 +1060,7 @@ var SmartboardRenderer = (function(exports) {
     bar.appendChild(si);
     const sp = document.createElement("span");
     sp.className = "dr-sep";
-    sp.textContent = "至";
+    sp.textContent = t("dashboard.to");
     bar.appendChild(sp);
     const ei = document.createElement("input");
     ei.type = "date";
@@ -1091,20 +1107,20 @@ var SmartboardRenderer = (function(exports) {
     if (totalMonths >= 3) {
       const s = new Date(max);
       s.setMonth(s.getMonth() - 3);
-      presets.push({ label: "近3月", start: s.toISOString().slice(0, 10), end: dr.max });
+      presets.push({ label: t("dashboard.datePresets.last3Months"), start: s.toISOString().slice(0, 10), end: dr.max });
     }
     if (totalMonths >= 6) {
       const s = new Date(max);
       s.setMonth(s.getMonth() - 6);
-      presets.push({ label: "近半年", start: s.toISOString().slice(0, 10), end: dr.max });
+      presets.push({ label: t("dashboard.datePresets.last6Months"), start: s.toISOString().slice(0, 10), end: dr.max });
     }
     const totalYears = Math.floor(totalMonths / 12);
     for (let y = 1; y <= totalYears; y++) {
       const s = new Date(max);
       s.setFullYear(s.getFullYear() - y);
-      presets.push({ label: y === 1 ? "近1年" : `近${y}年`, start: s.toISOString().slice(0, 10), end: dr.max });
+      presets.push({ label: y === 1 ? t("dashboard.datePresets.last1Year") : t("dashboard.datePresets.lastNYears", { n: String(y) }), start: s.toISOString().slice(0, 10), end: dr.max });
     }
-    presets.push({ label: "全部", start: dr.min, end: dr.max });
+    presets.push({ label: t("dashboard.datePresets.all"), start: dr.min, end: dr.max });
     return presets;
   }
   function updateDrInfo() {
@@ -1119,7 +1135,7 @@ var SmartboardRenderer = (function(exports) {
         return d >= dateStart && d <= dateEnd;
       }).length;
     }
-    info.textContent = inRange + " / " + DATA.rows.length + " 条";
+    info.textContent = inRange + " / " + DATA.rows.length + " " + t("common.records");
   }
   function renderKpiCards(rows) {
     const el = document.getElementById("kpiRow");
@@ -1237,10 +1253,10 @@ var SmartboardRenderer = (function(exports) {
       dataZoom: [{ type: "inside" }],
       toolbox: buildToolbox(),
       series: [
-        { name: "实际值", type: "line", data: aD, lineStyle: { color: COLORS[0], width: 2 }, itemStyle: { color: COLORS[0] }, areaStyle: { color: COLORS[0] + "22" }, smooth: true },
+        { name: t("chart.series.actual"), type: "line", data: aD, lineStyle: { color: COLORS[0], width: 2 }, itemStyle: { color: COLORS[0] }, areaStyle: { color: COLORS[0] + "22" }, smooth: true },
         { name: "MA3", type: "line", data: mD, lineStyle: { color: COLORS[2], width: 2, type: "dashed" }, itemStyle: { color: COLORS[2] }, smooth: true, symbol: "none" },
-        { name: "趋势", type: "line", data: tD, lineStyle: { color: "#6B7280", width: 1.5, type: "dotted" }, itemStyle: { color: "#6B7280" }, smooth: false, symbol: "none" },
-        { name: "预测", type: "line", data: fD, lineStyle: { color: "#10B981", width: 2, type: "dashed" }, itemStyle: { color: "#10B981" }, smooth: true, symbolSize: 6 }
+        { name: t("chart.series.trend"), type: "line", data: tD, lineStyle: { color: "#6B7280", width: 1.5, type: "dotted" }, itemStyle: { color: "#6B7280" }, smooth: false, symbol: "none" },
+        { name: t("chart.series.forecast"), type: "line", data: fD, lineStyle: { color: "#10B981", width: 2, type: "dashed" }, itemStyle: { color: "#10B981" }, smooth: true, symbolSize: 6 }
       ]
     };
   }
@@ -1260,13 +1276,13 @@ var SmartboardRenderer = (function(exports) {
       grid: { left: 60, right: 60, top: 50, bottom: 30 },
       xAxis: { type: "category", data: dd.labels, axisLabel: { fontSize: 11 } },
       yAxis: [
-        { type: "value", position: "left", name: "合计", axisLabel: { fontSize: 10, formatter: (v) => fmtCompact$1(v) } },
-        { type: "value", position: "right", name: "数量", splitLine: { show: false }, axisLabel: { fontSize: 10 } }
+        { type: "value", position: "left", name: t("chart.series.sum"), axisLabel: { fontSize: 10, formatter: (v) => fmtCompact$1(v) } },
+        { type: "value", position: "right", name: t("chart.series.count"), splitLine: { show: false }, axisLabel: { fontSize: 10 } }
       ],
       toolbox: buildToolbox(),
       series: [
-        { name: "合计", type: "bar", yAxisIndex: 0, data: dd.sums, itemStyle: { color: COLORS[0], borderRadius: [3, 3, 0, 0] }, z: 2 },
-        { name: "数量", type: "line", yAxisIndex: 1, data: dd.counts, lineStyle: { color: COLORS[3], width: 2 }, itemStyle: { color: COLORS[3] }, smooth: true, symbolSize: 8, z: 1 }
+        { name: t("chart.series.sum"), type: "bar", yAxisIndex: 0, data: dd.sums, itemStyle: { color: COLORS[0], borderRadius: [3, 3, 0, 0] }, z: 2 },
+        { name: t("chart.series.count"), type: "line", yAxisIndex: 1, data: dd.counts, lineStyle: { color: COLORS[3], width: 2 }, itemStyle: { color: COLORS[3] }, smooth: true, symbolSize: 8, z: 1 }
       ]
     };
   }
@@ -1278,14 +1294,14 @@ var SmartboardRenderer = (function(exports) {
     });
     const cIds = Object.keys(clusters).map(Number).sort((a, b) => a - b);
     const series = cIds.map((ci) => ({
-      name: `聚类 ${ci + 1}`,
+      name: t("chart.series.clusterN", { n: String(ci + 1) }),
       type: "scatter",
       data: clusters[ci],
       symbolSize: 8,
       itemStyle: { color: COLORS[ci % COLORS.length] + "99", borderColor: COLORS[ci % COLORS.length], borderWidth: 1 }
     }));
     series.push({
-      name: "聚类中心",
+      name: t("chart.series.clusterCenter"),
       type: "scatter",
       data: cd.centroids.map((c) => [c.x, c.y]),
       symbolSize: 18,
@@ -1574,7 +1590,7 @@ var SmartboardRenderer = (function(exports) {
     removeOldElements(card);
     const td = computeTimeseries(rows, ch.dateColumn || "", mc, pd);
     if (!td) {
-      wrap.textContent = "数据不足，无法生成时序分析";
+      wrap.textContent = t("chart.insufficientData", { name: t("chart.timeseries") });
       return;
     }
     const opt = buildTsOption(td, ch);
@@ -1607,11 +1623,11 @@ var SmartboardRenderer = (function(exports) {
     card.appendChild(dtWrap);
     const tg = document.createElement("button");
     tg.className = "detail-toggle";
-    tg.textContent = "展开明细表 ↓";
+    tg.textContent = t("common.expand");
     tg.onclick = () => {
       const s = dtWrap.style.display !== "none";
       dtWrap.style.display = s ? "none" : "";
-      tg.textContent = s ? "展开明细表 ↓" : "收起明细 ↑";
+      tg.textContent = s ? t("common.expand") : t("common.collapse");
     };
     card.appendChild(tg);
   }
@@ -1624,7 +1640,7 @@ var SmartboardRenderer = (function(exports) {
     removeOldElements(card);
     const dd = computeDeciles(rows, mc);
     if (!dd) {
-      wrap.textContent = "数据不足，无法生成十分位分析";
+      wrap.textContent = t("chart.insufficientData", { name: t("chart.decile") });
       return;
     }
     const opt = buildDecileOption(dd, ch);
@@ -1660,7 +1676,7 @@ var SmartboardRenderer = (function(exports) {
     const k = ch.k || 3;
     const cd = computeClusters(rows, [xCol, yCol], k);
     if (!cd) {
-      wrap.textContent = "数据不足，无法执行聚类分析";
+      wrap.textContent = t("chart.insufficientData", { name: t("chart.cluster") });
       return;
     }
     const opt = buildClusterOption(cd);
@@ -1725,7 +1741,7 @@ var SmartboardRenderer = (function(exports) {
     el.appendChild(tb);
     const tbs = document.createElement("input");
     tbs.type = "text";
-    tbs.placeholder = "搜索...";
+    tbs.placeholder = t("common.searchEllipsis");
     tbs.style.cssText = "padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:120px";
     tbs.oninput = () => {
       tblSearch = tbs.value;
@@ -1734,7 +1750,7 @@ var SmartboardRenderer = (function(exports) {
     tb.appendChild(tbs);
     const tbc = document.createElement("input");
     tbc.type = "text";
-    tbc.placeholder = "条件, 如: 金额 > 100";
+    tbc.placeholder = t("dashboard.conditionPlaceholderShort") || "Amount > 100";
     tbc.style.cssText = "padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:160px";
     tbc.oninput = () => {
       tblCond = tbc.value;
@@ -1755,7 +1771,7 @@ var SmartboardRenderer = (function(exports) {
     const ccp = document.createElement("details");
     ccp.style.cssText = "font-size:12px";
     const ccs = document.createElement("summary");
-    ccs.textContent = `列 (${tblCols.length}/${DATA.tableColumns.length})`;
+    ccs.textContent = `${t("dashboard.columnsLabel")} (${tblCols.length}/${DATA.tableColumns.length})`;
     ccp.appendChild(ccs);
     const ccd = document.createElement("div");
     ccd.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-top:4px";
@@ -1767,7 +1783,7 @@ var SmartboardRenderer = (function(exports) {
         const idx = tblCols.indexOf(c);
         if (idx !== -1) tblCols.splice(idx, 1);
         else tblCols.push(c);
-        ccs.textContent = `列 (${tblCols.length}/${DATA.tableColumns.length})`;
+        ccs.textContent = `${t("dashboard.columnsLabel")} (${tblCols.length}/${DATA.tableColumns.length})`;
         renderTableContent(rows, el, tb);
       };
       ccd.appendChild(l);
@@ -1798,7 +1814,7 @@ var SmartboardRenderer = (function(exports) {
     }
     const sl = sorted.slice(0, tblTopN);
     const h3 = tb.querySelector("h3");
-    h3.textContent = `数据表 · ${Math.min(sl.length, tblTopN)} / ${filtered.length} 行`;
+    h3.textContent = `${t("dashboard.dataTable")} · ${Math.min(sl.length, tblTopN)} / ${filtered.length} ${t("common.rows")}`;
     const tw = document.createElement("div");
     tw.style.overflowX = "auto";
     let html = '<table><thead><tr><th class="rn">#</th>';
@@ -1845,11 +1861,12 @@ var SmartboardRenderer = (function(exports) {
     renderCharts(rows);
     renderTable(rows);
     const fc = document.getElementById("fc");
-    if (fc) fc.textContent = `当前筛选: ${rows.length} 条记录`;
+    if (fc) fc.textContent = `${t("common.currentFilter")}: ${rows.length} ${t("common.records")}`;
     updateDrInfo();
   }
   function initDashboard(data) {
     DATA = data;
+    MSG = typeof __I18N__ !== "undefined" ? __I18N__ : {};
     sortCol = data.tableSortBy;
     sortDir = false;
     tblTopN = data.tableTopN;

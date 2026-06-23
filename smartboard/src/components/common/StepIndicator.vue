@@ -10,13 +10,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
 defineProps<{ current: number }>()
 
-const steps = [
-  { num: 1, label: '上传数据' },
-  { num: 2, label: '配置看板' },
-  { num: 3, label: '查看结果' },
-]
+const { t } = useI18n()
+
+const steps = computed(() => [
+  { num: 1, label: t('steps.upload') },
+  { num: 2, label: t('steps.config') },
+  { num: 3, label: t('steps.result') },
+])
 </script>
 
 <style scoped>
