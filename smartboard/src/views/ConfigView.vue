@@ -13,7 +13,8 @@
           <div class="header-actions">
             <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved
               ? t('config.saved') : t('config.saveAll') }}</button>
-            <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">↺ 全部重置</button>
+            <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">{{ t('config.resetAll')
+              }}</button>
           </div>
         </div>
         <p class="subtitle">{{ t('config.hint') }}</p>
@@ -70,11 +71,11 @@
             <p class="sec-desc">{{ t('config.globalMetricHint') }}</p>
             <div class="metric-defaults-table">
               <div class="md-header">
-                <span class="md-col-name">指标列</span>
-                <span class="md-col-fmt">格式</span>
-                <span class="md-col-unit">单位</span>
-                <span class="md-col-prefix">前缀</span>
-                <span class="md-col-dec">小数位</span>
+                <span class="md-col-name">{{ t('config.metricColumn') }}</span>
+                <span class="md-col-fmt">{{ t('config.format') }}</span>
+                <span class="md-col-unit">{{ t('config.unit') }}</span>
+                <span class="md-col-prefix">{{ t('config.prefix') }}</span>
+                <span class="md-col-dec">{{ t('config.decimals') }}</span>
                 <span class="md-col-cb"><label>KPI</label></span>
                 <span class="md-col-cb"><label>{{ t('config.sections.chart') }}</label></span>
                 <span class="md-col-cb"><label>{{ t('config.sections.table') }}</label></span>
@@ -122,7 +123,8 @@
           <!-- KPI 卡片 -->
           <section class="config-section">
             <div class="section-header-row">
-              <h3>KPI 卡片 ({{ configStore.config.kpis.length }}) <span class="drag-hint">⋮⋮ 拖拽排序</span></h3>
+              <h3>{{ t('config.kpiCards') }} ({{ configStore.config.kpis.length }}) <span class="drag-hint">{{
+                t('config.dragHint') }}</span></h3>
               <div class="section-actions">
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('kpis') }"
                   @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾'
@@ -133,27 +135,29 @@
             <div class="kpi-list" data-drag-list="kpi">
               <div v-for="(kpi, i) in configStore.config.kpis" :key="i" class="kpi-item" :data-drag-idx="i"
                 :class="{ 'drag-placeholder': dragPlaceholder === i && dragList === 'kpi' }">
-                <span class="drag-handle" title="拖拽排序" @pointerdown.prevent="onPointerDown($event, i, 'kpi')">⋮⋮</span>
+                <span class="drag-handle" :title="t('config.dragTitle')"
+                  @pointerdown.prevent="onPointerDown($event, i, 'kpi')">⋮⋮</span>
                 <div class="kpi-item-main">
                   <div class="kpi-item-row">
                     <span class="kpi-item-label">{{ kpi.label }}</span>
                     <span v-if="kpi.formula" class="kpi-formula-tag">公式</span>
                     <span v-else class="kpi-col-tag">{{ kpi.column }}</span>
                     <span class="kpi-agg-tag">{{ aggLabel(kpi.agg) }}</span>
-                    <span v-if="kpi.filter" class="kpi-filter-tag" :title="kpi.filter">筛选</span>
-                    <button class="btn-icon" @click="openEditKpi(i)" title="编辑">✎</button>
-                    <button class="btn-icon" @click="configStore.removeKpi(i)" title="移除">✕</button>
+                    <span v-if="kpi.filter" class="kpi-filter-tag" :title="kpi.filter">{{ t('common.filter') }}</span>
+                    <button class="btn-icon" @click="openEditKpi(i)" :title="t('config.edit')">✎</button>
+                    <button class="btn-icon" @click="configStore.removeKpi(i)" :title="t('config.remove')">✕</button>
                   </div>
                 </div>
               </div>
             </div>
-            <button class="btn btn-sm btn-add" @click="openAddKpi">+ 添加KPI卡片</button>
+            <button class="btn btn-sm btn-add" @click="openAddKpi">{{ t('config.addKPICard') }}</button>
           </section>
 
           <!-- 图表块 -->
           <section class="config-section">
             <div class="section-header-row">
-              <h3>图表 ({{ configStore.config.charts.length }}) <span class="drag-hint">⋮⋮ 拖拽排序</span></h3>
+              <h3>{{ t('config.charts') }} ({{ configStore.config.charts.length }}) <span class="drag-hint">{{
+                t('config.dragHint') }}</span></h3>
               <div class="section-actions">
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('charts') }"
                   @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾'
@@ -164,32 +168,34 @@
             <div class="chart-list" data-drag-list="chart">
               <div v-for="(chart, ci) in configStore.config.charts" :key="chart.id" class="chart-item"
                 :data-drag-idx="ci" :class="{ 'drag-placeholder': dragPlaceholder === ci && dragList === 'chart' }">
-                <span class="drag-handle" title="拖拽排序"
+                <span class="drag-handle" :title="t('config.dragTitle')"
                   @pointerdown.prevent="onPointerDown($event, ci, 'chart')">⋮⋮</span>
                 <div class="chart-item-body">
                   <div class="chart-item-header">
                     <span class="chart-type-badge">{{ chartTypeLabel(chart.type) }}</span>
                     <span class="chart-title">{{ chart.title }}</span>
-                    <button class="btn-icon" @click="openEditChart(chart)" title="编辑">✎</button>
-                    <button class="btn-icon" @click="configStore.removeChart(chart.id)" title="移除">✕</button>
+                    <button class="btn-icon" @click="openEditChart(chart)" :title="t('config.edit')">✎</button>
+                    <button class="btn-icon" @click="configStore.removeChart(chart.id)"
+                      :title="t('config.remove')">✕</button>
                   </div>
                   <div class="chart-item-detail">
-                    <span v-if="chart.dimension">维度: {{ chart.dimension }}</span>
-                    <span v-if="chart.metrics?.length">指标: {{ chart.metrics.join(', ') }}</span>
-                    <span v-if="chart.metric && !chart.metrics?.length">指标: {{ chart.metric }}</span>
-                    <span v-if="chart.dateColumn">日期: {{ chart.dateColumn }}</span>
+                    <span v-if="chart.dimension">{{ t('config.dimension') }}: {{ chart.dimension }}</span>
+                    <span v-if="chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metrics.join(', ') }}</span>
+                    <span v-if="chart.metric && !chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metric
+                    }}</span>
+                    <span v-if="chart.dateColumn">{{ t('config.date') }} {{ chart.dateColumn }}</span>
                     <span v-if="chart.k">K: {{ chart.k }}</span>
                   </div>
                 </div>
               </div>
             </div>
-            <button class="btn btn-sm btn-add" @click="openAddChart">+ 添加图表</button>
+            <button class="btn btn-sm btn-add" @click="openAddChart">{{ t('config.addChart') }}</button>
           </section>
 
           <!-- 表格配置 -->
           <section class="config-section">
             <div class="section-header-row">
-              <h3>数据表</h3>
+              <h3>{{ t('config.sections.table') }}</h3>
               <div class="section-actions">
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('table') }"
                   @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾'
@@ -198,18 +204,21 @@
               </div>
             </div>
             <div class="table-config-row">
-              <label>排序列</label>
+              <label>{{ t('config.sortColumn') }}</label>
               <select v-model="configStore.config.table.sortBy" class="input select-sm">
                 <option v-for="col in numericCols" :key="col" :value="col">{{ col }}</option>
               </select>
-              <label>行数</label>
+              <label>{{ t('config.topNRows') }}</label>
               <input type="number" v-model.number="configStore.config.table.topN" class="input input-sm" min="5"
                 max="500" />
             </div>
             <div class="table-col-header">
-              <span>显示列 ({{ configStore.config.table.columns.length }}/{{ allHeaders.length }})</span>
-              <button class="btn-link" @click="configStore.config.table.columns = allHeaders.slice()">全选</button>
-              <button class="btn-link" @click="configStore.config.table.columns = []">清空</button>
+              <span>{{ t('config.displayColumns') }} ({{ configStore.config.table.columns.length }}/{{ allHeaders.length
+              }})</span>
+              <button class="btn-link" @click="configStore.config.table.columns = allHeaders.slice()">{{
+                t('common.selectAll') }}</button>
+              <button class="btn-link" @click="configStore.config.table.columns = []">{{ t('common.clearAll')
+                }}</button>
             </div>
             <div class="filter-chips">
               <label v-for="col in allHeaders" :key="col" class="chip"
@@ -225,10 +234,10 @@
         <!-- 右侧：预览 -->
         <div class="config-preview">
           <div class="preview-card">
-            <h3>预览</h3>
+            <h3>{{ t('common.preview') }}</h3>
             <div class="preview-stats">
               <div class="stat-item">
-                <span class="stat-label">KPI 卡片</span>
+                <span class="stat-label">{{ t('config.kpiCards') }}</span>
                 <span class="stat-value">{{ configStore.config.kpis.length }}</span>
               </div>
               <div class="stat-item">
@@ -236,19 +245,19 @@
                 <span class="stat-value">{{ configStore.config.filters.length }}</span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">图表</span>
+                <span class="stat-label">{{ t('config.charts') }}</span>
                 <span class="stat-value">{{ configStore.config.charts.length }}</span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">数据行</span>
+                <span class="stat-label">{{ t('config.dataRows') }}</span>
                 <span class="stat-value">{{ dataStore.dataSet.rows.length }}</span>
               </div>
             </div>
             <button class="btn btn-primary" @click="goToDashboard">
-              生成 Dashboard →
+              {{ t('config.generateArrow') }}
             </button>
-            <div class="save-status" v-if="allSaved">✅ 全部已保存，切换页面不会丢失</div>
-            <div class="save-status unsaved" v-else>⚠️ 已保存 {{ savedCount }}/5 区域，修改后按钮自动恢复 💾</div>
+            <div class="save-status" v-if="allSaved">{{ t('config.savedAll') }}</div>
+            <div class="save-status unsaved" v-else>{{ t('config.savedPartial', { n: savedCount }) }}</div>
           </div>
         </div>
       </div>
@@ -259,35 +268,37 @@
       <div v-if="showKpiEditor" class="modal-overlay" @click.self="cancelKpiEdit">
         <div class="modal-dialog">
           <div class="modal-header">
-            <h3>{{ editingKpiIdx >= 0 ? '编辑KPI卡片' : '新增KPI卡片' }}</h3>
+            <h3>{{ editingKpiIdx >= 0 ? t('config.editKPI') : t('config.addKPICard') }}</h3>
             <button class="btn-icon" @click="cancelKpiEdit">✕</button>
           </div>
           <div class="modal-body">
             <!-- 模式切换 -->
             <div class="kpi-mode-toggle">
-              <button class="period-btn" :class="{ active: !kpiForm.useFormula }"
-                @click="kpiForm.useFormula = false">单列</button>
-              <button class="period-btn" :class="{ active: kpiForm.useFormula }"
-                @click="kpiForm.useFormula = true">公式组合</button>
+              <button class="period-btn" :class="{ active: !kpiForm.useFormula }" @click="kpiForm.useFormula = false">{{
+                t('config.singleColumn') }}</button>
+              <button class="period-btn" :class="{ active: kpiForm.useFormula }" @click="kpiForm.useFormula = true">{{
+                t('config.formulaCombo') }}</button>
             </div>
 
             <!-- 单列模式 -->
             <template v-if="!kpiForm.useFormula">
               <div class="editor-grid">
-                <label>指标列</label>
+                <label>{{ t('config.metricColumn') }}</label>
                 <select v-model="kpiForm.column" class="input select-sm">
-                  <option value="">选择指标列...</option>
+                  <option value="">{{ t('config.selectMetricPlaceholder') }}</option>
                   <option v-for="col in allNumericCols" :key="col" :value="col">{{ col }}</option>
                 </select>
-                <label>标签</label>
-                <input v-model="kpiForm.label" class="input" placeholder="KPI显示标签" />
-                <label>聚合方式</label>
+                <label>{{ t('common.label') }}</label>
+                <input v-model="kpiForm.label" class="input" :placeholder="t('config.kpiLabelPlaceholder')" />
+                <label>{{ t('config.aggregationLabel') }}</label>
                 <select v-model="kpiForm.agg" class="input select-sm">
-                  <option v-for="opt in KPI_AGG_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                  <option v-for="opt in KPI_AGG_OPTIONS" :key="opt.value" :value="opt.value">{{ t(opt.labelKey) }}
+                  </option>
                 </select>
-                <label>筛选(可选)</label>
+                <label>{{ t('config.filterOptional') }}</label>
                 <div class="filter-wrap">
-                  <input v-model="kpiForm.filter" class="input" placeholder="留空=全部" list="filter-cols" />
+                  <input v-model="kpiForm.filter" class="input" :placeholder="t('config.leaveEmptyAll')"
+                    list="filter-cols" />
                   <datalist id="filter-cols">
                     <template v-for="col in filterableColumns" :key="col">
                       <option :value="col + ' = '" />
@@ -298,7 +309,7 @@
                       <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
                     </template>
                   </datalist>
-                  <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。in = 在列表中，~ = 含有。输入列名时自动补全</span>
+                  <span class="filter-hint">{{ t('config.filterSyntax') }}</span>
                 </div>
               </div>
             </template>
@@ -306,30 +317,33 @@
             <!-- 公式模式 -->
             <template v-else>
               <div class="formula-section">
-                <div class="formula-label">变量定义</div>
+                <div class="formula-label">{{ t('config.variables') }}</div>
                 <div v-for="(v, vi) in kpiForm.variables" :key="vi" class="formula-var-row">
                   <span class="var-index">[{{ vi }}]</span>
                   <select v-model="v.column" class="input input-sm" style="flex:1">
-                    <option value="">选择列...</option>
+                    <option value="">{{ t('config.selectColumnPlaceholder') }}</option>
                     <option v-for="col in allNumericCols" :key="col" :value="col">{{ col }}</option>
                   </select>
                   <select v-model="v.agg" class="input input-sm" style="width:72px">
-                    <option value="sum">求和</option>
-                    <option value="avg">均值</option>
-                    <option value="count">计数</option>
-                    <option value="min">最小</option>
-                    <option value="max">最大</option>
+                    <option value="sum">{{ t('config.aggSum') }}</option>
+                    <option value="avg">{{ t('config.aggAvg') }}</option>
+                    <option value="count">{{ t('config.aggCount') }}</option>
+                    <option value="min">{{ t('config.aggMin') }}</option>
+                    <option value="max">{{ t('config.aggMax') }}</option>
                   </select>
-                  <input v-model="v.filter" class="input input-sm formula-filter" placeholder="列筛选"
-                    list="filter-cols-formula" />
+                  <input v-model="v.filter" class="input input-sm formula-filter"
+                    :placeholder="t('config.columnFilter')" list="filter-cols-formula" />
                   <button v-if="kpiForm.variables.length > 1" class="btn-icon" @click="kpiForm.variables.splice(vi, 1)"
-                    title="移除">✕</button>
+                    :title="t('config.remove')">✕</button>
                 </div>
-                <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">+ 添加变量</button>
+                <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">{{ t('config.addVariable')
+                }}</button>
 
-                <div class="formula-label">共享筛选 <span class="formula-hint">叠加在变量筛选之上</span></div>
+                <div class="formula-label">{{ t('config.sharedFilter') }} <span class="formula-hint">{{
+                  t('config.sharedFilterHint') }}</span></div>
                 <div class="filter-wrap">
-                  <input v-model="kpiForm.filter" class="input" placeholder="留空=全部" list="filter-cols-formula" />
+                  <input v-model="kpiForm.filter" class="input" :placeholder="t('config.leaveEmptyAll')"
+                    list="filter-cols-formula" />
                   <datalist id="filter-cols-formula">
                     <template v-for="col in filterableColumns" :key="col">
                       <option :value="col + ' = '" />
@@ -340,10 +354,10 @@
                       <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
                     </template>
                   </datalist>
-                  <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。将叠加到每个变量的列筛选之上</span>
+                  <span class="filter-hint">{{ t('config.expressionHint') }}</span>
                 </div>
 
-                <div class="formula-label">运算表达式 <span class="formula-hint">双击变量名插入</span></div>
+                <div class="formula-label">{{ t('config.expression') }} <span class="formula-hint"></span></div>
                 <div class="formula-btns">
                   <button v-for="vi in kpiForm.variables.length" :key="vi" class="period-btn"
                     @click="insertVar(vi - 1)">[{{ vi - 1
@@ -360,21 +374,22 @@
                   placeholder="如: [0] + [1]  或  ([0] - [1]) / [0] * 100" />
               </div>
               <div class="editor-grid" style="margin-top:12px">
-                <label>标签</label>
-                <input v-model="kpiForm.label" class="input" placeholder="KPI显示标签" />
+                <label>{{ t('common.label') }}</label>
+                <input v-model="kpiForm.label" class="input" :placeholder="t('config.kpiLabelPlaceholder')" />
               </div>
             </template>
 
             <!-- 公共设置 -->
             <div class="editor-grid" style="margin-top:12px">
-              <label>数字格式</label>
+              <label>{{ t('config.format') }}</label>
               <select v-model="kpiForm.format" class="input select-sm">
-                <option v-for="opt in KPI_FORMAT_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                <option v-for="opt in KPI_FORMAT_OPTIONS" :key="opt.value" :value="opt.value">{{ t(opt.labelKey) }}
+                </option>
               </select>
               <template v-if="kpiForm.format === 'currency'">
-                <label>前缀</label>
+                <label>{{ t('config.prefix') }}</label>
                 <input v-model="kpiForm.prefix" class="input input-sm" placeholder="¥" maxlength="4" />
-                <label>单位</label>
+                <label>{{ t('config.unit') }}</label>
                 <select v-model="kpiForm.unit" class="input select-sm">
                   <option value="yuan">{{ t('config.unitOptions.yuan') }}</option>
                   <option value="wan">{{ t('config.unitOptions.wan') }}</option>
@@ -384,8 +399,8 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-primary" @click="saveKpi" :disabled="!canSaveKpi">保存</button>
-            <button class="btn" @click="cancelKpiEdit">取消</button>
+            <button class="btn btn-primary" @click="saveKpi" :disabled="!canSaveKpi">{{ t('common.save') }}</button>
+            <button class="btn" @click="cancelKpiEdit">{{ t('common.cancel') }}</button>
           </div>
         </div>
       </div>
@@ -396,25 +411,25 @@
       <div v-if="showChartEditor" class="modal-overlay" @click.self="cancelChartEdit">
         <div class="modal-dialog">
           <div class="modal-header">
-            <h3>{{ editingChartId ? '编辑图表' : '新增图表' }}</h3>
+            <h3>{{ editingChartId ? t('config.editChart') : t('config.addChart') }}</h3>
             <button class="btn-icon" @click="cancelChartEdit">✕</button>
           </div>
           <div class="modal-body">
             <div class="editor-grid">
-              <label>类型</label>
+              <label>{{ t('config.chartType') }}</label>
               <select v-model="chartForm.type" class="input select-sm">
-                <option v-for="opt in CHART_TYPES" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                <option v-for="opt in CHART_TYPES" :key="opt.value" :value="opt.value">{{ t(opt.labelKey) }}</option>
               </select>
-              <label>标题</label>
-              <input v-model="chartForm.title" class="input" placeholder="图表标题，支持 {metric} / {metrics} 动态替换" />
+              <label>{{ t('config.dashboardTitle') }}</label>
+              <input v-model="chartForm.title" class="input" placeholder="Chart title, {metric}/{metrics} supported" />
 
               <template v-if="isBasicChart(chartForm.type)">
-                <label>维度</label>
+                <label>{{ t('config.dimension') }}</label>
                 <select v-model="chartForm.dimension" class="input select-sm">
-                  <option value="">(无)</option>
+                  <option value="">{{ t('common.none') }}</option>
                   <option v-for="col in dimensionCols" :key="col" :value="col">{{ col }}</option>
                 </select>
-                <label>指标</label>
+                <label>{{ t('config.metric') }}</label>
                 <div class="metric-chips">
                   <label v-for="col in allMetricCols" :key="col" class="chip sm"
                     :class="{ active: chartForm.metrics.includes(col) }">
@@ -424,27 +439,27 @@
                   </label>
                 </div>
                 <div v-if="chartForm.metrics.length > 0" class="metric-formats">
-                  <div class="mf-title">各指标聚合</div>
+                  <div class="mf-title">{{ t('config.perMetricAgg') }}</div>
                   <div v-for="m in chartForm.metrics" :key="m" class="mf-row">
                     <span class="mf-name">{{ m }}</span>
                     <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
-                      <option value="sum">求和</option>
-                      <option value="avg">均值</option>
-                      <option value="count">计数</option>
-                      <option value="min">最小</option>
-                      <option value="max">最大</option>
+                      <option value="sum">{{ t('config.aggSum') }}</option>
+                      <option value="avg">{{ t('config.aggAvg') }}</option>
+                      <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="min">{{ t('config.aggMin') }}</option>
+                      <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
                   </div>
                 </div>
               </template>
 
               <template v-if="chartForm.type === 'timeseries'">
-                <label>日期列</label>
+                <label>{{ t('config.dateColumn') }}</label>
                 <select v-model="chartForm.dateColumn" class="input select-sm">
-                  <option value="">选择日期列...</option>
+                  <option value="">{{ t('config.selectDateColumn') }}</option>
                   <option v-for="col in dateCols" :key="col" :value="col">{{ col }}</option>
                 </select>
-                <label>指标</label>
+                <label>{{ t('config.metric') }}</label>
                 <div class="metric-chips">
                   <label v-for="col in allMetricCols" :key="col" class="chip sm"
                     :class="{ active: chartForm.metrics.includes(col) }">
@@ -454,22 +469,22 @@
                   </label>
                 </div>
                 <div v-if="chartForm.metrics.length > 0" class="metric-formats">
-                  <div class="mf-title">各指标聚合</div>
+                  <div class="mf-title">{{ t('config.perMetricAgg') }}</div>
                   <div v-for="m in chartForm.metrics" :key="m" class="mf-row">
                     <span class="mf-name">{{ m }}</span>
                     <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
-                      <option value="sum">求和</option>
-                      <option value="avg">均值</option>
-                      <option value="count">计数</option>
-                      <option value="min">最小</option>
-                      <option value="max">最大</option>
+                      <option value="sum">{{ t('config.aggSum') }}</option>
+                      <option value="avg">{{ t('config.aggAvg') }}</option>
+                      <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="min">{{ t('config.aggMin') }}</option>
+                      <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
                   </div>
                 </div>
               </template>
 
               <template v-if="chartForm.type === 'decile'">
-                <label>指标</label>
+                <label>{{ t('config.metric') }}</label>
                 <div class="metric-chips">
                   <label v-for="col in allMetricCols" :key="col" class="chip sm"
                     :class="{ active: chartForm.metrics.includes(col) }">
@@ -479,24 +494,24 @@
                   </label>
                 </div>
                 <div v-if="chartForm.metrics.length > 0" class="metric-formats">
-                  <div class="mf-title">各指标聚合</div>
+                  <div class="mf-title">{{ t('config.perMetricAgg') }}</div>
                   <div v-for="m in chartForm.metrics" :key="m" class="mf-row">
                     <span class="mf-name">{{ m }}</span>
                     <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
-                      <option value="sum">求和</option>
-                      <option value="avg">均值</option>
-                      <option value="count">计数</option>
-                      <option value="min">最小</option>
-                      <option value="max">最大</option>
+                      <option value="sum">{{ t('config.aggSum') }}</option>
+                      <option value="avg">{{ t('config.aggAvg') }}</option>
+                      <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="min">{{ t('config.aggMin') }}</option>
+                      <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
                   </div>
                 </div>
               </template>
 
               <template v-if="chartForm.type === 'cluster'">
-                <label>K 值</label>
+                <label>{{ t('config.kValue') }}</label>
                 <input v-model.number="chartForm.k" type="number" class="input input-sm" min="2" max="10" />
-                <label>聚类指标</label>
+                <label>{{ t('config.clusterMetricsLabel') }}</label>
                 <div class="metric-chips">
                   <label v-for="col in allMetricCols" :key="col" class="chip sm"
                     :class="{ active: chartForm.clusterMetrics.includes(col) }">
@@ -506,40 +521,40 @@
                   </label>
                 </div>
                 <div v-if="chartForm.clusterMetrics.length > 0" class="metric-formats">
-                  <div class="mf-title">各指标聚合</div>
+                  <div class="mf-title">{{ t('config.perMetricAgg') }}</div>
                   <div v-for="m in chartForm.clusterMetrics" :key="m" class="mf-row">
                     <span class="mf-name">{{ m }}</span>
                     <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
-                      <option value="sum">求和</option>
-                      <option value="avg">均值</option>
-                      <option value="count">计数</option>
-                      <option value="min">最小</option>
-                      <option value="max">最大</option>
+                      <option value="sum">{{ t('config.aggSum') }}</option>
+                      <option value="avg">{{ t('config.aggAvg') }}</option>
+                      <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="min">{{ t('config.aggMin') }}</option>
+                      <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
                   </div>
                 </div>
               </template>
 
               <template v-if="chartForm.type === 'histogram'">
-                <label>指标</label>
+                <label>{{ t('config.metric') }}</label>
                 <select v-model="chartForm.metric" class="input select-sm" @change="onHistogramMetricChange">
-                  <option value="">选择指标...</option>
+                  <option value="">{{ t('config.selectMetricPlaceholder') }}</option>
                   <option v-for="col in allMetricCols" :key="col" :value="col">{{ col }}</option>
                 </select>
               </template>
 
               <template v-if="chartForm.type === 'line'">
-                <label>日期列</label>
+                <label>{{ t('config.dateColumn') }}</label>
                 <select v-model="chartForm.dateColumn" class="input select-sm">
-                  <option value="">无（使用维度）</option>
+                  <option value="">{{ t('config.noDateUseDimension') }}</option>
                   <option v-for="col in dateCols" :key="col" :value="col">{{ col }}</option>
                 </select>
-                <label>维度</label>
+                <label>{{ t('config.dimension') }}</label>
                 <select v-model="chartForm.dimension" class="input select-sm">
-                  <option value="">(无)</option>
+                  <option value="">{{ t('common.none') }}</option>
                   <option v-for="col in dimensionCols" :key="col" :value="col">{{ col }}</option>
                 </select>
-                <label>指标</label>
+                <label>{{ t('config.metric') }}</label>
                 <div class="metric-chips">
                   <label v-for="col in allMetricCols" :key="col" class="chip sm"
                     :class="{ active: chartForm.metrics.includes(col) }">
@@ -549,24 +564,24 @@
                   </label>
                 </div>
                 <div v-if="chartForm.metrics.length > 0" class="metric-formats">
-                  <div class="mf-title">各指标聚合</div>
+                  <div class="mf-title">{{ t('config.perMetricAgg') }}</div>
                   <div v-for="m in chartForm.metrics" :key="m" class="mf-row">
                     <span class="mf-name">{{ m }}</span>
                     <select v-model="chartForm.metricAggs[m]" class="input input-sm mf-agg">
-                      <option value="sum">求和</option>
-                      <option value="avg">均值</option>
-                      <option value="count">计数</option>
-                      <option value="min">最小</option>
-                      <option value="max">最大</option>
+                      <option value="sum">{{ t('config.aggSum') }}</option>
+                      <option value="avg">{{ t('config.aggAvg') }}</option>
+                      <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="min">{{ t('config.aggMin') }}</option>
+                      <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
                   </div>
                 </div>
               </template>
 
               <!-- 筛选条件（通用） -->
-              <label>筛选条件</label>
+              <label>{{ t('config.filterCondition') }}</label>
               <div class="filter-wrap">
-                <input v-model="chartForm.filter" class="input" placeholder="留空=全部数据，如: 地区 = 北京"
+                <input v-model="chartForm.filter" class="input" :placeholder="t('config.leaveEmptyAll')"
                   list="chart-filter-cols" />
                 <datalist id="chart-filter-cols">
                   <template v-for="col in filterableColumns" :key="col">
@@ -578,13 +593,13 @@
                     <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
                   </template>
                 </datalist>
-                <span class="filter-hint">格式: 列名 运算符 值。& = AND，| = OR。in = 在列表中，~ = 含有。如「地区 in 北京,上海」或「名称 ~ 科技」</span>
+                <span class="filter-hint">{{ t('config.filterSyntax') }}</span>
               </div>
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-primary" @click="saveChart" :disabled="!canSaveChart">保存</button>
-            <button class="btn" @click="cancelChartEdit">取消</button>
+            <button class="btn btn-primary" @click="saveChart" :disabled="!canSaveChart">{{ t('common.save') }}</button>
+            <button class="btn" @click="cancelChartEdit">{{ t('common.cancel') }}</button>
           </div>
         </div>
       </div>
@@ -741,16 +756,16 @@ function isNumericCol(col: string): boolean {
 }
 
 function chartTypeLabel(type: string): string {
-  return CHART_TYPES.find((t) => t.value === type)?.label ?? type
+  return t(CHART_TYPES.find((ct) => ct.value === type)?.labelKey ?? type)
 }
 
 // ====== KPI editor ======
 const KPI_AGG_OPTIONS = [
-  { value: 'sum', label: '求和' },
-  { value: 'avg', label: '平均值' },
-  { value: 'count', label: '计数' },
-  { value: 'min', label: '最小值' },
-  { value: 'max', label: '最大值' },
+  { value: 'sum', labelKey: 'config.aggSum' },
+  { value: 'avg', labelKey: 'config.aggAvg' },
+  { value: 'count', labelKey: 'config.aggCount' },
+  { value: 'min', labelKey: 'config.aggMin' },
+  { value: 'max', labelKey: 'config.aggMax' },
 ]
 
 const showKpiEditor = ref(false)
@@ -785,7 +800,7 @@ const canSaveKpi = computed(() => {
 })
 
 function aggLabel(agg: string): string {
-  return KPI_AGG_OPTIONS.find((o) => o.value === agg)?.label ?? agg
+  return t(KPI_AGG_OPTIONS.find((o) => o.value === agg)?.labelKey ?? agg)
 }
 
 function addVariable() {

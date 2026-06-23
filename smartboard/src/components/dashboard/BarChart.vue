@@ -18,7 +18,7 @@
             </select>
             <span class="toggle-sep"></span>
             <button class="period-btn" :class="{ active: showLabel }" @click="showLabel = !showLabel" :title="t('chart.toggle.dataLabel')">
-                标签
+                {{ t('common.label') }}
             </button>
         </div>
         <div class="chart-container" v-if="option" ref="containerRef">

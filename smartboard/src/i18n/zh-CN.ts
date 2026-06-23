@@ -148,6 +148,14 @@ export default {
     singleColumn: '单列',
     formulaCombo: '公式组合',
     selectMetricPlaceholder: '选择指标列...',
+    dateColumn: '日期列',
+    kValue: 'K 值',
+    clusterMetricsLabel: '聚类指标',
+    filterCondition: '筛选条件',
+    perMetricAgg: '各指标聚合',
+    selectDateColumn: '选择日期列...',
+    noDateUseDimension: '无（使用维度）',
+    selectMetric: '选择指标...',
     kpiLabelPlaceholder: 'KPI显示标签',
     aggregationLabel: '聚合方式',
     filterOptional: '筛选(可选)',
@@ -280,6 +288,25 @@ export default {
   },
 
   // Date presets (for entry.ts standalone)
+
+  // Chart type labels (used in config)
+  chartType: {
+    bar: '柱状图',
+    doughnut: '环形图',
+    horizontalBar: '水平柱图',
+    histogram: '直方图',
+    line: '折线图',
+    timeseries: '时序分析',
+    decile: '十分位',
+    cluster: '聚类分析',
+  },
+  kpiFormat: {
+    global: '继承全局',
+    number: '数字',
+    currency: '货币',
+    percent: '百分比',
+    integer: '整数',
+  },
   datePreset: {
     last3Months: '近3月',
     last6Months: '近半年',

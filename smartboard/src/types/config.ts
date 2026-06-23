@@ -68,30 +68,30 @@ export interface ChartFormItem {
 
 /** 图表类型选项 */
 export const CHART_TYPES = [
-  { value: 'bar', label: '柱状图' },
-  { value: 'doughnut', label: '环形图' },
-  { value: 'horizontal_bar', label: '水平柱图' },
-  { value: 'histogram', label: '直方图' },
-  { value: 'line', label: '折线图' },
-  { value: 'timeseries', label: '时序分析' },
-  { value: 'decile', label: '十分位' },
-  { value: 'cluster', label: '聚类分析' },
+  { value: 'bar', labelKey: 'chartType.bar' },
+  { value: 'doughnut', labelKey: 'chartType.doughnut' },
+  { value: 'horizontal_bar', labelKey: 'chartType.horizontalBar' },
+  { value: 'histogram', labelKey: 'chartType.histogram' },
+  { value: 'line', labelKey: 'chartType.line' },
+  { value: 'timeseries', labelKey: 'chartType.timeseries' },
+  { value: 'decile', labelKey: 'chartType.decile' },
+  { value: 'cluster', labelKey: 'chartType.cluster' },
 ] as const
 
 /** 聚合函数选项 */
 export const AGG_OPTIONS = [
-  { value: 'sum', label: '求和' },
-  { value: 'avg', label: '平均' },
-  { value: 'count', label: '计数' },
-  { value: 'min', label: '最小' },
-  { value: 'max', label: '最大' },
+  { value: 'sum', labelKey: 'config.aggSum' },
+  { value: 'avg', labelKey: 'config.aggAvg' },
+  { value: 'count', labelKey: 'config.aggCount' },
+  { value: 'min', labelKey: 'config.aggMin' },
+  { value: 'max', labelKey: 'config.aggMax' },
 ] as const
 
 /** KPI 格式选项 */
 export const KPI_FORMAT_OPTIONS = [
-  { value: 'global', label: '继承全局' },
-  { value: 'number', label: '数字' },
-  { value: 'currency', label: '货币' },
-  { value: 'percent', label: '百分比' },
-  { value: 'integer', label: '整数' },
+  { value: 'global', labelKey: 'kpiFormat.global' },
+  { value: 'number', labelKey: 'kpiFormat.number' },
+  { value: 'currency', labelKey: 'kpiFormat.currency' },
+  { value: 'percent', labelKey: 'kpiFormat.percent' },
+  { value: 'integer', labelKey: 'kpiFormat.integer' },
 ] as const

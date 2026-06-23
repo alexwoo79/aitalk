@@ -23,20 +23,20 @@
     <div v-else class="no-data-msg">{{ t('chart.insufficientData', { name: t('chart.timeseries') }) }}</div>
     <!-- 信息面板 -->
     <div v-if="tsData" class="ts-info">
-      <span>最新: <strong>{{ tsData.labels[tsData.labels.length - 1] }}</strong></span>
-      <span>值: <strong>{{ fmtValue(tsData.values[tsData.values.length - 1]) }}</strong></span>
+      <span>{{ t('chart.latest') }}: <strong>{{ tsData.labels[tsData.labels.length - 1] }}</strong></span>
+      <span>{{ t('chart.value') }}: <strong>{{ fmtValue(tsData.values[tsData.values.length - 1]) }}</strong></span>
       <template v-if="lastMom != null">
-        <span>环比: <strong :style="{ color: lastMom >= 0 ? '#10B981' : '#EF4444' }">
+        <span>{{ t('chart.momLabel') }}: <strong :style="{ color: lastMom >= 0 ? '#10B981' : '#EF4444' }">
             {{ lastMom >= 0 ? '+' : '' }}{{ lastMom.toFixed(1) }}%</strong>
         </span>
       </template>
       <template v-if="lastYoy != null">
-        <span>同比: <strong :style="{ color: lastYoy >= 0 ? '#10B981' : '#EF4444' }">
+        <span>{{ t('chart.yoyLabel') }}: <strong :style="{ color: lastYoy >= 0 ? '#10B981' : '#EF4444' }">
             {{ lastYoy >= 0 ? '+' : '' }}{{ lastYoy.toFixed(1) }}%</strong>
         </span>
       </template>
       <template v-if="tsData.forecast.values.length > 0">
-        <span>下期预测: <strong>{{ fmtValue(tsData.forecast.values[0]) }}</strong></span>
+        <span>{{ t('chart.nextForecast') }}: <strong>{{ fmtValue(tsData.forecast.values[0]) }}</strong></span>
       </template>
       <button class="table-toggle" @click="showTable = !showTable">
         {{ showTable ? t('common.collapse') : t('common.expand') }}
@@ -50,20 +50,24 @@
         <thead>
           <tr>
             <th class="ts-th sortable" @click="toggleTableSort('period')">
-              周期 {{ tableSortCol === 'period' ? (tableSortDir === 'desc' ? '↓' : '↑') : '' }}
+              {{ t('chart.detailTable.period') }} {{ tableSortCol === 'period' ? (tableSortDir === 'desc' ? '↓' : '↑') :
+              ''
+              }}
             </th>
             <th class="ts-th sortable" @click="toggleTableSort('value')">
-              实际值 {{ tableSortCol === 'value' ? (tableSortDir === 'desc' ? '↓' : '↑') : '' }}
+              {{ t('chart.detailTable.actualValue') }} {{ tableSortCol === 'value' ? (tableSortDir === 'desc' ? '↓' :
+              '↑') :
+              '' }}
             </th>
-            <th class="ts-th" title="3期移动平均：当前值与之前2期的平均值，用于平滑短期波动">MA3</th>
+            <th class="ts-th" :title="t('chart.detailTable.ma3Title')">MA3</th>
             <th class="ts-th sortable" @click="toggleTableSort('mom')">
-              环比% {{ tableSortCol === 'mom' ? (tableSortDir === 'desc' ? '↓' : '↑') : '' }}
+              {{ t('chart.detailTable.mom') }} {{ tableSortCol === 'mom' ? (tableSortDir === 'desc' ? '↓' : '↑') : '' }}
             </th>
             <th class="ts-th sortable" @click="toggleTableSort('yoy')">
-              同比% {{ tableSortCol === 'yoy' ? (tableSortDir === 'desc' ? '↓' : '↑') : '' }}
+              {{ t('chart.detailTable.yoy') }} {{ tableSortCol === 'yoy' ? (tableSortDir === 'desc' ? '↓' : '↑') : '' }}
             </th>
-            <th class="ts-th">趋势</th>
-            <th class="ts-th">预测</th>
+            <th class="ts-th">{{ t('chart.detailTable.trend') }}</th>
+            <th class="ts-th">{{ t('chart.detailTable.forecast') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -85,18 +89,18 @@
 </template>
 
 <script setup lang="ts">
-import {  ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
-import {  use } from 'echarts/core'
-import {  CanvasRenderer } from 'echarts/renderers'
-import {  LineChart } from 'echarts/charts'
-import {  TooltipComponent, LegendComponent, GridComponent, DataZoomComponent, ToolboxComponent } from 'echarts/components'
+import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { LineChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent, GridComponent, DataZoomComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import {  resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
-import {  useChartDownload } from '@/composables/use-chart-download'
-import {  save } from '@tauri-apps/plugin-dialog'
-import {  writeTextFile } from '@tauri-apps/plugin-fs'
-import {  useTheme } from '@/composables/use-theme'
-import {  computeTimeseries } from '@/core/analysis'
+import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
+import { useChartDownload } from '@/composables/use-chart-download'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { useTheme } from '@/composables/use-theme'
+import { computeTimeseries } from '@/core/analysis'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -136,14 +140,14 @@ const COLORS = {
 }
 
 const periods = [
-  { key: 'month' as const, label: '月' },
-  { key: 'quarter' as const, label: '季' },
-  { key: 'year' as const, label: '年' },
+  { key: 'month' as const, label: t('chart.period.month') },
+  { key: 'quarter' as const, label: t('chart.period.quarter') },
+  { key: 'year' as const, label: t('chart.period.year') },
 ]
 
 const period = ref<'month' | 'quarter' | 'year'>('month')
 const selectedMetric = ref(props.metric)
-const displayTitle = computed(() => resolveTitle(props.title || '时序分析', selectedMetric.value ? [selectedMetric.value] : []))
+const displayTitle = computed(() => resolveTitle(props.title || t('chart.timeseries'), selectedMetric.value ? [selectedMetric.value] : []))
 
 // 当 metric/metrics 变化时重置选中指标
 watch(() => props.metric, (v) => { selectedMetric.value = v })
@@ -229,7 +233,7 @@ const option = computed(() => {
     dataZoom: [{ type: 'inside' }],
     series: [
       {
-        name: '实际值',
+        name: t('chart.series.actual'),
         type: 'line',
         data: actualData,
         lineStyle: { color: COLORS.actual, width: 2 },
@@ -247,7 +251,7 @@ const option = computed(() => {
         symbol: 'none',
       },
       {
-        name: '趋势',
+        name: t('chart.series.trend'),
         type: 'line',
         data: trendData,
         lineStyle: { color: COLORS.trend, width: 1.5, type: 'dotted' },
@@ -256,7 +260,7 @@ const option = computed(() => {
         symbol: 'none',
       },
       {
-        name: '预测',
+        name: t('chart.series.forecast'),
         type: 'line',
         data: forecastData,
         lineStyle: { color: COLORS.forecast, width: 2, type: 'dashed' },
@@ -313,7 +317,7 @@ const tableRows = computed<TsTableRow[]>(() => {
   // 预测行
   for (let i = 0; i < td.forecast.labels.length; i++) {
     rows.push({
-      period: td.forecast.labels[i] + ' (预测)',
+      period: td.forecast.labels[i] + t('chart.detailTable.forecastSuffix'),
       value: null,
       ma: null,
       mom: null,
@@ -348,7 +352,7 @@ function momStyle(v: number | null): Record<string, string> {
 
 async function downloadCsv() {
   const BOM = '\uFEFF'
-  const header = '周期,实际值,MA3,环比%,同比%,趋势,预测'
+  const header = t('chart.csvHeaders.timeseries')
   const lines = tableRows.value.map(r =>
     [r.period, r.value ?? '', r.ma ?? '', r.mom ?? '', r.yoy ?? '', r.trend ?? '', r.forecast ?? ''].join(',')
   )

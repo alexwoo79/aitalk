@@ -7,14 +7,14 @@
     <div v-if="!spec" class="no-data">
       <p>{{ t('dashboard.noData') }}</p>
       <button class="btn btn-sm btn-primary" @click="$router.push('/config')">{{ t('dashboard.backToConfigText')
-        }}</button>
+      }}</button>
     </div>
 
     <template v-else>
       <!-- 工具栏 -->
       <div class="dashboard-toolbar">
         <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← {{ t('dashboard.backToConfigText')
-          }}</button>
+        }}</button>
         <h2 class="dashboard-title">{{ spec.title }}</h2>
       </div>
 
@@ -57,7 +57,7 @@
           <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
         </div>
         <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
-          }}</span>
+        }}</span>
       </div>
 
       <!-- 日期范围 -->
@@ -93,7 +93,7 @@
             <div class="kpi-content">
               <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix,
                 kpi.unit, kpi.decimals)
-                }}</span>
+              }}</span>
               <span class="kpi-label">{{ kpi.label }}</span>
             </div>
           </div>
@@ -156,8 +156,10 @@
           <div class="rs-handle rs-handle-s" @pointerdown.prevent="onResizeStart($event, 's')"></div>
           <div class="rs-handle rs-handle-se" @pointerdown.prevent="onResizeStart($event, 'se')"></div>
           <div class="table-toolbar">
-            <h3>{{ t('dashboard.dataTable') }} · {{ tableRows.length }}<span v-if="tableSearch.trim()"> (匹配)</span> / {{
-              activeTopN }} 行</h3>
+            <h3>{{ t('dashboard.dataTable') }} · {{ tableRows.length }}<span v-if="tableSearch.trim()"> {{
+              t('common.matched')
+                }}</span> / {{
+                  activeTopN }} {{ t('common.rows') }}</h3>
             <div class="table-controls">
               <div class="control-group">
                 <input type="text" v-model="tableSearch" class="input input-xs table-search"
@@ -180,15 +182,16 @@
                 </datalist>
               </div>
               <div class="control-group">
-                <label>行数</label>
+                <label>{{ t('dashboard.topNRows') }}</label>
                 <input type="number" v-model.number="activeTopN" class="input input-xs table-input" min="5" max="500"
                   step="5" />
               </div>
               <div class="control-group col-picker" v-if="showColPicker">
                 <div class="picker-panel">
                   <div class="picker-actions">
-                    <button class="btn-link" @click="activeColumns = allColumns.slice()">全选</button>
-                    <button class="btn-link" @click="activeColumns = []">清空</button>
+                    <button class="btn-link" @click="activeColumns = allColumns.slice()">{{ t('common.selectAll')
+                      }}</button>
+                    <button class="btn-link" @click="activeColumns = []">{{ t('common.clearAll') }}</button>
                   </div>
                   <div class="picker-chips">
                     <label v-for="col in allColumns" :key="col" class="chip sm picker-chip"
@@ -201,7 +204,7 @@
                 </div>
               </div>
               <button class="btn btn-sm" @click="showColPicker = !showColPicker">
-                列 ({{ activeColumns.length }}/{{ allColumns.length }})
+                {{ t('dashboard.columnsLabel') }} ({{ activeColumns.length }}/{{ allColumns.length }})
               </button>
             </div>
           </div>

@@ -3,7 +3,7 @@
     <h3 class="chart-title">{{ displayTitle }}</h3>
     <!-- 指标选择 -->
     <div class="metric-selector">
-      
+
       <select v-model="selectedMetric" class="metric-select">
         <option v-for="m in activeMetrics" :key="m" :value="m">{{ m }}</option>
       </select>
@@ -26,18 +26,18 @@
         <thead>
           <tr>
             <th class="dec-th sortable" @click="toggleSort('label')">
-              分组 {{ sortCol === 'label' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
+              {{ t('chart.detailTable.group') }} {{ sortCol === 'label' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
             </th>
             <th class="dec-th sortable" @click="toggleSort('count')">
-              数量 {{ sortCol === 'count' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
+              {{ t('chart.detailTable.count') }} {{ sortCol === 'count' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
             </th>
             <th class="dec-th sortable" @click="toggleSort('sum')">
-              合计 {{ sortCol === 'sum' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
+              {{ t('chart.detailTable.sum') }} {{ sortCol === 'sum' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
             </th>
             <th class="dec-th sortable" @click="toggleSort('avg')">
-              平均 {{ sortCol === 'avg' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
+              {{ t('chart.detailTable.avg') }} {{ sortCol === 'avg' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
             </th>
-            <th class="dec-th">范围</th>
+            <th class="dec-th">{{ t('chart.detailTable.range') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -55,18 +55,18 @@
 </template>
 
 <script setup lang="ts">
-import {  ref, computed, nextTick, watch } from 'vue'
-import {  use } from 'echarts/core'
-import {  CanvasRenderer } from 'echarts/renderers'
-import {  BarChart, LineChart } from 'echarts/charts'
-import {  TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
+import { ref, computed, nextTick, watch } from 'vue'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { BarChart, LineChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import {  resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
-import {  useChartDownload } from '@/composables/use-chart-download'
-import {  save } from '@tauri-apps/plugin-dialog'
-import {  writeTextFile } from '@tauri-apps/plugin-fs'
-import {  useTheme } from '@/composables/use-theme'
-import {  computeDeciles } from '@/core/analysis'
+import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
+import { useChartDownload } from '@/composables/use-chart-download'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { useTheme } from '@/composables/use-theme'
+import { computeDeciles } from '@/core/analysis'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -98,7 +98,7 @@ const props = defineProps<{
 }>()
 
 const selectedMetric = ref(props.metric)
-const displayTitle = computed(() => resolveTitle(props.title || '十分位分析', selectedMetric.value ? [selectedMetric.value] : []))
+const displayTitle = computed(() => resolveTitle(props.title || t('chart.decile'), selectedMetric.value ? [selectedMetric.value] : []))
 watch(() => props.metric, (v) => { selectedMetric.value = v })
 
 const activeMetrics = computed(() =>
@@ -141,7 +141,7 @@ const option = computed(() => {
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
         return params.map((p: any) => {
-          const v = p.seriesName === '数量' ? p.value.toLocaleString('zh-CN') : fmtValue(p.value)
+          const v = p.seriesName === t('chart.series.count') ? p.value.toLocaleString('zh-CN') : fmtValue(p.value)
           return `${p.seriesName}: ${v}`
         }).join('<br/>')
       },
@@ -157,20 +157,20 @@ const option = computed(() => {
       {
         type: 'value',
         position: 'left',
-        name: '合计',
+        name: t('chart.series.sum'),
         axisLabel: { fontSize: 10, formatter: (v: number) => fmtCompact(v) },
       },
       {
         type: 'value',
         position: 'right',
-        name: '数量',
+        name: t('chart.series.count'),
         splitLine: { show: false },
         axisLabel: { fontSize: 10 },
       },
     ],
     series: [
       {
-        name: '合计',
+        name: t('chart.series.sum'),
         type: 'bar',
         yAxisIndex: 0,
         data: dd.sums,
@@ -178,7 +178,7 @@ const option = computed(() => {
         z: 2,
       },
       {
-        name: '数量',
+        name: t('chart.series.count'),
         type: 'line',
         yAxisIndex: 1,
         data: dd.counts,
@@ -231,7 +231,7 @@ const tableRows = computed<DecRow[]>(() => {
 
 async function downloadCsv() {
   const BOM = '\uFEFF'
-  const header = '分组,数量,合计,平均,范围'
+  const header = t('chart.csvHeaders.decile')
   const lines = tableRows.value.map(r =>
     [r.label, r.count, r.sum, r.avg, r.range].join(',')
   )

@@ -219,15 +219,36 @@ var SmartboardRenderer = (function(exports) {
     const n = parseFloat(s);
     return isNaN(n) ? NaN : n;
   }
+  let _toolboxLocale = "zh-CN";
+  function setToolboxLocale(locale) {
+    _toolboxLocale = locale;
+  }
   function buildToolbox() {
+    const zh = _toolboxLocale === "zh-CN";
+    const L = {
+      saveImage: zh ? "下载" : "Save Image",
+      dataView: zh ? "数据" : "Data",
+      dataTable: zh ? "数据表" : "Data Table",
+      close: zh ? "关闭" : "Close",
+      refresh: zh ? "刷新" : "Refresh",
+      restore: zh ? "还原" : "Restore",
+      copyTable: zh ? "📋 复制表格" : "📋 Copy Table",
+      copied: zh ? "✅ 已复制" : "✅ Copied",
+      category: zh ? "类别" : "Category",
+      value: zh ? "数值" : "Value",
+      proportion: zh ? "占比" : "Ratio",
+      dimension: zh ? "维度" : "Dimension",
+      cluster: zh ? "聚类" : "Cluster",
+      index: zh ? "序号" : "#"
+    };
     if (typeof window !== "undefined" && !window._copyTable) {
       window._copyTable = function(tsv, btn) {
         navigator.clipboard.writeText(tsv).then(function() {
-          btn.textContent = "✅ 已复制";
+          btn.textContent = L.copied;
           btn.style.background = "#dcfce7";
           btn.style.borderColor = "#16a34a";
           setTimeout(function() {
-            btn.textContent = "📋 复制表格";
+            btn.textContent = L.copyTable;
             btn.style.background = "#f5f5f5";
             btn.style.borderColor = "#ccc";
           }, 1500);
@@ -235,11 +256,11 @@ var SmartboardRenderer = (function(exports) {
       };
     }
     const features = {
-      saveAsImage: { title: "下载", pixelRatio: 2 },
+      saveAsImage: { title: L.saveImage, pixelRatio: 2 },
       dataView: {
-        title: "数据",
+        title: L.dataView,
         readOnly: true,
-        lang: ["数据表", "关闭", "刷新"],
+        lang: [L.dataTable, L.close, L.refresh],
         optionToContent: function(opt) {
           const series = opt.series || [];
           const root = document.documentElement;
@@ -261,9 +282,9 @@ var SmartboardRenderer = (function(exports) {
           if (isPie) {
             const data = series[0]?.data || [];
             const total = data.reduce((s, d) => s + (d.value || 0), 0);
-            let tsv2 = "类别	数值	占比\n";
+            let tsv2 = L.category + "	" + L.value + "	" + L.proportion + "\n";
             let html2 = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ";background:" + bg + '"><table style="width:100%;border-collapse:collapse">';
-            html2 += '<thead><tr><th style="' + thStyle + ';text-align:left">类别</th><th style="' + thStyle + ';text-align:right">数值</th><th style="' + thStyle + ';text-align:right">占比</th></tr></thead><tbody>';
+            html2 += '<thead><tr><th style="' + thStyle + ';text-align:left">' + L.category + '</th><th style="' + thStyle + ';text-align:right">' + L.value + '</th><th style="' + thStyle + ';text-align:right">' + L.proportion + "</th></tr></thead><tbody>";
             data.forEach((d) => {
               const pct = total ? (d.value / total * 100).toFixed(1) + "%" : "0%";
               const fv = tf(d.value);
@@ -271,7 +292,7 @@ var SmartboardRenderer = (function(exports) {
               tsv2 += (d.name || "") + "	" + fv + "	" + pct + "\n";
             });
             html2 += "</tbody></table>";
-            html2 += `<button onclick="window._copyTable('` + tsv2.replace(/'/g, "\\'") + `',this)" style="` + btnStyle + '">📋 复制表格</button>';
+            html2 += `<button onclick="window._copyTable('` + tsv2.replace(/'/g, "\\'") + `',this)" style="` + btnStyle + '">' + L.copyTable + "</button>";
             html2 += "</div>";
             return html2;
           }
@@ -279,12 +300,12 @@ var SmartboardRenderer = (function(exports) {
           if (isScatter) {
             const xName = opt.xAxis?.[0]?.name || "X";
             const yName = opt.yAxis?.[0]?.name || "Y";
-            let tsv2 = "序号	" + xName + "	" + yName + "	聚类\n";
+            let tsv2 = L.index + "	" + xName + "	" + yName + "	" + L.cluster + "\n";
             let html2 = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ";background:" + bg + '"><table style="width:100%;border-collapse:collapse">';
             html2 += '<thead><tr><th style="' + thStyle + ';text-align:left">#</th>';
             html2 += '<th style="' + thStyle + ';text-align:right">' + xName + "</th>";
             html2 += '<th style="' + thStyle + ';text-align:right">' + yName + "</th>";
-            html2 += '<th style="' + thStyle + ';text-align:left">聚类</th></tr></thead><tbody>';
+            html2 += '<th style="' + thStyle + ';text-align:left">' + L.cluster + "</th></tr></thead><tbody>";
             let idx = 0;
             for (const s of series) {
               const sName = s.name || "";
@@ -300,7 +321,7 @@ var SmartboardRenderer = (function(exports) {
               }
             }
             html2 += "</tbody></table>";
-            html2 += `<button onclick="window._copyTable('` + tsv2.replace(/'/g, "\\'") + `',this)" style="` + btnStyle + '">📋 复制表格</button>';
+            html2 += `<button onclick="window._copyTable('` + tsv2.replace(/'/g, "\\'") + `',this)" style="` + btnStyle + '">' + L.copyTable + "</button>";
             html2 += "</div>";
             return html2;
           }
@@ -308,9 +329,9 @@ var SmartboardRenderer = (function(exports) {
           const yAxisData = opt.yAxis?.[0]?.data || [];
           const isHorizontal = xAxisData.length === 0 && yAxisData.length > 0;
           const catData = isHorizontal ? yAxisData : xAxisData;
-          let tsv = "维度	" + series.map((s) => s.name || "").join("	") + "\n";
+          let tsv = L.dimension + "	" + series.map((s) => s.name || "").join("	") + "\n";
           let html = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ";background:" + bg + '"><table style="width:100%;border-collapse:collapse">';
-          html += '<thead><tr><th style="' + thStyle + ';text-align:left">维度</th>';
+          html += '<thead><tr><th style="' + thStyle + ';text-align:left">' + L.dimension + "</th>";
           series.forEach((s) => {
             html += '<th style="' + thStyle + ';text-align:right">' + (s.name || "") + "</th>";
           });
@@ -328,12 +349,12 @@ var SmartboardRenderer = (function(exports) {
             html += "</tr>";
           }
           html += "</tbody></table>";
-          html += `<button onclick="window._copyTable('` + tsv.replace(/'/g, "\\'") + `',this)" style="` + btnStyle + '">📋 复制表格</button>';
+          html += `<button onclick="window._copyTable('` + tsv.replace(/'/g, "\\'") + `',this)" style="` + btnStyle + '">' + L.copyTable + "</button>";
           html += "</div>";
           return html;
         }
       },
-      restore: { title: "还原" }
+      restore: { title: L.restore }
     };
     return {
       show: true,
@@ -1607,7 +1628,7 @@ var SmartboardRenderer = (function(exports) {
     const dtWrap = document.createElement("div");
     dtWrap.className = "ts-detail-wrap";
     dtWrap.style.display = "none";
-    let html = '<table class="detail-table"><thead><tr><th>周期</th><th>实际值</th><th title="3期移动平均：当前值与之前2期的平均值">MA3</th><th>环比%</th><th>同比%</th><th>趋势</th><th>预测</th></tr></thead><tbody>';
+    let html = '<table class="detail-table"><thead><tr><th>' + t("chart.detailTable.period") + "</th><th>" + t("chart.detailTable.actualValue") + '</th><th title="' + t("chart.detailTable.ma3Title") + '">MA3</th><th>' + t("chart.detailTable.mom") + "</th><th>" + t("chart.detailTable.yoy") + "</th><th>" + t("chart.detailTable.trend") + "</th><th>" + t("chart.detailTable.forecast") + "</th></tr></thead><tbody>";
     td.labels.forEach((l, j) => {
       const mv = td.mom[j], yv = td.yoy[j];
       const mc = mv != null ? mv >= 0 ? "#10B981" : "#EF4444" : "", yc = yv != null ? yv >= 0 ? "#10B981" : "#EF4444" : "";
@@ -1649,7 +1670,7 @@ var SmartboardRenderer = (function(exports) {
     const dtWrap = document.createElement("div");
     dtWrap.className = "ts-detail-wrap";
     dtWrap.style.display = "none";
-    let html = '<table class="detail-table"><thead><tr><th>分组</th><th>数量</th><th>合计</th><th>平均</th><th>范围</th></tr></thead><tbody>';
+    let html = '<table class="detail-table"><thead><tr><th>' + t("chart.detailTable.group") + "</th><th>" + t("chart.detailTable.count") + "</th><th>" + t("chart.detailTable.sum") + "</th><th>" + t("chart.detailTable.avg") + "</th><th>" + t("chart.detailTable.range") + "</th></tr></thead><tbody>";
     dd.labels.forEach((l, i) => {
       html += `<tr><td>${l}</td><td>${dd.counts[i]}</td><td>${fmt(dd.sums[i])}</td><td>${fmt(dd.avgs[i])}</td><td>${dd.ranges[i]}</td></tr>`;
     });
@@ -1694,15 +1715,15 @@ var SmartboardRenderer = (function(exports) {
     const cIds = Object.keys(sum).map(Number).sort((a, b) => a - b);
     cIds.forEach((ci) => {
       const s = sum[ci];
-      csDiv.innerHTML += `<span class="summary-chip" style="border-color:${COLORS[ci % COLORS.length]}"><strong>聚类 ${ci + 1}</strong> ${s.count} 个 · 中心 (${fmtCompact$1(s.sx / s.count)}, ${fmtCompact$1(s.sy / s.count)})</span>`;
+      csDiv.innerHTML += `<span class="summary-chip" style="border-color:${COLORS[ci % COLORS.length]}"><strong>${t("chart.series.clusterN", { n: String(ci + 1) })}</strong> ${s.count} ${t("chart.detailTable.points")} · ${t("chart.detailTable.clusterCenter")} (${fmtCompact$1(s.sx / s.count)}, ${fmtCompact$1(s.sy / s.count)})</span>`;
     });
     card.appendChild(csDiv);
     const dtWrap = document.createElement("div");
     dtWrap.className = "ts-detail-wrap";
     dtWrap.style.display = "none";
-    let html = `<table class="detail-table"><thead><tr><th>标签</th><th>${cd.colX}</th><th>${cd.colY}</th><th>聚类</th></tr></thead><tbody>`;
+    let html = `<table class="detail-table"><thead><tr><th>${t("chart.detailTable.label")}</th><th>${cd.colX}</th><th>${cd.colY}</th><th>${t("chart.detailTable.clusterCol")}</th></tr></thead><tbody>`;
     cd.points.forEach((p) => {
-      html += `<tr><td>${p.label}</td><td>${fmtCompact$1(p.x)}</td><td>${fmtCompact$1(p.y)}</td><td><span style="display:inline-block;padding:2px 8px;border-radius:4px;color:white;background:${COLORS[p.cluster % COLORS.length]}">聚类${p.cluster + 1}</span></td></tr>`;
+      html += `<tr><td>${p.label}</td><td>${fmtCompact$1(p.x)}</td><td>${fmtCompact$1(p.y)}</td><td><span style="display:inline-block;padding:2px 8px;border-radius:4px;color:white;background:${COLORS[p.cluster % COLORS.length]}">${t("chart.series.clusterN", { n: String(p.cluster + 1) })}</span></td></tr>`;
     });
     html += "</tbody></table>";
     dtWrap.innerHTML = html;
@@ -1867,6 +1888,7 @@ var SmartboardRenderer = (function(exports) {
   function initDashboard(data) {
     DATA = data;
     MSG = typeof __I18N__ !== "undefined" ? __I18N__ : {};
+    setToolboxLocale(data.locale || "zh-CN");
     sortCol = data.tableSortBy;
     sortDir = false;
     tblTopN = data.tableTopN;

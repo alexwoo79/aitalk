@@ -34,15 +34,16 @@
       <!-- 聚类汇总 -->
       <div class="cluster-summary">
         <span v-for="(s, i) in clusterSummary" :key="i" class="summary-chip" :style="{ borderColor: clusterColor(i) }">
-          <strong>聚类 {{ i + 1 }}</strong>
-          {{ s.count }} 个 · 中心 ({{ fmtValue(s.cx, clusterData.colX) }}, {{ fmtValue(s.cy, clusterData.colY) }})
+          <strong>{{ t('chart.detailTable.clusterCol') }} {{ i + 1 }}</strong>
+          {{ s.count }} {{ t('chart.detailTable.points') }} · {{ t('chart.detailTable.clusterCenter') }} ({{
+            fmtValue(s.cx, clusterData.colX) }}, {{ fmtValue(s.cy, clusterData.colY) }})
         </span>
       </div>
       <!-- 明细表 -->
       <table class="cluster-table">
         <thead>
           <tr>
-            <th class="cl-th">标签</th>
+            <th class="cl-th">{{ t('chart.detailTable.label') }}</th>
             <th class="cl-th sortable" @click="toggleSort('x')">
               {{ clusterData.colX }} {{ sortCol === 'x' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
             </th>
@@ -50,7 +51,8 @@
               {{ clusterData.colY }} {{ sortCol === 'y' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
             </th>
             <th class="cl-th sortable" @click="toggleSort('cluster')">
-              聚类 {{ sortCol === 'cluster' ? (sortDir === 'desc' ? '↓' : '↑') : '' }}
+              {{ t('chart.detailTable.clusterCol') }} {{ sortCol === 'cluster' ? (sortDir === 'desc' ? '↓' : '↑') : ''
+              }}
             </th>
           </tr>
         </thead>
@@ -73,18 +75,18 @@
 </template>
 
 <script setup lang="ts">
-import {  ref, computed, nextTick, watch } from 'vue'
-import {  use } from 'echarts/core'
-import {  CanvasRenderer } from 'echarts/renderers'
-import {  ScatterChart } from 'echarts/charts'
-import {  TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
+import { ref, computed, nextTick, watch } from 'vue'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { ScatterChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import {  resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
-import {  useChartDownload } from '@/composables/use-chart-download'
-import {  save } from '@tauri-apps/plugin-dialog'
-import {  writeTextFile } from '@tauri-apps/plugin-fs'
-import {  useTheme } from '@/composables/use-theme'
-import {  computeClusters } from '@/core/analysis'
+import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
+import { useChartDownload } from '@/composables/use-chart-download'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { useTheme } from '@/composables/use-theme'
+import { computeClusters } from '@/core/analysis'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -124,7 +126,7 @@ const availableAxes = computed(() => props.metrics || [])
 const xCol = ref(availableAxes.value[0] || '')
 const yCol = ref(availableAxes.value[1] || availableAxes.value[0] || '')
 
-const displayTitle = computed(() => resolveTitle(props.title || '聚类分析', [xCol.value, yCol.value].filter(Boolean)))
+const displayTitle = computed(() => resolveTitle(props.title || t('chart.cluster'), [xCol.value, yCol.value].filter(Boolean)))
 
 // 当 metrics 改变时更新轴
 watch(availableAxes, (axes) => {
@@ -170,7 +172,7 @@ const option = computed(() => {
     const cid = clusterIds[ci]
     const pts = clusterMap[cid]
     series.push({
-      name: `聚类 ${cid + 1}`,
+      name: t('chart.series.clusterN', { n: String(cid + 1) }),
       type: 'scatter',
       data: pts.map((p) => [p.x, p.y]),
       symbolSize: 8,
@@ -185,7 +187,7 @@ const option = computed(() => {
   // 聚类中心
   if (cd.centroids.length > 0) {
     series.push({
-      name: '聚类中心',
+      name: t('chart.series.clusterCenter'),
       type: 'scatter',
       data: cd.centroids.map((c) => [c.x, c.y]),
       symbolSize: 18,
@@ -288,9 +290,9 @@ const tableRows = computed<ClusterRow[]>(() => {
 async function downloadCsv() {
   const BOM = '\uFEFF'
   const cd = clusterData.value
-  const header = '标签,' + (cd?.colX || 'X') + ',' + (cd?.colY || 'Y') + ',聚类'
+  const header = t('chart.csvHeaders.cluster', { cols: (cd?.colX || 'X') + ',' + (cd?.colY || 'Y') })
   const lines = tableRows.value.map(r =>
-    [r.label, r.x, r.y, '聚类' + (r.cluster + 1)].join(',')
+    [r.label, r.x, r.y, t('chart.series.clusterN', { n: String(r.cluster + 1) })].join(',')
   )
   const csv = BOM + header + '\n' + lines.join('\n')
   const filePath = await save({

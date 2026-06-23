@@ -7,6 +7,7 @@ import { aggregate } from '@/core/aggregator'
 import {
   buildBarOption, buildHorizontalBarOption, buildDoughnutOption,
   buildHistogramOption, buildLineOption, buildToolbox,
+  setToolboxLocale,
   fmt, fmtCompact, fmtByChart, getNumericVal, resolveTitle, applyAgg, COLORS,
 } from '@/core/chart-options'
 import { computeTimeseries, computeDeciles, computeClusters } from '@/core/analysis'
@@ -582,7 +583,7 @@ function renderTsChart(card: HTMLElement, ch: ChartSpec, rows: Record<string, st
 
 function renderTsDetailTable(card: HTMLElement, td: TimeseriesData) {
   const dtWrap = document.createElement('div'); dtWrap.className = 'ts-detail-wrap'; dtWrap.style.display = 'none'
-  let html = '<table class="detail-table"><thead><tr><th>周期</th><th>实际值</th><th title="3期移动平均：当前值与之前2期的平均值">MA3</th><th>环比%</th><th>同比%</th><th>趋势</th><th>预测</th></tr></thead><tbody>'
+  let html = '<table class="detail-table"><thead><tr><th>' + t('chart.detailTable.period') + '</th><th>' + t('chart.detailTable.actualValue') + '</th><th title="' + t('chart.detailTable.ma3Title') + '">MA3</th><th>' + t('chart.detailTable.mom') + '</th><th>' + t('chart.detailTable.yoy') + '</th><th>' + t('chart.detailTable.trend') + '</th><th>' + t('chart.detailTable.forecast') + '</th></tr></thead><tbody>'
   td.labels.forEach((l, j) => {
     const mv = td.mom[j], yv = td.yoy[j]
     const mc = mv != null ? (mv >= 0 ? '#10B981' : '#EF4444') : '', yc = yv != null ? (yv >= 0 ? '#10B981' : '#EF4444') : ''
@@ -608,7 +609,7 @@ function renderDecileChartContent(card: HTMLElement, ch: ChartSpec, rows: Record
   const c = initChart(wrap, '360px'); if (c) c.setOption(opt)
 
   const dtWrap = document.createElement('div'); dtWrap.className = 'ts-detail-wrap'; dtWrap.style.display = 'none'
-  let html = '<table class="detail-table"><thead><tr><th>分组</th><th>数量</th><th>合计</th><th>平均</th><th>范围</th></tr></thead><tbody>'
+  let html = '<table class="detail-table"><thead><tr><th>' + t('chart.detailTable.group') + '</th><th>' + t('chart.detailTable.count') + '</th><th>' + t('chart.detailTable.sum') + '</th><th>' + t('chart.detailTable.avg') + '</th><th>' + t('chart.detailTable.range') + '</th></tr></thead><tbody>'
   dd.labels.forEach((l, i) => { html += `<tr><td>${l}</td><td>${dd.counts[i]}</td><td>${fmt(dd.sums[i])}</td><td>${fmt(dd.avgs[i])}</td><td>${dd.ranges[i]}</td></tr>` })
   html += '</tbody></table>'; dtWrap.innerHTML = html; card.appendChild(dtWrap)
   const dg = document.createElement('button'); dg.className = 'detail-toggle'; dg.textContent = '展开明细表 ↓'
@@ -632,13 +633,13 @@ function renderClusterChartContent(card: HTMLElement, ch: ChartSpec, rows: Recor
   cd.points.forEach(p => { if (!sum[p.cluster]) sum[p.cluster] = { count: 0, sx: 0, sy: 0 }; sum[p.cluster].count++; sum[p.cluster].sx += p.x; sum[p.cluster].sy += p.y })
   const csDiv = document.createElement('div'); csDiv.className = 'cluster-summary'
   const cIds = Object.keys(sum).map(Number).sort((a, b) => a - b)
-  cIds.forEach(ci => { const s = sum[ci]; csDiv.innerHTML += `<span class="summary-chip" style="border-color:${COLORS[ci % COLORS.length]}"><strong>聚类 ${ci + 1}</strong> ${s.count} 个 · 中心 (${fmtCompact(s.sx / s.count)}, ${fmtCompact(s.sy / s.count)})</span>` })
+  cIds.forEach(ci => { const s = sum[ci]; csDiv.innerHTML += `<span class="summary-chip" style="border-color:${COLORS[ci % COLORS.length]}"><strong>${t('chart.series.clusterN', { n: String(ci + 1) })}</strong> ${s.count} ${t('chart.detailTable.points')} · ${t('chart.detailTable.clusterCenter')} (${fmtCompact(s.sx / s.count)}, ${fmtCompact(s.sy / s.count)})</span>` })
   card.appendChild(csDiv)
 
   // Detail table
   const dtWrap = document.createElement('div'); dtWrap.className = 'ts-detail-wrap'; dtWrap.style.display = 'none'
-  let html = `<table class="detail-table"><thead><tr><th>标签</th><th>${cd.colX}</th><th>${cd.colY}</th><th>聚类</th></tr></thead><tbody>`
-  cd.points.forEach(p => { html += `<tr><td>${p.label}</td><td>${fmtCompact(p.x)}</td><td>${fmtCompact(p.y)}</td><td><span style="display:inline-block;padding:2px 8px;border-radius:4px;color:white;background:${COLORS[p.cluster % COLORS.length]}">聚类${p.cluster + 1}</span></td></tr>` })
+  let html = `<table class="detail-table"><thead><tr><th>${t('chart.detailTable.label')}</th><th>${cd.colX}</th><th>${cd.colY}</th><th>${t('chart.detailTable.clusterCol')}</th></tr></thead><tbody>`
+  cd.points.forEach(p => { html += `<tr><td>${p.label}</td><td>${fmtCompact(p.x)}</td><td>${fmtCompact(p.y)}</td><td><span style="display:inline-block;padding:2px 8px;border-radius:4px;color:white;background:${COLORS[p.cluster % COLORS.length]}">${t('chart.series.clusterN', { n: String(p.cluster + 1) })}</span></td></tr>` })
   html += '</tbody></table>'; dtWrap.innerHTML = html; card.appendChild(dtWrap)
   const cg = document.createElement('button'); cg.className = 'detail-toggle'; cg.textContent = '展开明细表 ↓'
   cg.onclick = () => { const s = dtWrap.style.display !== 'none'; dtWrap.style.display = s ? 'none' : ''; cg.textContent = s ? '展开明细表 ↓' : '收起明细 ↑' }
@@ -760,6 +761,7 @@ function refreshAll() {
 export function initDashboard(data: DashboardData) {
   DATA = data
   MSG = typeof __I18N__ !== 'undefined' ? __I18N__ : {}
+  setToolboxLocale(data.locale || 'zh-CN')
   sortCol = data.tableSortBy; sortDir = false
   tblTopN = data.tableTopN
   tblCols = data.tableColumns.slice()

@@ -86,16 +86,36 @@ export function getNumericVal(v: string | number | undefined): number {
 }
 
 // ====== Shared toolbox (PNG download, data table, restore) ======
+let _toolboxLocale = 'zh-CN'
+export function setToolboxLocale(locale: string) { _toolboxLocale = locale }
+
 export function buildToolbox(): Record<string, any> {
+  const zh = _toolboxLocale === 'zh-CN'
+  const L = {
+    saveImage: zh ? '下载' : 'Save Image',
+    dataView: zh ? '数据' : 'Data',
+    dataTable: zh ? '数据表' : 'Data Table',
+    close: zh ? '关闭' : 'Close',
+    refresh: zh ? '刷新' : 'Refresh',
+    restore: zh ? '还原' : 'Restore',
+    copyTable: zh ? '📋 复制表格' : '📋 Copy Table',
+    copied: zh ? '✅ 已复制' : '✅ Copied',
+    category: zh ? '类别' : 'Category',
+    value: zh ? '数值' : 'Value',
+    proportion: zh ? '占比' : 'Ratio',
+    dimension: zh ? '维度' : 'Dimension',
+    cluster: zh ? '聚类' : 'Cluster',
+    index: zh ? '序号' : '#',
+  }
   // Register global copy helper once
   if (typeof window !== 'undefined' && !(window as any)._copyTable) {
     (window as any)._copyTable = function (tsv: string, btn: HTMLElement) {
       navigator.clipboard.writeText(tsv).then(function () {
-        btn.textContent = '✅ 已复制'
+        btn.textContent = L.copied
         btn.style.background = '#dcfce7'
         btn.style.borderColor = '#16a34a'
         setTimeout(function () {
-          btn.textContent = '📋 复制表格'
+          btn.textContent = L.copyTable
           btn.style.background = '#f5f5f5'
           btn.style.borderColor = '#ccc'
         }, 1500)
@@ -103,11 +123,11 @@ export function buildToolbox(): Record<string, any> {
     }
   }
   const features: Record<string, any> = {
-    saveAsImage: { title: '下载', pixelRatio: 2 },
+    saveAsImage: { title: L.saveImage, pixelRatio: 2 },
     dataView: {
-      title: '数据',
+      title: L.dataView,
       readOnly: true,
-      lang: ['数据表', '关闭', '刷新'],
+      lang: [L.dataTable, L.close, L.refresh],
         optionToContent: function (opt: any) {
           const series = opt.series || []
           // Read resolved CSS variable values from <html> — these auto-update with theme
@@ -132,9 +152,9 @@ export function buildToolbox(): Record<string, any> {
           if (isPie) {
             const data = series[0]?.data || []
             const total = data.reduce((s: number, d: any) => s + (d.value || 0), 0)
-            let tsv = '类别\t数值\t占比\n'
+            let tsv = L.category + '\t' + L.value + '\t' + L.proportion + '\n'
             let html = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ';background:' + bg + '"><table style="width:100%;border-collapse:collapse">'
-            html += '<thead><tr><th style="' + thStyle + ';text-align:left">类别</th><th style="' + thStyle + ';text-align:right">数值</th><th style="' + thStyle + ';text-align:right">占比</th></tr></thead><tbody>'
+            html += '<thead><tr><th style="' + thStyle + ';text-align:left">' + L.category + '</th><th style="' + thStyle + ';text-align:right">' + L.value + '</th><th style="' + thStyle + ';text-align:right">' + L.proportion + '</th></tr></thead><tbody>'
             data.forEach((d: any) => {
               const pct = total ? ((d.value / total) * 100).toFixed(1) + '%' : '0%'
               const fv = tf(d.value)
@@ -142,7 +162,7 @@ export function buildToolbox(): Record<string, any> {
               tsv += (d.name || '') + '\t' + fv + '\t' + pct + '\n'
             })
             html += '</tbody></table>'
-            html += '<button onclick="window._copyTable(\'' + tsv.replace(/'/g, "\\'") + '\',this)" style="' + btnStyle + '">📋 复制表格</button>'
+            html += '<button onclick="window._copyTable(\'' + tsv.replace(/'/g, "\\'") + '\',this)" style="' + btnStyle + '">' + L.copyTable + '</button>'
             html += '</div>'
             return html
           }
@@ -151,12 +171,12 @@ export function buildToolbox(): Record<string, any> {
           if (isScatter) {
             const xName = opt.xAxis?.[0]?.name || 'X'
             const yName = opt.yAxis?.[0]?.name || 'Y'
-            let tsv = '序号\t' + xName + '\t' + yName + '\t聚类\n'
+            let tsv = L.index + '\t' + xName + '\t' + yName + '\t' + L.cluster + '\n'
             let html = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ';background:' + bg + '"><table style="width:100%;border-collapse:collapse">'
             html += '<thead><tr><th style="' + thStyle + ';text-align:left">#</th>'
             html += '<th style="' + thStyle + ';text-align:right">' + xName + '</th>'
             html += '<th style="' + thStyle + ';text-align:right">' + yName + '</th>'
-            html += '<th style="' + thStyle + ';text-align:left">聚类</th></tr></thead><tbody>'
+            html += '<th style="' + thStyle + ';text-align:left">' + L.cluster + '</th></tr></thead><tbody>'
             let idx = 0
             for (const s of series) {
               const sName = s.name || ''
@@ -172,7 +192,7 @@ export function buildToolbox(): Record<string, any> {
               }
             }
             html += '</tbody></table>'
-            html += '<button onclick="window._copyTable(\'' + tsv.replace(/'/g, "\\'") + '\',this)" style="' + btnStyle + '">📋 复制表格</button>'
+            html += '<button onclick="window._copyTable(\'' + tsv.replace(/'/g, "\\'") + '\',this)" style="' + btnStyle + '">' + L.copyTable + '</button>'
             html += '</div>'
             return html
           }
@@ -181,9 +201,9 @@ export function buildToolbox(): Record<string, any> {
           const yAxisData = opt.yAxis?.[0]?.data || []
           const isHorizontal = xAxisData.length === 0 && yAxisData.length > 0
           const catData = isHorizontal ? yAxisData : xAxisData
-          let tsv = '维度\t' + series.map((s: any) => s.name || '').join('\t') + '\n'
+          let tsv = L.dimension + '\t' + series.map((s: any) => s.name || '').join('\t') + '\n'
           let html = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ';background:' + bg + '"><table style="width:100%;border-collapse:collapse">'
-          html += '<thead><tr><th style="' + thStyle + ';text-align:left">维度</th>'
+          html += '<thead><tr><th style="' + thStyle + ';text-align:left">' + L.dimension + '</th>'
           series.forEach((s: any) => {
             html += '<th style="' + thStyle + ';text-align:right">' + (s.name || '') + '</th>'
           })
@@ -201,12 +221,12 @@ export function buildToolbox(): Record<string, any> {
             html += '</tr>'
           }
           html += '</tbody></table>'
-          html += '<button onclick="window._copyTable(\'' + tsv.replace(/'/g, "\\'") + '\',this)" style="' + btnStyle + '">📋 复制表格</button>'
+          html += '<button onclick="window._copyTable(\'' + tsv.replace(/'/g, "\\'") + '\',this)" style="' + btnStyle + '">' + L.copyTable + '</button>'
           html += '</div>'
           return html
         },
       },
-      restore: { title: '还原' },
+      restore: { title: L.restore },
   }
   return {
     show: true,
