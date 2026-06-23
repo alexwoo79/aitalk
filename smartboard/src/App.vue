@@ -103,11 +103,14 @@ if (typeof window !== 'undefined') {
   background: none;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 16px;
+  padding: 0 12px;
+  font-size: 15px;
   cursor: pointer;
   transition: background 0.2s;
   line-height: 1;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .theme-toggle:hover {

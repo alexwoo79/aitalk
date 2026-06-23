@@ -86,7 +86,7 @@ export function getNumericVal(v: string | number | undefined): number {
 }
 
 // ====== Shared toolbox (PNG download, data table, restore) ======
-export function buildToolbox() {
+export function buildToolbox(): Record<string, any> {
   // Register global copy helper once
   if (typeof window !== 'undefined' && !(window as any)._copyTable) {
     (window as any)._copyTable = function (tsv: string, btn: HTMLElement) {
@@ -102,19 +102,12 @@ export function buildToolbox() {
       })
     }
   }
-  return {
-    show: true,
-    right: 6,
-    top: -2,
-    itemSize: 12,
-    itemGap: 6,
-    iconStyle: { borderColor: '#999', borderWidth: 1 },
-    feature: {
-      saveAsImage: { title: '下载', pixelRatio: 2 },
-      dataView: {
-        title: '数据',
-        readOnly: true,
-        lang: ['数据表', '关闭', '刷新'],
+  const features: Record<string, any> = {
+    saveAsImage: { title: '下载', pixelRatio: 2 },
+    dataView: {
+      title: '数据',
+      readOnly: true,
+      lang: ['数据表', '关闭', '刷新'],
         optionToContent: function (opt: any) {
           const series = opt.series || []
           // Read resolved CSS variable values from <html> — these auto-update with theme
@@ -214,7 +207,15 @@ export function buildToolbox() {
         },
       },
       restore: { title: '还原' },
-    },
+  }
+  return {
+    show: true,
+    right: 6,
+    top: -2,
+    itemSize: 12,
+    itemGap: 6,
+    iconStyle: { borderColor: '#999', borderWidth: 1 },
+    feature: features,
   }
 }
 
@@ -268,8 +269,8 @@ export function buildBarOption(
       label: showLabel ? { show: true, position: 'top' as const, fontSize: 11, formatter: (p: any) => fmtByChart(p.value, chart, p.seriesName) } : undefined,
       markPoint: showLabel ? {
         data: [
-          { type: 'max', name: '最大', symbolSize: 36, itemStyle: { color: '#EF4444' }, label: { show: false } },
-          { type: 'min', name: '最小', symbolSize: 30, itemStyle: { color: '#3B82F6' }, label: { show: false } },
+          { type: 'max', name: '最大', symbolSize: 24, symbolOffset: [0, -14], itemStyle: { color: '#EF4444' }, label: { show: false } },
+          { type: 'min', name: '最小', symbolSize: 24, symbolOffset: [0, -14], itemStyle: { color: '#3B82F6' }, label: { show: false } },
         ],
       } : undefined,
       itemStyle: { borderRadius: [4, 4, 0, 0] as [number, number, number, number], color: COLORS[mi % COLORS.length] },
@@ -289,7 +290,7 @@ export function buildBarOption(
       },
     },
     legend: metricCols.length > 1 ? { top: 0, textStyle: { fontSize: 11 } } : undefined,
-    grid: { left: 60, right: 20, top: metricCols.length > 1 ? 30 : 20, bottom: 30 },
+    grid: { left: 60, right: 20, top: metricCols.length > 1 ? 40 : 32, bottom: 30 },
     xAxis: {
       type: 'category' as const,
       data: labels,

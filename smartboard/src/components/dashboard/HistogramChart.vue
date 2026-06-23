@@ -26,10 +26,12 @@
 import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
-import { buildHistogramOption, resolveTitle } from '@/core/chart-options'
+import { buildHistogramOption, resolveTitle, buildToolbox } from '@/core/chart-options'
+import { useChartDownload } from '@/composables/use-chart-download'
 import { useTheme } from '@/composables/use-theme'
 
 const { theme } = useTheme()
+const { downloadPNG, downloadCSV } = useChartDownload()
 
 const props = defineProps<{
     chart: ChartSpec
@@ -45,7 +47,17 @@ watch(() => props.chart.metric, (v) => { if (v) selectedMetric.value = v })
 
 const effectiveChart = computed<ChartSpec>(() => ({ ...props.chart, metric: selectedMetric.value }))
 const displayTitle = computed(() => resolveTitle(props.chart.title, selectedMetric.value ? [selectedMetric.value] : []))
-const option = computed(() => buildHistogramOption(effectiveChart.value, props.rows, bins.value || undefined))
+const option = computed(() => {
+    const opt = buildHistogramOption(effectiveChart.value, props.rows, bins.value || undefined)
+    if (opt && Object.keys(opt).length > 0 && opt.toolbox) {
+        Object.assign(opt.toolbox.feature, {
+            mySaveAsImage: { title: '💾 PNG', show: true, icon: 'path://M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm2-6h2v2H8v-2zm0-4h2v2H8v-2zm4 4h2v2h-2v-2zm0-4h2v2h-2v-2z', onclick: () => { const ci = chartRef.value?.chart; if (ci) downloadPNG(ci) } },
+            mySaveCSV: { title: '📄 CSV', show: true, icon: 'path://M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm0 2h7v5h5v11H6V4zm2 4h8v2H8V8zm0 4h8v2H8v-2zm0 4h5v2H8v-2z', onclick: () => { const ci = chartRef.value?.chart; if (ci) downloadCSV(ci, ci.getOption()) } },
+        })
+        delete opt.toolbox.feature.saveAsImage
+    }
+    return opt
+})
 
 const wrapRef = ref<HTMLElement | null>(null)
 const containerRef = ref<HTMLElement | null>(null)

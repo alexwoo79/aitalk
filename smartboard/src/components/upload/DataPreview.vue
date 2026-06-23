@@ -23,16 +23,10 @@
         </div>
       </div>
       <div class="col-grid">
-        <div
-          v-for="col in dataSet.headers"
-          :key="col"
-          class="col-card"
-          :class="[
-            'role-' + dataSet.classifications[col]?.role,
-            { excluded: dataStore.excludedColumns.has(col) }
-          ]"
-          @click="onToggleExclude(col)"
-        >
+        <div v-for="col in dataSet.headers" :key="col" class="col-card" :class="[
+          'role-' + dataSet.classifications[col]?.role,
+          { excluded: dataStore.excludedColumns.has(col) }
+        ]" @click="onToggleExclude(col)">
           <div class="col-icon">
             <span>{{ roleIcon(dataSet.classifications[col]?.role) }}</span>
           </div>
@@ -51,8 +45,10 @@
     <div v-if="dataSet.primaryMetric" class="section">
       <h4>自动检测</h4>
       <div class="detection-info">
-        <span>主指标：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ? '（已排除）' : dataSet.primaryMetric }}</strong></span>
-        <span>图表维度：<strong>{{ dataSet.chartDimensions.filter(d => !dataStore.excludedColumns.has(d)).join(', ') || '无' }}</strong></span>
+        <span>主指标：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ? '（已排除）' : dataSet.primaryMetric
+            }}</strong></span>
+        <span>图表维度：<strong>{{dataSet.chartDimensions.filter(d => !dataStore.excludedColumns.has(d)).join(', ') || '无'
+            }}</strong></span>
       </div>
     </div>
 
@@ -63,7 +59,8 @@
         <table class="sample-table">
           <thead>
             <tr>
-              <th v-for="col in visibleHeaders" :key="col" :class="{ 'col-excluded-th': dataStore.excludedColumns.has(col) }">{{ col }}</th>
+              <th v-for="col in visibleHeaders" :key="col"
+                :class="{ 'col-excluded-th': dataStore.excludedColumns.has(col) }">{{ col }}</th>
             </tr>
           </thead>
           <tbody>
@@ -185,7 +182,8 @@ function truncate(val: string | number | undefined): string {
 }
 
 .btn-next {
-  padding: 10px 24px;
+  padding: 0 24px;
+  height: 38px;
   border-radius: 8px;
   border: none;
   background: var(--primary);
@@ -194,6 +192,8 @@ function truncate(val: string | number | undefined): string {
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s;
+  display: inline-flex;
+  align-items: center;
 }
 
 .btn-next:hover {

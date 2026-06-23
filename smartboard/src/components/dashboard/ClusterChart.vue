@@ -18,7 +18,8 @@
     </div>
     <!-- 图表 -->
     <div class="chart-container" v-if="option">
-      <v-chart :option="option" :theme="theme === 'dark' ? 'dark' : ''" autoresize style="flex:1;min-height:200px" />
+      <v-chart ref="chartRef" :option="option" :theme="theme === 'dark' ? 'dark' : ''" autoresize
+        style="flex:1;min-height:200px" />
     </div>
     <div v-else class="no-data-msg">数据不足，无法执行聚类分析</div>
     <!-- 展开明细 -->
@@ -26,7 +27,8 @@
       <button class="table-toggle" @click="showTable = !showTable">
         {{ showTable ? '收起明细 ↑' : '展开明细表 ↓' }}
       </button>
-      <button v-if="tableRows.length" class="csv-download" :class="{ done: csvDone }" :disabled="csvDone" @click="downloadCsv">{{ csvDone ? '✅ 已下载' : '⬇ CSV' }}</button>
+      <button v-if="tableRows.length" class="csv-download" :class="{ done: csvDone }" :disabled="csvDone"
+        @click="downloadCsv">{{ csvDone ? '✅ 已下载' : '⬇ CSV' }}</button>
     </div>
     <div v-if="showTable && clusterData" class="cluster-table-wrap">
       <!-- 聚类汇总 -->
@@ -78,6 +80,9 @@ import { ScatterChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent, GridComponent, ToolboxComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { resolveTitle, buildToolbox, fmtByChart } from '@/core/chart-options'
+import { useChartDownload } from '@/composables/use-chart-download'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { useTheme } from '@/composables/use-theme'
 import { computeClusters } from '@/core/analysis'
 
@@ -89,9 +94,11 @@ const COLORS = [
 ]
 
 const { theme } = useTheme()
+const { downloadPNG, downloadCSV } = useChartDownload()
 
 // Fullscreen
 const wrapRef = ref<HTMLElement | null>(null)
+const chartRef = ref<InstanceType<typeof VChart> | null>(null)
 const isFullscreen = ref(false)
 function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value
@@ -186,9 +193,15 @@ const option = computed(() => {
     })
   }
 
+  const tb = buildToolbox()
+  Object.assign(tb.feature, {
+    mySaveAsImage: { title: '💾 PNG', show: true, icon: 'path://M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm2-6h2v2H8v-2zm0-4h2v2H8v-2zm4 4h2v2h-2v-2zm0-4h2v2h-2v-2z', onclick: () => { const ci = chartRef.value?.chart; if (ci) downloadPNG(ci) } },
+    mySaveCSV: { title: '📄 CSV', show: true, icon: 'path://M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm0 2h7v5h5v11H6V4zm2 4h8v2H8V8zm0 4h8v2H8v-2zm0 4h5v2H8v-2z', onclick: () => { const ci = chartRef.value?.chart; if (ci) downloadCSV(ci, ci.getOption()) } },
+  })
+  delete tb.feature.saveAsImage
   return {
     _mf: props.metricFormats || {},
-    toolbox: buildToolbox(),
+    toolbox: tb,
     tooltip: {
       formatter: (params: any) => {
         const [x, y] = params.value
@@ -270,7 +283,7 @@ const tableRows = computed<ClusterRow[]>(() => {
   return rows
 })
 
-function downloadCsv() {
+async function downloadCsv() {
   const BOM = '\uFEFF'
   const cd = clusterData.value
   const header = '标签,' + (cd?.colX || 'X') + ',' + (cd?.colY || 'Y') + ',聚类'
@@ -278,15 +291,15 @@ function downloadCsv() {
     [r.label, r.x, r.y, '聚类' + (r.cluster + 1)].join(',')
   )
   const csv = BOM + header + '\n' + lines.join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'cluster_' + new Date().toISOString().slice(0, 10) + '.csv'
-  a.click()
-  URL.revokeObjectURL(url)
-  csvDone.value = true
-  setTimeout(() => { csvDone.value = false }, 1500)
+  const filePath = await save({
+    defaultPath: `cluster_${new Date().toISOString().slice(0, 10)}.csv`,
+    filters: [{ name: 'CSV 文件', extensions: ['csv'] }],
+  })
+  if (filePath) {
+    await writeTextFile(filePath, csv)
+    csvDone.value = true
+    setTimeout(() => { csvDone.value = false }, 1500)
+  }
 }
 const csvDone = ref(false)
 </script>

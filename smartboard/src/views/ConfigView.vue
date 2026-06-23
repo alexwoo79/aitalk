@@ -2,16 +2,17 @@
   <div class="config-view">
     <div v-if="!dataStore.dataSet" class="no-data">
       <p>请先上传数据文件</p>
-      <button class="btn btn-primary" @click="$router.push('/')">返回上传</button>
+      <button class="btn btn-sm btn-primary" @click="$router.push('/')">返回上传</button>
     </div>
 
     <template v-else>
       <div class="config-header">
         <div class="config-header-top">
-          <button class="btn btn-ghost" @click="$router.push('/')">← 返回上传</button>
+          <button class="btn btn-sm btn-ghost" @click="$router.push('/')">← 返回上传</button>
           <h2>配置 Dashboard</h2>
           <div class="header-actions">
-            <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved ? '✅ 已保存（点击解除）' : '💾 全部保存' }}</button>
+            <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved
+              ? '✅ 已保存（点击解除）' : '💾 全部保存' }}</button>
             <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">↺ 全部重置</button>
           </div>
         </div>
@@ -26,7 +27,9 @@
             <div class="section-header-row">
               <h3>看板标题</h3>
               <div class="section-actions">
-                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('title') }" @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('title') }"
+                  @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('title')">↺</button>
               </div>
             </div>
@@ -38,7 +41,9 @@
             <div class="section-header-row">
               <h3>筛选项 ({{ configStore.config.filters.length }})</h3>
               <div class="section-actions">
-                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('filters') }" @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('filters') }"
+                  @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('filters')">↺</button>
               </div>
             </div>
@@ -57,7 +62,8 @@
             <div class="section-header-row">
               <h3>全局指标格式</h3>
               <div class="section-actions">
-                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('metricDefaults') }" @click="saveMetricDefaults">{{ configStore.isSectionSaved('metricDefaults') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('metricDefaults') }"
+                  @click="saveMetricDefaults">{{ configStore.isSectionSaved('metricDefaults') ? '✅' : '💾' }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="resetMetricDefaults">↺</button>
               </div>
             </div>
@@ -69,9 +75,9 @@
                 <span class="md-col-unit">单位</span>
                 <span class="md-col-prefix">前缀</span>
                 <span class="md-col-dec">小数位</span>
-                <span class="md-col-cb"><label title="KPI">🃏</label></span>
-                <span class="md-col-cb"><label title="图表">📊</label></span>
-                <span class="md-col-cb"><label title="数据表">📋</label></span>
+                <span class="md-col-cb"><label>KPI</label></span>
+                <span class="md-col-cb"><label>图表</label></span>
+                <span class="md-col-cb"><label>数据表</label></span>
               </div>
               <div v-for="col in allMetricCols" :key="col" class="md-row">
                 <span class="md-col-name">{{ col }}</span>
@@ -82,13 +88,15 @@
                   <option value="percent">百分比</option>
                   <option value="currency">货币</option>
                 </select>
-                <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].unit" class="input input-sm md-sel">
+                <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].unit"
+                  class="input input-sm md-sel">
                   <option value="yuan">元</option>
                   <option value="wan">万元</option>
                   <option value="yi">亿元</option>
                 </select>
                 <span v-else class="md-na">—</span>
-                <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].prefix" class="input input-sm md-sel">
+                <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].prefix"
+                  class="input input-sm md-sel">
                   <option value="">无</option>
                   <option value="¥">¥</option>
                   <option value="$">$</option>
@@ -96,7 +104,8 @@
                   <option value="£">£</option>
                 </select>
                 <span v-else class="md-na">—</span>
-                <input v-model.number="metricDefaultsForm[col].decimals" type="number" class="input input-sm md-dec" min="0" max="6" step="1" />
+                <input v-model.number="metricDefaultsForm[col].decimals" type="number" class="input input-sm md-dec"
+                  min="0" max="6" step="1" />
                 <label class="md-cb" :class="{ active: hasSection(col, 'kpi') }">
                   <input type="checkbox" :checked="hasSection(col, 'kpi')" @change="toggleSection(col, 'kpi')" />
                 </label>
@@ -115,7 +124,9 @@
             <div class="section-header-row">
               <h3>KPI 卡片 ({{ configStore.config.kpis.length }}) <span class="drag-hint">⋮⋮ 拖拽排序</span></h3>
               <div class="section-actions">
-                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('kpis') }" @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('kpis') }"
+                  @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('kpis')">↺</button>
               </div>
             </div>
@@ -144,7 +155,9 @@
             <div class="section-header-row">
               <h3>图表 ({{ configStore.config.charts.length }}) <span class="drag-hint">⋮⋮ 拖拽排序</span></h3>
               <div class="section-actions">
-                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('charts') }" @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('charts') }"
+                  @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('charts')">↺</button>
               </div>
             </div>
@@ -178,7 +191,9 @@
             <div class="section-header-row">
               <h3>数据表</h3>
               <div class="section-actions">
-                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('table') }" @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('table') }"
+                  @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('table')">↺</button>
               </div>
             </div>
@@ -229,7 +244,7 @@
                 <span class="stat-value">{{ dataStore.dataSet.rows.length }}</span>
               </div>
             </div>
-            <button class="btn btn-primary btn-lg" @click="goToDashboard">
+            <button class="btn btn-primary" @click="goToDashboard">
               生成 Dashboard →
             </button>
             <div class="save-status" v-if="allSaved">✅ 全部已保存，切换页面不会丢失</div>
@@ -331,7 +346,8 @@
                 <div class="formula-label">运算表达式 <span class="formula-hint">双击变量名插入</span></div>
                 <div class="formula-btns">
                   <button v-for="vi in kpiForm.variables.length" :key="vi" class="period-btn"
-                    @click="insertVar(vi - 1)">[{{ vi - 1 }}]</button>
+                    @click="insertVar(vi - 1)">[{{ vi - 1
+                    }}]</button>
                   <span class="toggle-sep" style="margin:0 4px"></span>
                   <button class="period-btn" @click="insertOp('+')">+</button>
                   <button class="period-btn" @click="insertOp('-')">−</button>
@@ -550,7 +566,8 @@
               <!-- 筛选条件（通用） -->
               <label>筛选条件</label>
               <div class="filter-wrap">
-                <input v-model="chartForm.filter" class="input" placeholder="留空=全部数据，如: 地区 = 北京" list="chart-filter-cols" />
+                <input v-model="chartForm.filter" class="input" placeholder="留空=全部数据，如: 地区 = 北京"
+                  list="chart-filter-cols" />
                 <datalist id="chart-filter-cols">
                   <template v-for="col in filterableColumns" :key="col">
                     <option :value="col + ' = '" />
@@ -1812,6 +1829,7 @@ function cancelChartEdit() {
   border-radius: 8px;
   overflow: hidden;
 }
+
 .md-header {
   display: grid;
   grid-template-columns: 1fr 90px 64px 52px 56px 28px 28px 28px;
@@ -1822,6 +1840,7 @@ function cancelChartEdit() {
   font-weight: 600;
   color: var(--text-secondary);
 }
+
 .md-row {
   display: grid;
   grid-template-columns: 1fr 90px 64px 52px 56px 28px 28px 28px;
@@ -1831,36 +1850,44 @@ function cancelChartEdit() {
   border-top: 1px solid var(--border-light);
   font-size: 13px;
 }
+
 .md-col-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .md-col-cb {
   text-align: center;
   font-size: 12px;
+  white-space: nowrap;
 }
+
 .md-na {
   color: var(--text-secondary);
   font-size: 12px;
   text-align: center;
 }
+
 .md-sel {
   width: 100%;
   font-size: 12px;
 }
+
 .md-dec {
   width: 100%;
   text-align: center;
   font-size: 13px;
   padding: 4px 2px;
 }
+
 .md-prefix {
   width: 100%;
   text-align: center;
   font-size: 12px;
   padding: 4px 2px;
 }
+
 .md-cb {
   display: flex;
   align-items: center;
@@ -1868,6 +1895,7 @@ function cancelChartEdit() {
   cursor: pointer;
   margin: 0;
 }
+
 .md-cb input[type="checkbox"] {
   width: 15px;
   height: 15px;
@@ -1875,6 +1903,7 @@ function cancelChartEdit() {
   cursor: pointer;
   margin: 0;
 }
+
 .sec-desc {
   color: var(--text-secondary);
   font-size: 12px;

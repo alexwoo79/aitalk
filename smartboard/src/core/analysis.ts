@@ -173,7 +173,7 @@ export function computeDeciles(
     const bucket = nums.slice(start, end)
     const sum = bucket.reduce((a, b) => a + b, 0)
 
-    labels.push(`D${i + 1}`)
+    labels.push(`D${String(i + 1).padStart(2, '0')}`)
     counts.push(bucket.length)
     sums.push(sum)
     avgs.push(bucket.length > 0 ? sum / bucket.length : 0)

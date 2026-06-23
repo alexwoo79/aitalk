@@ -1,12 +1,12 @@
 <template>
   <div class="step-indicator">
-    <div v-for="step in steps" :key="step.num"
-      class="step" :class="{ active: step.num === current, done: step.num < current }">
+    <div v-for="step in steps" :key="step.num" class="step"
+      :class="{ active: step.num === current, done: step.num < current }">
       <div class="step-circle">{{ step.num < current ? '✓' : step.num }}</div>
-      <span class="step-label">{{ step.label }}</span>
-      <div v-if="step.num < steps.length" class="step-line" :class="{ filled: step.num < current }"></div>
+          <span class="step-label">{{ step.label }}</span>
+          <div v-if="step.num < steps.length" class="step-line" :class="{ filled: step.num < current }"></div>
+      </div>
     </div>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -33,8 +33,8 @@ const steps = [
 }
 
 .step-circle {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
