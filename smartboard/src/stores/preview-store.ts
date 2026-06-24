@@ -87,7 +87,7 @@ export const usePreviewStore = defineStore('preview', () => {
     const table: TableSpec = {
       columns: cfg.table.columns.length > 0 ? cfg.table.columns : ds.headers.filter((h) => !excluded.has(h)),
       sortBy: cfg.table.sortBy || '',
-      rowLimit: cfg.table.rowLimit,
+      summaryAggs: cfg.table.summaryAggs,
       columnColors: cfg.table.columnColors,
       columnTextColors: cfg.table.columnTextColors,
       columnTextRules: cfg.table.columnTextRules,

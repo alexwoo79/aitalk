@@ -89,6 +89,30 @@ export function getNumericVal(v: string | number | undefined): number {
 let _toolboxLocale = 'zh-CN'
 export function setToolboxLocale(locale: string) { _toolboxLocale = locale }
 
+/** 回退方案：通过创建临时 textarea + execCommand 复制文本 */
+function legacyCopy(text: string, callback: () => void) {
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.position = 'fixed'
+  ta.style.left = '-9999px'
+  ta.style.top = '-9999px'
+  document.body.appendChild(ta)
+  ta.focus()
+  ta.select()
+  try {
+    document.execCommand('copy')
+    callback()
+  } catch {
+    // 静默失败
+  }
+  document.body.removeChild(ta)
+}
+
+/** Base64 编码 TSV（安全嵌入 HTML data-* 属性） */
+function encodeTsv(tsv: string): string {
+  return btoa(unescape(encodeURIComponent(tsv)))
+}
+
 export function buildToolbox(): Record<string, any> {
   const zh = _toolboxLocale === 'zh-CN'
   const L = {
@@ -107,20 +131,41 @@ export function buildToolbox(): Record<string, any> {
     cluster: zh ? '聚类' : 'Cluster',
     index: zh ? '序号' : '#',
   }
-  // Register global copy helper once
-  if (typeof window !== 'undefined' && !(window as any)._copyTable) {
-    (window as any)._copyTable = function (tsv: string, btn: HTMLElement) {
-      navigator.clipboard.writeText(tsv).then(function () {
-        btn.textContent = L.copied
-        btn.style.background = '#dcfce7'
-        btn.style.borderColor = '#16a34a'
-        setTimeout(function () {
-          btn.textContent = L.copyTable
-          btn.style.background = '#f5f5f5'
-          btn.style.borderColor = '#ccc'
-        }, 1500)
-      })
-    }
+  // 全局存储最新 locale 标签（供事件委托回调使用）
+  if (typeof window !== 'undefined') {
+    (window as any).__toolboxLabels = L
+  }
+  // 注册全局事件委托处理「复制表格」按钮（避免内联 onclick 被 CSP / ECharts 渲染拦截）
+  if (typeof window !== 'undefined' && !(window as any).__copyTableSetup) {
+    (window as any).__copyTableSetup = true
+    document.addEventListener('click', function (e) {
+      const btn = (e.target as HTMLElement).closest('.copy-table-btn') as HTMLElement | null
+      if (!btn) return
+      const tsvB64 = btn.getAttribute('data-tsv') || ''
+      if (!tsvB64) return
+      try {
+        const tsv = decodeURIComponent(escape(atob(tsvB64)))
+        const labels = (window as any).__toolboxLabels || { copied: '✅ Copied', copyTable: '📋 Copy Table' }
+        const done = () => {
+          btn.textContent = labels.copied
+          btn.style.background = '#dcfce7'
+          btn.style.borderColor = '#16a34a'
+          setTimeout(() => {
+            btn.textContent = labels.copyTable
+            btn.style.background = '#f5f5f5'
+            btn.style.borderColor = '#ccc'
+          }, 1500)
+        }
+        // 优先 Clipboard API，回退 execCommand
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(tsv).then(done).catch(() => legacyCopy(tsv, done))
+        } else {
+          legacyCopy(tsv, done)
+        }
+      } catch (err) {
+        console.error('Copy failed:', err)
+      }
+    })
   }
   const features: Record<string, any> = {
     saveAsImage: { title: L.saveImage, pixelRatio: 2 },
@@ -162,7 +207,7 @@ export function buildToolbox(): Record<string, any> {
               tsv += (d.name || '') + '\t' + fv + '\t' + pct + '\n'
             })
             html += '</tbody></table>'
-            html += '<button onclick="window._copyTable(\'' + tsv.replace(/'/g, "\\'") + '\',this)" style="' + btnStyle + '">' + L.copyTable + '</button>'
+            html += '<button class="copy-table-btn" data-tsv="' + encodeTsv(tsv) + '" style="' + btnStyle + '">' + L.copyTable + '</button>'
             html += '</div>'
             return html
           }
@@ -192,7 +237,7 @@ export function buildToolbox(): Record<string, any> {
               }
             }
             html += '</tbody></table>'
-            html += '<button onclick="window._copyTable(\'' + tsv.replace(/'/g, "\\'") + '\',this)" style="' + btnStyle + '">' + L.copyTable + '</button>'
+            html += '<button class="copy-table-btn" data-tsv="' + encodeTsv(tsv) + '" style="' + btnStyle + '">' + L.copyTable + '</button>'
             html += '</div>'
             return html
           }
@@ -221,7 +266,7 @@ export function buildToolbox(): Record<string, any> {
             html += '</tr>'
           }
           html += '</tbody></table>'
-          html += '<button onclick="window._copyTable(\'' + tsv.replace(/'/g, "\\'") + '\',this)" style="' + btnStyle + '">' + L.copyTable + '</button>'
+          html += '<button class="copy-table-btn" data-tsv="' + encodeTsv(tsv) + '" style="' + btnStyle + '">' + L.copyTable + '</button>'
           html += '</div>'
           return html
         },
@@ -425,7 +470,8 @@ export function buildDoughnutOption(
   showLabel: boolean = true,
 ) {
   const dimCol = chart.dimension
-  const metricCol = chart.metric
+  // 回退：如果 metric 为空，从 metrics[0] 取值
+  const metricCol = chart.metric || chart.metrics?.[0] || ''
   if (!dimCol) return {}
 
   let aggData: { label: string; value: number }[]
@@ -504,7 +550,8 @@ export function buildHistogramOption(
   rows: Record<string, string | number>[],
   binCount?: number,
 ) {
-  const col = chart.metric
+  // 回退：如果 metric 为空，从 metrics[0] 取值
+  const col = chart.metric || chart.metrics?.[0] || ''
   if (!col) return {}
 
   const values = rows

@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import type { DataSet } from '@/types/data'
 import { parseFile } from '@/core/parser'
 import { classifyAllColumns, selectPrimaryMetric, selectChartDimensions } from '@/core/classifier'
-import { readTextFile, readFile } from '@tauri-apps/plugin-fs'
+import { readTextFile, readFile, stat } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-dialog'
 
 export const useDataStore = defineStore('data', () => {
@@ -47,6 +47,21 @@ export const useDataStore = defineStore('data', () => {
       const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
       const chartDimensions = selectChartDimensions(parsed.headers, classifications)
 
+      // 收集文件元数据（大小、修改时间、哈希）
+      let fileSize: number | undefined
+      let fileModified: string | undefined
+      let fileHash: string | undefined
+      try {
+        const fileStat = await stat(filePath)
+        fileSize = fileStat.size
+        fileModified = fileStat.mtime ? new Date(fileStat.mtime as any).toISOString() : undefined
+        // DJB2 哈希
+        const raw = await readFile(filePath)
+        let djb2 = 5381
+        for (let i = 0; i < raw.length; i++) djb2 = ((djb2 << 5) + djb2 + raw[i]) | 0
+        fileHash = 'djb2:' + (djb2 >>> 0).toString(16)
+      } catch { /* 静默失败，不影响主流程 */ }
+
       dataSet.value = {
         headers: parsed.headers,
         rows: parsed.rows,
@@ -56,6 +71,9 @@ export const useDataStore = defineStore('data', () => {
         chartDimensions,
         filePath,
         fileName,
+        fileSize,
+        fileModified,
+        fileHash,
       }
     } catch (e: any) {
       error.value = e.message || '文件加载失败'

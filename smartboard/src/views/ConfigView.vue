@@ -14,7 +14,7 @@
             <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved
               ? t('config.saved') : t('config.saveAll') }}</button>
             <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">{{ t('config.resetAll')
-              }}</button>
+            }}</button>
           </div>
         </div>
         <p class="subtitle">{{ t('config.hint') }}</p>
@@ -30,7 +30,8 @@
               <h3>{{ t('config.dashboardTitle') }}</h3>
               <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('title') }"
-                  @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾' }}</button>
+                  @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('title')">↺</button>
               </div>
             </div>
@@ -46,7 +47,8 @@
               <h3>{{ t('config.filters') }} ({{ configStore.config.filters.length }})</h3>
               <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('filters') }"
-                  @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾' }}</button>
+                  @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('filters')">↺</button>
               </div>
             </div>
@@ -69,8 +71,10 @@
               <h3>{{ t('config.timeSlice') }} ({{ selectedDateCols.length || dateCols.length }})</h3>
               <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('dateColumn') }"
-                  @click="configStore.saveSection('dateColumn')">{{ configStore.isSectionSaved('dateColumn') ? '✅' : '💾' }}</button>
-                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('dateColumn')">↺</button>
+                  @click="configStore.saveSection('dateColumn')">{{ configStore.isSectionSaved('dateColumn') ? '✅' :
+                    '💾' }}</button>
+                <button class="btn btn-sm btn-reset-sec"
+                  @click="configStore.resetSectionToAuto('dateColumn')">↺</button>
               </div>
             </div>
             <div v-show="isSectionOpen('dateColumn')" class="section-body">
@@ -78,8 +82,8 @@
               <div class="filter-chips">
                 <label v-for="col in dateCols" :key="col" class="chip"
                   :class="{ active: selectedDateCols.includes(col) }">
-                  <input type="checkbox" :checked="selectedDateCols.includes(col)"
-                    @change="toggleDateCol(col)" hidden />
+                  <input type="checkbox" :checked="selectedDateCols.includes(col)" @change="toggleDateCol(col)"
+                    hidden />
                   {{ col }}
                 </label>
               </div>
@@ -103,54 +107,54 @@
             <div v-show="isSectionOpen('metricDefaults')" class="section-body">
               <p class="sec-desc">{{ t('config.globalMetricHint') }}</p>
               <div class="metric-defaults-table">
-              <div class="md-header">
-                <span class="md-col-name">{{ t('config.metricColumn') }}</span>
-                <span class="md-col-fmt">{{ t('config.format') }}</span>
-                <span class="md-col-unit">{{ t('config.unit') }}</span>
-                <span class="md-col-prefix">{{ t('config.prefix') }}</span>
-                <span class="md-col-dec">{{ t('config.decimals') }}</span>
-                <span class="md-col-cb"><label>KPI</label></span>
-                <span class="md-col-cb"><label>{{ t('config.sections.chart') }}</label></span>
-                <span class="md-col-cb"><label>{{ t('config.sections.table') }}</label></span>
+                <div class="md-header">
+                  <span class="md-col-name">{{ t('config.metricColumn') }}</span>
+                  <span class="md-col-fmt">{{ t('config.format') }}</span>
+                  <span class="md-col-unit">{{ t('config.unit') }}</span>
+                  <span class="md-col-prefix">{{ t('config.prefix') }}</span>
+                  <span class="md-col-dec">{{ t('config.decimals') }}</span>
+                  <span class="md-col-cb"><label>KPI</label></span>
+                  <span class="md-col-cb"><label>{{ t('config.sections.chart') }}</label></span>
+                  <span class="md-col-cb"><label>{{ t('config.sections.table') }}</label></span>
+                </div>
+                <div v-for="col in allMetricCols" :key="col" class="md-row">
+                  <span class="md-col-name">{{ col }}</span>
+                  <select v-model="metricDefaultsForm[col].format" class="input input-sm md-sel">
+                    <option value="">{{ t('config.formatOptions.unset') }}</option>
+                    <option value="number">{{ t('config.formatOptions.number') }}</option>
+                    <option value="integer">{{ t('config.formatOptions.integer') }}</option>
+                    <option value="percent">{{ t('config.formatOptions.percent') }}</option>
+                    <option value="currency">{{ t('config.formatOptions.currency') }}</option>
+                  </select>
+                  <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].unit"
+                    class="input input-sm md-sel">
+                    <option value="yuan">{{ t('config.unitOptions.yuan') }}</option>
+                    <option value="wan">{{ t('config.unitOptions.wan') }}</option>
+                    <option value="yi">{{ t('config.unitOptions.yi') }}</option>
+                  </select>
+                  <span v-else class="md-na">—</span>
+                  <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].prefix"
+                    class="input input-sm md-sel">
+                    <option value="">{{ t('common.none') }}</option>
+                    <option value="¥">¥</option>
+                    <option value="$">$</option>
+                    <option value="€">€</option>
+                    <option value="£">£</option>
+                  </select>
+                  <span v-else class="md-na">—</span>
+                  <input v-model.number="metricDefaultsForm[col].decimals" type="number" class="input input-sm md-dec"
+                    min="0" max="6" step="1" />
+                  <label class="md-cb" :class="{ active: hasSection(col, 'kpi') }">
+                    <input type="checkbox" :checked="hasSection(col, 'kpi')" @change="toggleSection(col, 'kpi')" />
+                  </label>
+                  <label class="md-cb" :class="{ active: hasSection(col, 'chart') }">
+                    <input type="checkbox" :checked="hasSection(col, 'chart')" @change="toggleSection(col, 'chart')" />
+                  </label>
+                  <label class="md-cb" :class="{ active: hasSection(col, 'table') }">
+                    <input type="checkbox" :checked="hasSection(col, 'table')" @change="toggleSection(col, 'table')" />
+                  </label>
+                </div>
               </div>
-              <div v-for="col in allMetricCols" :key="col" class="md-row">
-                <span class="md-col-name">{{ col }}</span>
-                <select v-model="metricDefaultsForm[col].format" class="input input-sm md-sel">
-                  <option value="">{{ t('config.formatOptions.unset') }}</option>
-                  <option value="number">{{ t('config.formatOptions.number') }}</option>
-                  <option value="integer">{{ t('config.formatOptions.integer') }}</option>
-                  <option value="percent">{{ t('config.formatOptions.percent') }}</option>
-                  <option value="currency">{{ t('config.formatOptions.currency') }}</option>
-                </select>
-                <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].unit"
-                  class="input input-sm md-sel">
-                  <option value="yuan">{{ t('config.unitOptions.yuan') }}</option>
-                  <option value="wan">{{ t('config.unitOptions.wan') }}</option>
-                  <option value="yi">{{ t('config.unitOptions.yi') }}</option>
-                </select>
-                <span v-else class="md-na">—</span>
-                <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].prefix"
-                  class="input input-sm md-sel">
-                  <option value="">{{ t('common.none') }}</option>
-                  <option value="¥">¥</option>
-                  <option value="$">$</option>
-                  <option value="€">€</option>
-                  <option value="£">£</option>
-                </select>
-                <span v-else class="md-na">—</span>
-                <input v-model.number="metricDefaultsForm[col].decimals" type="number" class="input input-sm md-dec"
-                  min="0" max="6" step="1" />
-                <label class="md-cb" :class="{ active: hasSection(col, 'kpi') }">
-                  <input type="checkbox" :checked="hasSection(col, 'kpi')" @change="toggleSection(col, 'kpi')" />
-                </label>
-                <label class="md-cb" :class="{ active: hasSection(col, 'chart') }">
-                  <input type="checkbox" :checked="hasSection(col, 'chart')" @change="toggleSection(col, 'chart')" />
-                </label>
-                <label class="md-cb" :class="{ active: hasSection(col, 'table') }">
-                  <input type="checkbox" :checked="hasSection(col, 'table')" @change="toggleSection(col, 'table')" />
-                </label>
-              </div>
-            </div>
             </div>
           </section>
 
@@ -158,33 +162,35 @@
           <section class="config-section">
             <div class="section-header-row" @click="toggleConfigSection('kpis')">
               <span class="sec-arrow">{{ isSectionOpen('kpis') ? '▼' : '▶' }}</span>
-              <h3>{{ t('config.kpiCards') }} ({{ configStore.config.kpis.length }}) <span class="drag-hint">{{ t('config.dragHint') }}</span></h3>
+              <h3>{{ t('config.kpiCards') }} ({{ configStore.config.kpis.length }}) <span class="drag-hint">{{
+                t('config.dragHint') }}</span></h3>
               <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('kpis') }"
-                  @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾' }}</button>
+                  @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('kpis')">↺</button>
               </div>
             </div>
             <div v-show="isSectionOpen('kpis')" class="section-body">
-            <div class="kpi-list" data-drag-list="kpi">
-              <div v-for="(kpi, i) in configStore.config.kpis" :key="i" class="kpi-item" :data-drag-idx="i"
-                :class="{ 'drag-placeholder': dragPlaceholder === i && dragList === 'kpi' }">
-                <span class="drag-handle" :title="t('config.dragTitle')"
-                  @pointerdown.prevent="onPointerDown($event, i, 'kpi')">⋮⋮</span>
-                <div class="kpi-item-main">
-                  <div class="kpi-item-row">
-                    <span class="kpi-item-label">{{ kpi.label }}</span>
-                    <span v-if="kpi.formula" class="kpi-formula-tag">公式</span>
-                    <span v-else class="kpi-col-tag">{{ kpi.column }}</span>
-                    <span class="kpi-agg-tag">{{ aggLabel(kpi.agg) }}</span>
-                    <span v-if="kpi.filter" class="kpi-filter-tag" :title="kpi.filter">{{ t('common.filter') }}</span>
-                    <button class="btn-icon" @click="openEditKpi(i)" :title="t('config.edit')">✎</button>
-                    <button class="btn-icon" @click="configStore.removeKpi(i)" :title="t('config.remove')">✕</button>
+              <div class="kpi-list" data-drag-list="kpi">
+                <div v-for="(kpi, i) in configStore.config.kpis" :key="i" class="kpi-item" :data-drag-idx="i"
+                  :class="{ 'drag-placeholder': dragPlaceholder === i && dragList === 'kpi' }">
+                  <span class="drag-handle" :title="t('config.dragTitle')"
+                    @pointerdown.prevent="onPointerDown($event, i, 'kpi')">⋮⋮</span>
+                  <div class="kpi-item-main">
+                    <div class="kpi-item-row">
+                      <span class="kpi-item-label">{{ kpi.label }}</span>
+                      <span v-if="kpi.formula" class="kpi-formula-tag">公式</span>
+                      <span v-else class="kpi-col-tag">{{ kpi.column }}</span>
+                      <span class="kpi-agg-tag">{{ aggLabel(kpi.agg) }}</span>
+                      <span v-if="kpi.filter" class="kpi-filter-tag" :title="kpi.filter">{{ t('common.filter') }}</span>
+                      <button class="btn-icon" @click="openEditKpi(i)" :title="t('config.edit')">✎</button>
+                      <button class="btn-icon" @click="configStore.removeKpi(i)" :title="t('config.remove')">✕</button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <button class="btn btn-sm btn-add" @click="openAddKpi">{{ t('config.addKPICard') }}</button>
+              <button class="btn btn-sm btn-add" @click="openAddKpi">{{ t('config.addKPICard') }}</button>
             </div>
           </section>
 
@@ -192,39 +198,41 @@
           <section class="config-section">
             <div class="section-header-row" @click="toggleConfigSection('charts')">
               <span class="sec-arrow">{{ isSectionOpen('charts') ? '▼' : '▶' }}</span>
-              <h3>{{ t('config.charts') }} ({{ configStore.config.charts.length }}) <span class="drag-hint">{{ t('config.dragHint') }}</span></h3>
+              <h3>{{ t('config.charts') }} ({{ configStore.config.charts.length }}) <span class="drag-hint">{{
+                t('config.dragHint') }}</span></h3>
               <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('charts') }"
-                  @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾' }}</button>
+                  @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('charts')">↺</button>
               </div>
             </div>
             <div v-show="isSectionOpen('charts')" class="section-body">
-            <div class="chart-list" data-drag-list="chart">
-              <div v-for="(chart, ci) in configStore.config.charts" :key="chart.id" class="chart-item"
-                :data-drag-idx="ci" :class="{ 'drag-placeholder': dragPlaceholder === ci && dragList === 'chart' }">
-                <span class="drag-handle" :title="t('config.dragTitle')"
-                  @pointerdown.prevent="onPointerDown($event, ci, 'chart')">⋮⋮</span>
-                <div class="chart-item-body">
-                  <div class="chart-item-header">
-                    <span class="chart-type-badge">{{ chartTypeLabel(chart.type) }}</span>
-                    <span class="chart-title">{{ chart.title }}</span>
-                    <button class="btn-icon" @click="openEditChart(chart)" :title="t('config.edit')">✎</button>
-                    <button class="btn-icon" @click="configStore.removeChart(chart.id)"
-                      :title="t('config.remove')">✕</button>
-                  </div>
-                  <div class="chart-item-detail">
-                    <span v-if="chart.dimension">{{ t('config.dimension') }}: {{ chart.dimension }}</span>
-                    <span v-if="chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metrics.join(', ') }}</span>
-                    <span v-if="chart.metric && !chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metric
-                    }}</span>
-                    <span v-if="chart.dateColumn">{{ t('config.date') }} {{ chart.dateColumn }}</span>
-                    <span v-if="chart.k">K: {{ chart.k }}</span>
+              <div class="chart-list" data-drag-list="chart">
+                <div v-for="(chart, ci) in configStore.config.charts" :key="chart.id" class="chart-item"
+                  :data-drag-idx="ci" :class="{ 'drag-placeholder': dragPlaceholder === ci && dragList === 'chart' }">
+                  <span class="drag-handle" :title="t('config.dragTitle')"
+                    @pointerdown.prevent="onPointerDown($event, ci, 'chart')">⋮⋮</span>
+                  <div class="chart-item-body">
+                    <div class="chart-item-header">
+                      <span class="chart-type-badge">{{ chartTypeLabel(chart.type) }}</span>
+                      <span class="chart-title">{{ chart.title }}</span>
+                      <button class="btn-icon" @click="openEditChart(chart)" :title="t('config.edit')">✎</button>
+                      <button class="btn-icon" @click="configStore.removeChart(chart.id)"
+                        :title="t('config.remove')">✕</button>
+                    </div>
+                    <div class="chart-item-detail">
+                      <span v-if="chart.dimension">{{ t('config.dimension') }}: {{ chart.dimension }}</span>
+                      <span v-if="chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metrics.join(', ') }}</span>
+                      <span v-if="chart.metric && !chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metric
+                        }}</span>
+                      <span v-if="chart.dateColumn">{{ t('config.date') }} {{ chart.dateColumn }}</span>
+                      <span v-if="chart.k">K: {{ chart.k }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <button class="btn btn-sm btn-add" @click="openAddChart">{{ t('config.addChart') }}</button>
+              <button class="btn btn-sm btn-add" @click="openAddChart">{{ t('config.addChart') }}</button>
             </div>
           </section>
 
@@ -235,131 +243,137 @@
               <h3>{{ t('config.sections.table') }}</h3>
               <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('table') }"
-                  @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾' }}</button>
+                  @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾'
+                  }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('table')">↺</button>
               </div>
             </div>
             <div v-show="isSectionOpen('table')" class="section-body">
 
-            <!-- 显示列：卡片式布局（轻量化） -->
-            <div class="table-col-header">
-              <span>{{ t('config.displayColumns') }} ({{ configStore.config.table.columns.length }}/{{ allHeaders.length
-              }})</span>
-              <button class="btn-link" @click="configStore.config.table.columns = allHeaders.slice()">{{
-                t('common.selectAll') }}</button>
-              <button class="btn-link" @click="configStore.config.table.columns = []">{{ t('common.clearAll')
-                }}</button>
-            </div>
-            <div class="table-col-grid">
-              <div v-for="col in allHeaders" :key="col" class="table-col-card" :class="[
-                'role-' + (dataStore.dataSet?.classifications[col]?.role || 'ignore'),
-              ]" @click="configStore.toggleTableColumn(col)">
-                <label class="tcc-cb" @click.stop>
-                  <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
-                    @change="configStore.toggleTableColumn(col)" />
-                </label>
-                <div class="tcc-row">
-                  <div class="tcc-icon">
-                    <span>{{ roleIcon(dataStore.dataSet?.classifications[col]?.role) }}</span>
-                  </div>
-                  <div class="tcc-body">
-                    <div class="tcc-name">{{ col }}</div>
-                    <div class="tcc-meta">
-                      {{ typeLabel(dataStore.dataSet?.classifications[col]?.type) }} · {{
-                        roleLabel(dataStore.dataSet?.classifications[col]?.role) }}
-                    </div>
-                  </div>
-                  <!-- 颜色选择器：背景色 + 字体色 -->
-                  <div class="tcc-color" @click.stop>
-                    <input type="color" class="color-picker-mini"
-                      :value="configStore.config.table.columnColors?.[col] || '#ffffff'"
-                      @input="(e) => configStore.setColumnColor(col, (e.target as HTMLInputElement).value)"
-                      :title="t('config.columnColor')" />
-                    <input type="color" class="color-picker-mini tcc-text-color"
-                      :value="configStore.config.table.columnTextColors?.[col] || '#000000'"
-                      @input="(e) => configStore.setColumnTextColor(col, (e.target as HTMLInputElement).value)"
-                      :title="t('config.columnTextColor')" />
-                    <button v-if="configStore.config.table.columnColors?.[col] || configStore.config.table.columnTextColors?.[col]"
-                      class="tcc-color-clear"
-                      @click.stop="configStore.setColumnColor(col, ''); configStore.setColumnTextColor(col, '')"
-                      :title="t('config.removeColor')">✕</button>
-                  </div>
-                </div>
-                <!-- 列条件着色规则（折叠） -->
-                <div class="tcc-rule-area" v-if="dataStore.dataSet?.classifications[col]?.type === 'numeric'">
-                  <button class="tcc-rule-toggle"
-                    :class="{ active: expandedColRules.has(col) }"
-                    @click.stop="toggleColRules(col)">
-                    <span class="tcc-rule-icon">{{ expandedColRules.has(col) ? '▼' : '▶' }}</span>
-                    <span>{{ t('config.columnTextRule') }}</span>
-                    <span v-if="ruleCount(col)" class="tcc-rule-count">{{ ruleCount(col) }}</span>
-                  </button>
-                  <div v-if="expandedColRules.has(col)" class="tcc-rule-list" @click.stop>
-                    <div v-for="(rule, ri) in (configStore.config.table.columnTextRules?.[col] || [])" :key="ri"
-                      class="tcc-rule-row">
-                      <input type="text" class="input input-xs tcc-rule-cond" :value="rule.condition"
-                        :placeholder="t('config.columnTextRulePlaceholder')"
-                        @input="(e) => configStore.setColumnTextRule(col, ri, { condition: (e.target as HTMLInputElement).value, color: rule.color })" />
-                      <input type="color" class="color-picker-mini rule-text-color" :value="rule.color"
-                        @input="(e) => configStore.setColumnTextRule(col, ri, { condition: rule.condition, color: (e.target as HTMLInputElement).value })"
-                        :title="t('config.columnTextColor')" />
-                      <button class="btn-icon tcc-rule-remove" @click="configStore.removeColumnTextRule(col, ri)">✕</button>
-                    </div>
-                    <button class="btn-link tcc-rule-add"
-                      @click="configStore.setColumnTextRule(col, (configStore.config.table.columnTextRules?.[col]?.length || 0), { condition: '', color: '#333333' })">
-                      {{ t('config.columnTextRuleAdd') }}</button>
-                  </div>
-                </div>
+              <!-- 显示列：卡片式布局（轻量化） -->
+              <div class="table-col-header">
+                <span>{{ t('config.displayColumns') }} ({{ configStore.config.table.columns.length }}/{{
+                  allHeaders.length
+                  }})</span>
+                <button class="btn-link" @click="configStore.config.table.columns = allHeaders.slice()">{{
+                  t('common.selectAll') }}</button>
+                <button class="btn-link" @click="configStore.config.table.columns = []">{{ t('common.clearAll')
+                  }}</button>
               </div>
-            </div>
-
-            <!-- 行数限制：All / 限定数量 toggle -->
-            <div class="table-config-bottom">
-              <div class="table-row-limit-wrap">
-                <label>{{ t('config.rowLimit') }}</label>
-                <div class="row-limit-toggle" @click="configStore.config.table.rowLimit = configStore.config.table.rowLimit === 'all' ? 15 : 'all'">
-                  <span class="rlt-knob" :class="{ right: configStore.config.table.rowLimit !== 'all' }"></span>
-                  <span class="rlt-label left" :class="{ active: configStore.config.table.rowLimit === 'all' }">All</span>
-                  <span class="rlt-label right" :class="{ active: configStore.config.table.rowLimit !== 'all' }">{{ typeof configStore.config.table.rowLimit === 'number' ? configStore.config.table.rowLimit : 15 }}</span>
+              <div class="table-col-grid">
+                <div v-for="col in allHeaders" :key="col" class="table-col-card" :class="[
+                  'role-' + (dataStore.dataSet?.classifications[col]?.role || 'ignore'),
+                ]" @click="configStore.toggleTableColumn(col)">
+                  <label class="tcc-cb" @click.stop>
+                    <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
+                      @change="configStore.toggleTableColumn(col)" />
+                  </label>
+                  <!-- Row 1: icon + name + meta -->
+                  <div class="tcc-row">
+                    <div class="tcc-icon">
+                      <span>{{ roleIcon(dataStore.dataSet?.classifications[col]?.role) }}</span>
+                    </div>
+                    <div class="tcc-body">
+                      <div class="tcc-name">{{ col }}</div>
+                      <div class="tcc-meta">
+                        {{ typeLabel(dataStore.dataSet?.classifications[col]?.type) }} · {{
+                          roleLabel(dataStore.dataSet?.classifications[col]?.role) }}
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Row 2: 颜色 + 汇总聚合 -->
+                  <div class="tcc-actions" @click.stop>
+                    <div class="tcc-color">
+                      <input type="color" class="color-picker-mini"
+                        :value="configStore.config.table.columnColors?.[col] || '#ffffff'"
+                        @input="(e) => configStore.setColumnColor(col, (e.target as HTMLInputElement).value)"
+                        :title="t('config.columnColor')" />
+                      <input type="color" class="color-picker-mini tcc-text-color"
+                        :value="configStore.config.table.columnTextColors?.[col] || '#000000'"
+                        @input="(e) => configStore.setColumnTextColor(col, (e.target as HTMLInputElement).value)"
+                        :title="t('config.columnTextColor')" />
+                      <button
+                        v-if="configStore.config.table.columnColors?.[col] || configStore.config.table.columnTextColors?.[col]"
+                        class="tcc-color-clear"
+                        @click.stop="configStore.setColumnColor(col, ''); configStore.setColumnTextColor(col, '')"
+                        :title="t('config.removeColor')">✕</button>
+                    </div>
+                    <select class="tcc-summary-sel" :value="(configStore.config.table.summaryAggs || {})[col] || ''"
+                      @change="(e) => configStore.setSummaryAgg(col, (e.target as HTMLSelectElement).value as any)"
+                      :title="t('config.summaryRow')">
+                      <option value="">{{ t('common.none') }}</option>
+                      <option value="sum">{{ t('config.aggSum') }}</option>
+                      <option value="avg">{{ t('config.aggAvg') }}</option>
+                      <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
+                      <option value="min">{{ t('config.aggMin') }}</option>
+                      <option value="max">{{ t('config.aggMax') }}</option>
+                    </select>
+                  </div>
+                  <!-- 列条件着色规则（折叠） -->
+                  <div class="tcc-rule-area" v-if="dataStore.dataSet?.classifications[col]?.type === 'numeric'">
+                    <button class="tcc-rule-toggle" :class="{ active: expandedColRules.has(col) }"
+                      @click.stop="toggleColRules(col)">
+                      <span class="tcc-rule-icon">{{ expandedColRules.has(col) ? '▼' : '▶' }}</span>
+                      <span>{{ t('config.columnTextRule') }}</span>
+                      <span v-if="ruleCount(col)" class="tcc-rule-count">{{ ruleCount(col) }}</span>
+                    </button>
+                    <div v-if="expandedColRules.has(col)" class="tcc-rule-list" @click.stop>
+                      <div v-for="(rule, ri) in (configStore.config.table.columnTextRules?.[col] || [])" :key="ri"
+                        class="tcc-rule-row">
+                        <input type="text" class="input input-xs tcc-rule-cond" :value="rule.condition"
+                          :placeholder="t('config.columnTextRulePlaceholder')"
+                          @input="(e) => configStore.setColumnTextRule(col, ri, { condition: (e.target as HTMLInputElement).value, color: rule.color })" />
+                        <input type="color" class="color-picker-mini rule-text-color" :value="rule.color"
+                          @input="(e) => configStore.setColumnTextRule(col, ri, { condition: rule.condition, color: (e.target as HTMLInputElement).value })"
+                          :title="t('config.columnTextColor')" />
+                        <button class="btn-icon tcc-rule-remove"
+                          @click="configStore.removeColumnTextRule(col, ri)">✕</button>
+                      </div>
+                      <button class="btn-link tcc-rule-add"
+                        @click="configStore.setColumnTextRule(col, (configStore.config.table.columnTextRules?.[col]?.length || 0), { condition: '', color: '#333333' })">
+                        {{ t('config.columnTextRuleAdd') }}</button>
+                    </div>
+                  </div>
                 </div>
-                <select v-if="typeof configStore.config.table.rowLimit === 'number'" v-model.number="configStore.config.table.rowLimit" class="input select-sm" style="width:70px">
-                  <option v-for="n in [5,10,15,20,30,50,100,200,500]" :key="n" :value="n">{{ n }}</option>
-                </select>
               </div>
 
               <!-- 行条件颜色 -->
-              <div class="table-row-cond-wrap">
-                <label>{{ t('config.rowConditionColor') }}</label>
-                <div class="row-colors-list">
-                  <div v-for="(rule, ri) in (configStore.config.table.rowConditionColors || [])" :key="'rc-' + ri" class="color-rule-row">
-                    <span class="rule-index">{{ ri + 1 }}</span>
-                    <input type="text" class="input input-xs rule-cond-input" :value="rule.condition"
-                      :placeholder="t('config.rowConditionPlaceholder')" list="row-cond-cols"
-                      @input="(e) => rule.condition = (e.target as HTMLInputElement).value" />
-                    <input type="color" class="color-picker-mini" :value="rule.color"
-                      @input="(e) => rule.color = (e.target as HTMLInputElement).value"
-                      :title="t('config.columnColor')" />
-                    <input type="color" class="color-picker-mini rule-text-color" :value="rule.textColor || '#000000'"
-                      @input="(e) => rule.textColor = (e.target as HTMLInputElement).value"
-                      :title="t('config.columnTextColor')" />
-                    <button class="btn-icon rule-remove" @click="configStore.removeRowConditionColor(ri)" :title="t('config.removeColor')">✕</button>
+              <div class="table-config-bottom">
+                <div class="table-row-cond-wrap">
+                  <label>{{ t('config.rowConditionColor') }}</label>
+                  <div class="row-colors-list">
+                    <div v-for="(rule, ri) in (configStore.config.table.rowConditionColors || [])" :key="'rc-' + ri"
+                      class="color-rule-row">
+                      <span class="rule-index">{{ ri + 1 }}</span>
+                      <input type="text" class="input input-xs rule-cond-input" :value="rule.condition"
+                        :placeholder="t('config.rowConditionPlaceholder')" list="row-cond-cols"
+                        @input="(e) => rule.condition = (e.target as HTMLInputElement).value" />
+                      <input type="color" class="color-picker-mini" :value="rule.color"
+                        @input="(e) => rule.color = (e.target as HTMLInputElement).value"
+                        :title="t('config.columnColor')" />
+                      <input type="color" class="color-picker-mini rule-text-color" :value="rule.textColor || '#000000'"
+                        @input="(e) => rule.textColor = (e.target as HTMLInputElement).value"
+                        :title="t('config.columnTextColor')" />
+                      <button class="btn-icon rule-remove" @click="configStore.removeRowConditionColor(ri)"
+                        :title="t('config.removeColor')">✕</button>
+                    </div>
+                    <button class="btn-link tcc-rule-add"
+                      @click="configStore.addRowConditionColor({ condition: '', color: '#ffff00' })">
+                      {{ t('config.rowConditionColorAdd') }}</button>
+                    <datalist id="row-cond-cols">
+                      <template v-for="col in filterableColumns" :key="col">
+                        <option :value="col + ' = '" />
+                        <option :value="col + ' != '" />
+                        <option v-if="isNumericCol(col)" :value="col + ' > '" />
+                        <option v-if="isNumericCol(col)" :value="col + ' < '" />
+                        <option v-if="!isNumericCol(col)" :value="col + ' in '" />
+                        <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
+                      </template>
+                    </datalist>
                   </div>
-                  <button class="btn-link tcc-rule-add"
-                    @click="configStore.addRowConditionColor({ condition: '', color: '#ffff00' })">
-                    {{ t('config.rowConditionColorAdd') }}</button>
-                  <datalist id="row-cond-cols">
-                    <template v-for="col in filterableColumns" :key="col">
-                      <option :value="col + ' = '" />
-                      <option :value="col + ' != '" />
-                      <option v-if="isNumericCol(col)" :value="col + ' > '" />
-                      <option v-if="isNumericCol(col)" :value="col + ' < '" />
-                      <option v-if="!isNumericCol(col)" :value="col + ' in '" />
-                      <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
-                    </template>
-                  </datalist>
                 </div>
               </div>
-            </div>
             </div>
           </section>
         </div>
@@ -372,7 +386,9 @@
               <button class="btn btn-primary btn-sm" @click="goToDashboard">{{ t('config.generateArrow') }}</button>
             </div>
             <div class="save-status" v-if="allSaved">{{ t('config.savedAll') }}</div>
-            <div class="save-status unsaved" v-else>{{ t('config.savedPartial', { n: savedCount, total: totalSections }) }}</div>
+            <div class="save-status unsaved" v-else>{{ t('config.savedPartial', { n: savedCount, total: totalSections })
+              }}
+            </div>
 
             <!-- 筛选条件预览 -->
             <div v-if="configStore.config.filters.length > 0" class="preview-section">
@@ -394,7 +410,7 @@
             <div v-if="previewKpis.length > 0" class="preview-section">
               <h4 class="ps-title">{{ t('config.kpiCards') }}</h4>
               <div class="preview-kpi-row">
-                <div v-for="(kpi, i) in previewKpis" :key="'pk-'+i" class="preview-kpi-card">
+                <div v-for="(kpi, i) in previewKpis" :key="'pk-' + i" class="preview-kpi-card">
                   <div class="pk-label">{{ kpi.label }}</div>
                   <div class="pk-value" style="font-size:16px">{{ formatPreviewValue(kpi) }}</div>
                 </div>
@@ -490,6 +506,7 @@
                     <option value="sum">{{ t('config.aggSum') }}</option>
                     <option value="avg">{{ t('config.aggAvg') }}</option>
                     <option value="count">{{ t('config.aggCount') }}</option>
+                    <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
                     <option value="min">{{ t('config.aggMin') }}</option>
                     <option value="max">{{ t('config.aggMax') }}</option>
                   </select>
@@ -499,7 +516,7 @@
                     :title="t('config.remove')">✕</button>
                 </div>
                 <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">{{ t('config.addVariable')
-                }}</button>
+                  }}</button>
 
                 <div class="formula-label">{{ t('config.sharedFilter') }} <span class="formula-hint">{{
                   t('config.sharedFilterHint') }}</span></div>
@@ -608,6 +625,7 @@
                       <option value="sum">{{ t('config.aggSum') }}</option>
                       <option value="avg">{{ t('config.aggAvg') }}</option>
                       <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
                       <option value="min">{{ t('config.aggMin') }}</option>
                       <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
@@ -638,6 +656,7 @@
                       <option value="sum">{{ t('config.aggSum') }}</option>
                       <option value="avg">{{ t('config.aggAvg') }}</option>
                       <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
                       <option value="min">{{ t('config.aggMin') }}</option>
                       <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
@@ -663,6 +682,7 @@
                       <option value="sum">{{ t('config.aggSum') }}</option>
                       <option value="avg">{{ t('config.aggAvg') }}</option>
                       <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
                       <option value="min">{{ t('config.aggMin') }}</option>
                       <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
@@ -690,6 +710,7 @@
                       <option value="sum">{{ t('config.aggSum') }}</option>
                       <option value="avg">{{ t('config.aggAvg') }}</option>
                       <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
                       <option value="min">{{ t('config.aggMin') }}</option>
                       <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
@@ -733,6 +754,7 @@
                       <option value="sum">{{ t('config.aggSum') }}</option>
                       <option value="avg">{{ t('config.aggAvg') }}</option>
                       <option value="count">{{ t('config.aggCount') }}</option>
+                      <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
                       <option value="min">{{ t('config.aggMin') }}</option>
                       <option value="max">{{ t('config.aggMax') }}</option>
                     </select>
@@ -1017,6 +1039,7 @@ const KPI_AGG_OPTIONS = [
   { value: 'sum', labelKey: 'config.aggSum' },
   { value: 'avg', labelKey: 'config.aggAvg' },
   { value: 'count', labelKey: 'config.aggCount' },
+  { value: 'unique_count', labelKey: 'config.aggUniqueCount' },
   { value: 'min', labelKey: 'config.aggMin' },
   { value: 'max', labelKey: 'config.aggMax' },
 ]
@@ -1285,13 +1308,43 @@ function resetChartForm() {
   chartForm.dateColumn = dateCols.value[0] || ''
   chartForm.agg = 'sum'
   chartForm.k = 3
-  chartForm.clusterMetrics = []
+  chartForm.clusterMetrics = allMetricCols.value.slice(0, 2)
   chartForm.filter = ''
   chartForm.format = 'global'
   chartForm.unit = 'yuan'
   chartForm.metricFormats = {}
   chartForm.metricAggs = {}
+  // 初始化选中指标的聚合默认值
+  initMetricAggs()
 }
+
+/** 为 chartForm.metrics / clusterMetrics 中没有 agg 的指标补充默认 'sum' */
+function initMetricAggs() {
+  for (const m of chartForm.metrics) {
+    if (!chartForm.metricAggs[m]) chartForm.metricAggs[m] = 'sum'
+  }
+  for (const m of chartForm.clusterMetrics) {
+    if (!chartForm.metricAggs[m]) chartForm.metricAggs[m] = 'sum'
+  }
+  if (chartForm.metric && !chartForm.metricAggs[chartForm.metric]) {
+    chartForm.metricAggs[chartForm.metric] = 'sum'
+  }
+}
+
+// 图表类型切换时重置相关字段默认值（仅在新建/手动切换时生效，编辑时不重置）
+let _editingChart = false
+watch(() => chartForm.type, (newType) => {
+  if (_editingChart) return
+  // 重置 metric/metrics/clusterMetrics 避免旧类型数据残留
+  chartForm.metrics = allMetricCols.value.length > 0 ? [allMetricCols.value[0]] : []
+  chartForm.clusterMetrics = allMetricCols.value.slice(0, 2)
+  chartForm.metric = allMetricCols.value[0] || ''
+  chartForm.dimension = dimensionCols.value[0] || ''
+  chartForm.dateColumn = dateCols.value[0] || ''
+  chartForm.metricFormats = {}
+  chartForm.metricAggs = {}
+  initMetricAggs()
+})
 
 function openAddChart() {
   resetChartForm()
@@ -1300,6 +1353,7 @@ function openAddChart() {
 }
 
 function openEditChart(chart: ChartFormItem) {
+  _editingChart = true
   editingChartId.value = chart.id
   chartForm.type = chart.type
   chartForm.title = chart.title
@@ -1315,6 +1369,7 @@ function openEditChart(chart: ChartFormItem) {
   chartForm.unit = chart.unit || 'yuan'
   chartForm.metricFormats = chart.metricFormats ? JSON.parse(JSON.stringify(chart.metricFormats)) : {}
   chartForm.metricAggs = chart.metricAggs ? JSON.parse(JSON.stringify(chart.metricAggs)) : {}
+  _editingChart = false
   // 确保已选指标都有条目，旧数据中 '' 或 'number' 统一修正为 'global'
   chartForm.metrics.forEach((m) => {
     if (!chartForm.metricFormats[m] || !chartForm.metricFormats[m].format || chartForm.metricFormats[m].format === 'number') {
@@ -2074,7 +2129,7 @@ function cancelChartEdit() {
 .table-col-card {
   display: flex;
   flex-direction: column;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border-light);
   cursor: pointer;
@@ -2086,9 +2141,30 @@ function cancelChartEdit() {
 
 .tcc-row {
   display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+/* Actions row: colors + summary dropdown */
+.tcc-actions {
+  display: flex;
   align-items: center;
-  gap: 10px;
-  padding-right: 14px;
+  justify-content: space-between;
+  gap: 4px;
+  padding-left: 42px;
+}
+
+.tcc-summary-sel {
+  font-size: 11px;
+  padding: 1px 4px;
+  height: 22px;
+  width: 56px;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+  background: var(--bg);
+  color: var(--text-secondary);
+  cursor: pointer;
 }
 
 .table-col-card:hover {
@@ -2121,17 +2197,18 @@ function cancelChartEdit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
   background: rgba(128, 128, 128, .10);
-  font-size: 17px;
+  font-size: 15px;
   flex-shrink: 0;
 }
 
 .tcc-body {
   flex: 1;
   min-width: 0;
+  padding-top: 1px;
 }
 
 .tcc-name {
@@ -2149,11 +2226,11 @@ function cancelChartEdit() {
   margin-top: 1px;
 }
 
-/* Checkbox inside card — top right */
+/* Checkbox inside card — top left */
 .tcc-cb {
   position: absolute;
-  top: 6px;
-  right: 8px;
+  top: 8px;
+  left: 10px;
   z-index: 2;
   cursor: pointer;
 }
@@ -2169,21 +2246,21 @@ function cancelChartEdit() {
 .tcc-color {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   flex-shrink: 0;
-  margin-right: 6px;
 }
 
 .color-picker-mini {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 3px;
   padding: 1px;
   cursor: pointer;
   background: transparent;
   flex-shrink: 0;
 }
+
 .color-picker-mini.tcc-text-color,
 .color-picker-mini.rule-text-color {
   border-style: dashed;
@@ -2214,6 +2291,7 @@ function cancelChartEdit() {
   padding-top: 6px;
   margin-top: 6px;
 }
+
 .tcc-rule-toggle {
   display: flex;
   align-items: center;
@@ -2226,9 +2304,21 @@ function cancelChartEdit() {
   padding: 2px 0;
   width: 100%;
 }
-.tcc-rule-toggle:hover { color: var(--primary); }
-.tcc-rule-toggle.active { color: var(--primary); font-weight: 500; }
-.tcc-rule-icon { font-size: 8px; width: 10px; }
+
+.tcc-rule-toggle:hover {
+  color: var(--primary);
+}
+
+.tcc-rule-toggle.active {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.tcc-rule-icon {
+  font-size: 8px;
+  width: 10px;
+}
+
 .tcc-rule-count {
   background: var(--primary);
   color: #fff;
@@ -2239,33 +2329,43 @@ function cancelChartEdit() {
   min-width: 16px;
   text-align: center;
 }
+
 .tcc-rule-list {
   display: flex;
   flex-direction: column;
   gap: 3px;
   margin-top: 4px;
 }
+
 .tcc-rule-row {
   display: flex;
   align-items: center;
   gap: 4px;
 }
+
 .tcc-rule-cond {
   flex: 1;
   font-size: 11px;
   padding: 3px 6px;
   height: 24px;
 }
+
 .tcc-rule-row .color-picker-mini {
   width: 18px;
   height: 18px;
   padding: 0;
 }
+
 .tcc-rule-remove {
   font-size: 10px;
   opacity: 0.4;
 }
-.tcc-rule-remove:hover { opacity: 1; color: #ef4444; }
+
+.tcc-rule-remove:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+
 .tcc-rule-add {
   font-size: 11px;
   padding: 2px 0;
@@ -2287,7 +2387,7 @@ function cancelChartEdit() {
 .table-config-bottom {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   margin-top: 12px;
 }
 
@@ -2306,11 +2406,12 @@ function cancelChartEdit() {
   gap: 8px;
 }
 
-.table-row-cond-wrap > label {
+.table-row-cond-wrap>label {
   flex-shrink: 0;
   padding-top: 3px;
 }
-.table-row-cond-wrap > label,
+
+.table-row-cond-wrap>label,
 .table-row-limit-wrap label {
   font-size: 13px;
   color: var(--text-secondary);
@@ -2338,6 +2439,7 @@ function cancelChartEdit() {
   position: relative;
   user-select: none;
 }
+
 .rlt-knob {
   position: absolute;
   left: 2px;
@@ -2347,7 +2449,11 @@ function cancelChartEdit() {
   background: var(--primary);
   transition: left 0.2s;
 }
-.rlt-knob.right { left: 30px; }
+
+.rlt-knob.right {
+  left: 30px;
+}
+
 .rlt-label {
   flex: 1;
   text-align: center;
@@ -2357,7 +2463,10 @@ function cancelChartEdit() {
   z-index: 1;
   transition: color 0.2s;
 }
-.rlt-label.active { color: #fff; }
+
+.rlt-label.active {
+  color: #fff;
+}
 
 .rule-cond-input {
   flex: 1;
@@ -2455,10 +2564,12 @@ function cancelChartEdit() {
   gap: 6px;
   flex-wrap: wrap;
 }
+
 .pf-label {
   font-size: 12px;
   color: var(--text-secondary);
 }
+
 .pf-chip {
   font-size: 11px;
   padding: 2px 10px;
@@ -2471,6 +2582,7 @@ function cancelChartEdit() {
 .preview-section {
   margin-bottom: 14px;
 }
+
 .ps-title {
   font-size: 11px;
   font-weight: 600;

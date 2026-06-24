@@ -64,11 +64,11 @@ help: ## 📖 显示此帮助信息
 # ============================================================
 # 开发
 # ============================================================
-dev: ## 🚀 启动开发模式（Vite HMR + Tauri 热重载）
+dev: build-save ## 🚀 启动开发模式（Vite HMR + Tauri 热重载）
 	@echo "$(GREEN)▶ 启动 Tauri 开发模式...$(NC)"
 	npm run tauri dev
 
-frontend: ## 🎨 仅构建前端（Vite）
+frontend: build-save ## 🎨 仅构建前端（Vite）
 	@echo "$(GREEN)▶ 构建前端...$(NC)"
 	npm run build
 
@@ -82,11 +82,15 @@ tauri-dev: dev ## 🚀 同 dev，快捷别名
 # ============================================================
 # 构建
 # ============================================================
-build: ## 📦 完整构建（前端类型检查 + Vite + Rust debug）
+build-save: ## 📦 构建 standalone renderer（供 save 功能使用）
+	@echo "$(GREEN)▶ 构建 save 渲染器...$(NC)"
+	npm run build:save
+
+build: build-save ## 📦 完整构建（前端类型检查 + Vite + Rust debug）
 	@echo "$(GREEN)▶ 完整构建...$(NC)"
 	npm run tauri build
 
-build-release: ## 📦 发布构建（优化 + 剥离符号 + LTO）
+build-release: build-save ## 📦 发布构建（优化 + 剥离符号 + LTO）
 	@echo "$(GREEN)▶ 发布构建...$(NC)"
 	cd src-tauri && cargo build --release
 	@echo "$(YELLOW)📦 Release 产物: src-tauri/target/release/smartboard$(NC)"
@@ -267,7 +271,7 @@ ios-ipa-install: ## 📦 将指定 IPA 安装到真机 (用法: make ios-ipa-ins
 # ============================================================
 # 发布
 # ============================================================
-release: check ## 🚀 一键发布 (check → 桌面 + iOS)
+release: check build-save ## 🚀 一键发布 (check → 桌面 + iOS)
 	@echo "=== 构建桌面 Release ==="
 	npm run tauri build
 	@echo "=== 构建 iOS Release ==="
@@ -277,7 +281,7 @@ release: check ## 🚀 一键发布 (check → 桌面 + iOS)
 # ============================================================
 # 质量检查
 # ============================================================
-check: ## ✅ 前端 TypeScript 类型检查
+check: build-save ## ✅ 前端 TypeScript 类型检查
 	@echo "$(GREEN)▶ Vue TypeScript 类型检查...$(NC)"
 	npx vue-tsc --noEmit
 

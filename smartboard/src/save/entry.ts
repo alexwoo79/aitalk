@@ -37,7 +37,8 @@ interface DashboardData {
   metricDefaults: Record<string, any>
   tableColumns: string[]
   tableSortBy: string
-  tableRowLimit: number | 'all'
+  tableRowLimit?: number | 'all'
+  tableSummaryAggs?: Record<string, string>
   tableColColors?: Record<string, string>
   tableRowCondColors?: { condition: string; color: string }[]
   dateRange?: { column: string; min: string; max: string } | null
@@ -69,10 +70,85 @@ let DATA: DashboardData
 let filterValues: Record<string, string> = {}
 let condFilter = '', searchText = ''
 let sortCol = '', sortDir = false
-let tblSearch = '', tblCond = '', tblRowLimit: number | 'all' = 15
+let tblSearch = '', tblCond = '', tblSummaryAggs: Record<string, string> = {}
+
+// Aggregation label map (matches i18n keys)
+const AGGLABEL: Record<string, string> = {
+  sum: '求和', avg: '平均', count: '计数', unique_count: '唯一计数', min: '最小', max: '最大',
+}
 let tblCols: string[] = []
 let chartInstances: any[] = []
 let dateStart = '', dateEnd = ''
+
+// ====== Theme ======
+const THEME_KEY = 'smartboard-theme'
+function applyTheme(t: 'light' | 'dark') {
+  document.documentElement.setAttribute('data-theme', t)
+  localStorage.setItem(THEME_KEY, t)
+  const bt = document.getElementById('themeToggle')
+  if (bt) { bt.textContent = t === 'dark' ? '☀️' : '🌙'; bt.title = t === 'dark' ? '切换亮色主题' : '切换暗色主题' }
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'light'
+  applyTheme(cur === 'dark' ? 'light' : 'dark')
+}
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY) as 'light' | 'dark' | null
+  applyTheme(saved || 'light')
+}
+
+// ====== File Metadata Panel ======
+function renderFileMeta() {
+  const meta = (DATA as any)._fileMeta as Record<string, any> | undefined
+  const bar = document.getElementById('fileMetaBar')
+  if (!bar || !meta) return
+  bar.innerHTML = ''
+
+  const items: { label: string; icon: string; val: string }[] = []
+  if (meta.fileName) items.push({ label: '数据文件', icon: '📁', val: meta.fileName })
+  if (meta.generatedAt) {
+    const d = new Date(meta.generatedAt)
+    items.push({ label: '生成时间', icon: '🕐', val: d.toLocaleString('zh-CN') })
+  }
+  if (meta.appVersion) items.push({ label: '程序版本', icon: '📦', val: 'v' + meta.appVersion })
+  if (meta.rowCount) items.push({ label: '数据行', icon: '📊', val: String(meta.rowCount) })
+
+  // Summary chip
+  const chip = document.createElement('span')
+  chip.className = 'file-meta-chip'
+  chip.innerHTML = '<span class="fm-icon">ℹ️</span> 数据信息'
+  chip.title = '点击查看详情'
+  bar.appendChild(chip)
+
+  // Detail popup
+  const popup = document.createElement('span')
+  popup.className = 'file-meta-popup'
+  const detail = document.createElement('div')
+  detail.className = 'file-meta-detail'
+  const rows: string[] = []
+  if (meta.fileName) rows.push(`<div class="fm-row"><span class="fm-label">数据文件</span><span class="fm-val">${meta.fileName}</span></div>`)
+  if (meta.fileSize != null) {
+    const sz = meta.fileSize < 1024 ? meta.fileSize + ' B' : meta.fileSize < 1048576 ? (meta.fileSize / 1024).toFixed(1) + ' KB' : (meta.fileSize / 1048576).toFixed(2) + ' MB'
+    rows.push(`<div class="fm-row"><span class="fm-label">文件大小</span><span class="fm-val">${sz}</span></div>`)
+  }
+  if (meta.fileModified) rows.push(`<div class="fm-row"><span class="fm-label">文件修改时间</span><span class="fm-val">${new Date(meta.fileModified).toLocaleString('zh-CN')}</span></div>`)
+  if (meta.fileHash) rows.push(`<div class="fm-row"><span class="fm-label">文件哈希</span><span class="fm-val" style="font-family:monospace;font-size:11px">${meta.fileHash}</span></div>`)
+  if (meta.appVersion) rows.push(`<div class="fm-row"><span class="fm-label">程序版本</span><span class="fm-val">v${meta.appVersion}</span></div>`)
+  if (meta.generatedAt) rows.push(`<div class="fm-row"><span class="fm-label">报告生成时间</span><span class="fm-val">${new Date(meta.generatedAt).toLocaleString('zh-CN')}</span></div>`)
+  if (meta.rowCount) rows.push(`<div class="fm-row"><span class="fm-label">数据行数</span><span class="fm-val">${meta.rowCount}</span></div>`)
+  if (meta.colCount) rows.push(`<div class="fm-row"><span class="fm-label">数据列数</span><span class="fm-val">${meta.colCount}</span></div>`)
+  detail.innerHTML = rows.join('')
+  popup.appendChild(detail)
+  bar.appendChild(popup)
+
+  // Toggle popup on chip click
+  chip.onclick = (e: MouseEvent) => {
+    e.stopPropagation()
+    popup.classList.toggle('open')
+  }
+  // Close on outside click
+  document.addEventListener('click', () => popup.classList.remove('open'))
+}
 
 // ====== Filter logic (uses core/filter.ts) ======
 function matchRow(row: Record<string, string | number>, p: ReturnType<typeof parseFilter>): boolean {
@@ -170,6 +246,12 @@ function renderFilterBar() {
   const rb = document.createElement('button'); rb.className = 'btn'; rb.textContent = t('dashboard.resetFilter')
   rb.onclick = () => { filterValues = {}; condFilter = ''; searchText = ''; cf.value = ''; si.value = ''; refreshAll() }
   bar.appendChild(rb)
+  // Theme toggle
+  const tb = document.createElement('button'); tb.className = 'theme-toggle'; tb.id = 'themeToggle'
+  tb.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'
+  tb.title = document.documentElement.getAttribute('data-theme') === 'dark' ? '切换亮色主题' : '切换暗色主题'
+  tb.onclick = toggleTheme
+  bar.appendChild(tb)
   // Count
   const sp = document.createElement('span'); sp.className = 'filter-count'; sp.id = 'fc'; bar.appendChild(sp)
 }
@@ -332,7 +414,7 @@ function buildTsOption(td: TimeseriesData, chart: ChartSpec): any {
   const mD: (number | null)[] = [...td.ma, ...new Array(td.forecast.labels.length).fill(null)]
   const tD: (number | null)[] = [...td.trend, ...new Array(td.forecast.labels.length).fill(null)]
   const fD: (number | null)[] = [...new Array(td.labels.length - 1).fill(null), td.values[td.values.length - 1], ...td.forecast.values]
-  return {
+  const opt = {
     tooltip: { trigger: 'axis', backgroundColor: 'rgba(60,60,75,0.85)', borderColor: '#555', textStyle: { color: '#eee' },
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
@@ -352,10 +434,11 @@ function buildTsOption(td: TimeseriesData, chart: ChartSpec): any {
       { name: t('chart.series.forecast'), type: 'line', data: fD, lineStyle: { color: '#10B981', width: 2, type: 'dashed' }, itemStyle: { color: '#10B981' }, smooth: true, symbolSize: 6 },
     ],
   }
+  return opt
 }
 
 function buildDecileOption(dd: DecileData, chart: ChartSpec): any {
-  return {
+  const opt = {
     tooltip: { trigger: 'axis', backgroundColor: 'rgba(60,60,75,0.85)', borderColor: '#555', textStyle: { color: '#eee' },
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
@@ -375,6 +458,7 @@ function buildDecileOption(dd: DecileData, chart: ChartSpec): any {
       { name: t('chart.series.count'), type: 'line', yAxisIndex: 1, data: dd.counts, lineStyle: { color: COLORS[3], width: 2 }, itemStyle: { color: COLORS[3] }, smooth: true, symbolSize: 8, z: 1 },
     ],
   }
+  return opt
 }
 
 function buildClusterOption(cd: ClusterData, chart: ChartSpec): any {
@@ -392,7 +476,7 @@ function buildClusterOption(cd: ClusterData, chart: ChartSpec): any {
     symbolSize: 18, symbol: 'diamond',
     itemStyle: { color: '#1a202c', borderColor: '#fff', borderWidth: 2 }, z: 10,
   } as any)
-  return {
+  const opt = {
     tooltip: { formatter: (p: any) => { const xy = p.value; return `${p.seriesName}<br/>X: ${fmtCompact(xy[0])}<br/>Y: ${fmtCompact(xy[1])}` } },
     legend: { top: 0, left: 'center', textStyle: { fontSize: 11 } },
     grid: { left: 80, right: 20, top: 40, bottom: 50 },
@@ -401,6 +485,7 @@ function buildClusterOption(cd: ClusterData, chart: ChartSpec): any {
     toolbox: buildToolbox(),
     series,
   }
+  return opt
 }
 
 function renderCharts(rows: Record<string, string | number>[]) {
@@ -558,8 +643,12 @@ function toggleFullscreen(card: HTMLElement) {
   if (fsCard && fsCard !== card) fsCard.classList.remove('is-fullscreen')
   card.classList.toggle('is-fullscreen')
   fsCard = card.classList.contains('is-fullscreen') ? card : null
+  // 全屏切换后重绘图表以适配新尺寸
+  setTimeout(() => {
+    chartInstances.forEach(c => { try { c.resize() } catch (e) { /* ignore */ } })
+  }, 50)
 }
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && fsCard) { fsCard.classList.remove('is-fullscreen'); fsCard = null } })
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && fsCard) { fsCard.classList.remove('is-fullscreen'); fsCard = null; setTimeout(() => { chartInstances.forEach(c => { try { c.resize() } catch (e) { /* ignore */ } }) }, 50) } })
 
 // ====== Special chart render helpers ======
 function renderTsChart(card: HTMLElement, ch: ChartSpec, rows: Record<string, string | number>[], mc: string, pd: 'month' | 'quarter' | 'year') {
@@ -661,6 +750,16 @@ function removeOldElements(card: HTMLElement) {
 function renderTable(rows: Record<string, string | number>[]) {
   const el = document.getElementById('tableCard')!
   el.innerHTML = ''
+  // Double-click fullscreen
+  el.ondblclick = (e) => {
+    if ((e.target as HTMLElement).closest('input,select,button,details,summary')) return
+    el.classList.toggle('is-fullscreen')
+  }
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && el.classList.contains('is-fullscreen')) {
+      el.classList.remove('is-fullscreen')
+    }
+  })
   // Toolbar
   const tb = document.createElement('div'); tb.style.cssText = 'display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap'
   const th3 = document.createElement('h3'); th3.style.cssText = 'margin:0;font-size:15px'; tb.appendChild(th3); el.appendChild(tb)
@@ -672,10 +771,6 @@ function renderTable(rows: Record<string, string | number>[]) {
   const tbc = document.createElement('input'); tbc.type = 'text'; tbc.placeholder = t('dashboard.conditionPlaceholderShort') || 'Amount > 100'
   tbc.style.cssText = 'padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:160px'
   tbc.oninput = () => { tblCond = tbc.value; renderTableContent(rows, el, tb) }; tb.appendChild(tbc)
-  // RowLimit
-  const tbn = document.createElement('input'); tbn.type = 'number'; tbn.value = String(tblRowLimit === 'all' ? '' : tblRowLimit); tbn.min = '5'; tbn.max = '500'
-  tbn.style.cssText = 'padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:60px'
-  tbn.onchange = () => { tblRowLimit = tbn.value === '' || tbn.value === 'all' ? 'all' : (parseInt(tbn.value) || 15); renderTableContent(rows, el, tb) }; tb.appendChild(tbn)
   // Column picker
   const ccp = document.createElement('details'); ccp.style.cssText = 'font-size:12px'
   const ccs = document.createElement('summary'); ccs.textContent = `${t('dashboard.columnsLabel')} (${tblCols.length}/${DATA.tableColumns.length})`; ccp.appendChild(ccs)
@@ -691,6 +786,46 @@ function renderTable(rows: Record<string, string | number>[]) {
       renderTableContent(rows, el, tb)
     }; ccd.appendChild(l)
   }); ccp.appendChild(ccd); tb.appendChild(ccp)
+  // CSV download button
+  const csvBtn = document.createElement('button')
+  csvBtn.textContent = '⬇ CSV'
+  csvBtn.className = 'csv-download'
+  csvBtn.onclick = () => {
+    // 使用与 renderTableContent 完全相同的筛选+排序逻辑
+    let filtered = rows.slice()
+    if (tblSearch.trim()) {
+      const q = tblSearch.trim().toLowerCase()
+      filtered = filtered.filter(r => tblCols.some(c => { const v = r[c]; return v != null && String(v).toLowerCase().includes(q) }))
+    }
+    if (tblCond.trim()) filtered = applyConditionFilter(filtered, tblCond)
+    const sorted = filtered.slice()
+    if (sortCol) {
+      sorted.sort((a, b) => {
+        const va = getNumericVal(a[sortCol] as any), vb = getNumericVal(b[sortCol] as any)
+        if (!isNaN(va) && !isNaN(vb)) return (va - vb) * (sortDir ? -1 : 1)
+        return String(a[sortCol] ?? '').localeCompare(String(b[sortCol] ?? '')) * (sortDir ? -1 : 1)
+      })
+    }
+    const exportRows = sorted
+    const cols = tblCols
+    if (!exportRows.length || !cols.length) return
+    const BOM = '\uFEFF'
+    let csv = BOM + cols.join(',') + '\n'
+    for (const row of exportRows) {
+      csv += cols.map(c => {
+        const v = row[c]
+        if (v == null || v === '') return ''
+        const s = String(v)
+        return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+      }).join(',') + '\n'
+    }
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = (DATA.title || 'data') + '.csv'
+    a.click(); URL.revokeObjectURL(url)
+  }
+  tb.appendChild(csvBtn)
   renderTableContent(rows, el, tb)
 }
 
@@ -711,9 +846,7 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
       return String(a[sortCol] ?? '').localeCompare(String(b[sortCol] ?? '')) * (sortDir ? -1 : 1)
     })
   }
-  const limit = tblRowLimit === 'all' ? sorted.length : tblRowLimit
-  const sl = sorted.slice(0, limit)
-  const h3 = tb.querySelector('h3')!; h3.textContent = `${t('dashboard.dataTable')} · ${sl.length} / ${filtered.length} ${t('common.rows')}`
+  const h3 = tb.querySelector('h3')!; h3.textContent = `${t('dashboard.dataTable')} · ${sorted.length} / ${filtered.length} ${t('common.rows')}`
 
   const tw = document.createElement('div'); tw.style.overflowX = 'auto'
   let html = '<table><thead><tr><th class="rn">#</th>'
@@ -722,7 +855,7 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
     html += `<th onclick="window._sortTable('${c}')">${c}${ind}</th>`
   })
   html += '</tr></thead><tbody>'
-  sl.forEach((r, i) => {
+  sorted.forEach((r, i) => {
     html += `<tr><td class="rn">${i + 1}</td>`
     tblCols.forEach(c => {
       let v = r[c]
@@ -742,7 +875,50 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
     })
     html += '</tr>'
   })
-  html += '</tbody></table>'; tw.innerHTML = html; el.appendChild(tw)
+  html += '</tbody>'
+
+  // Summary row (底部汇总行)
+  if (tblSummaryAggs && Object.keys(tblSummaryAggs).length > 0) {
+    html += '<tfoot class="summary-foot"><tr class="summary-row"><td class="rn summary-label">' + (t('config.summaryRow') || 'Summary') + '</td>'
+    tblCols.forEach(c => {
+      const agg = tblSummaryAggs[c]
+      if (agg) {
+        let val: number | string = 0
+        if (agg === 'unique_count') {
+          const raw = sorted.map(r => String(r[c] ?? '')).filter(v => v !== '')
+          val = new Set(raw).size
+        } else {
+          const vals = sorted.map(r => getNumericVal(r[c] as any)).filter(v => !isNaN(v))
+          if (vals.length > 0) {
+            switch (agg) {
+              case 'sum': val = vals.reduce((a, b) => a + b, 0); break
+              case 'avg': val = vals.reduce((a, b) => a + b, 0) / vals.length; break
+              case 'count': val = vals.length; break
+              case 'min': val = Math.min(...vals); break
+              case 'max': val = Math.max(...vals); break
+            }
+          }
+        }
+        let sv = ''
+        if (agg === 'count' || agg === 'unique_count') sv = String(val)
+        else if (typeof val === 'number') {
+          const cl = DATA.classifications[c]
+          if (cl?.type === 'numeric' && cl?.role === 'metric') {
+            const md = DATA.metricDefaults[c]
+            if (md && md.format && md.format !== 'global') sv = fmtByChart(val, { metricFormats: DATA.metricDefaults }, c)
+            else sv = fmt(val)
+          } else sv = String(val)
+        } else sv = String(val)
+        const aggLabel = AGGLABEL[agg] || ''
+        html += `<td class="summary-cell"><span class="sc-val">${sv}</span><span class="sc-agg">${aggLabel}</span></td>`
+      } else {
+        html += '<td></td>'
+      }
+    })
+    html += '</tr></tfoot>'
+  }
+
+  html += '</table>'; tw.innerHTML = html; el.appendChild(tw)
 }
 
 // Sort callback for table (exposed to window for inline onclick)
@@ -765,8 +941,10 @@ export function initDashboard(data: DashboardData) {
   DATA = data
   MSG = typeof __I18N__ !== 'undefined' ? __I18N__ : {}
   setToolboxLocale(data.locale || 'zh-CN')
+  initTheme()
+  renderFileMeta()
   sortCol = data.tableSortBy; sortDir = false
-  tblRowLimit = data.tableRowLimit
+  tblSummaryAggs = data.tableSummaryAggs || {}
   tblCols = data.tableColumns.slice()
   dateStart = data.dateStart
   dateEnd = data.dateEnd

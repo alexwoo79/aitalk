@@ -99,7 +99,8 @@ export interface ColumnTextRule {
 export interface TableSpec {
   columns: string[]
   sortBy: string
-  rowLimit: number | 'all'
+  rowLimit?: number | 'all'
+  summaryAggs?: Record<string, 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max'>
   columnColors?: Record<string, string>
   columnTextColors?: Record<string, string>
   columnTextRules?: Record<string, ColumnTextRule[]>

@@ -34,8 +34,10 @@ export interface TableConfig {
   columns: string[]
   /** 排序列（可选），空字符串表示不排序 */
   sortBy?: string
-  /** 行数限制：数字或 'all' 表示全部 */
-  rowLimit: number | 'all'
+  /** 行数限制：数字或 'all' 表示全部（已废弃，始终显示全部） */
+  rowLimit?: number | 'all'
+  /** 底部汇总行：列名 -> 聚合函数 */
+  summaryAggs?: Record<string, 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max'>
   /** 列背景色：列名 -> CSS 颜色 */
   columnColors?: Record<string, string>
   /** 列字体色：列名 -> CSS 颜色 */

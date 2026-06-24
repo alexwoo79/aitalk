@@ -7,14 +7,14 @@
     <div v-if="!spec" class="no-data">
       <p>{{ t('dashboard.noData') }}</p>
       <button class="btn btn-sm btn-primary" @click="$router.push('/config')">{{ t('dashboard.backToConfigText')
-      }}</button>
+        }}</button>
     </div>
 
     <template v-else>
       <!-- 工具栏 -->
       <div class="dashboard-toolbar">
         <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← {{ t('dashboard.backToConfigText')
-        }}</button>
+          }}</button>
         <h2 class="dashboard-title">{{ spec.title }}</h2>
       </div>
 
@@ -57,7 +57,7 @@
           <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
         </div>
         <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
-        }}</span>
+          }}</span>
       </div>
 
       <!-- 日期范围 -->
@@ -67,8 +67,8 @@
       </div>
       <div v-if="spec.dateRange" class="date-range-bar">
         <span class="dr-label">{{ t('dashboard.timeSlice') }}:</span>
-        <select v-if="spec.dateColumns && spec.dateColumns.length > 1" v-model="previewStore.activeDateColumn" @change="onDateColumnChange"
-          class="input input-xs dr-date-col">
+        <select v-if="spec.dateColumns && spec.dateColumns.length > 1" v-model="previewStore.activeDateColumn"
+          @change="onDateColumnChange" class="input input-xs dr-date-col">
           <option v-for="col in spec.dateColumns" :key="col" :value="col">{{ col }}</option>
         </select>
         <span v-else class="dr-label dr-col-name">{{ spec.dateRange.column }}</span>
@@ -94,11 +94,12 @@
       <template v-if="!dashboardCleared">
         <!-- KPI 卡片 -->
         <div v-if="spec.kpis?.length" class="kpi-row">
-          <div v-for="(kpi, i) in spec.kpis" :key="'kpi-'+i" class="kpi-card"
+          <div v-for="(kpi, i) in spec.kpis" :key="'kpi-' + i" class="kpi-card"
             :style="{ background: KPI_BG[i % KPI_BG.length], color: KPI_TEXT[i % KPI_TEXT.length] }">
             <div class="kpi-icon"><span>{{ kpiIcon(kpi, i) }}</span></div>
             <div class="kpi-content">
-              <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix, kpi.unit, kpi.decimals) }}</span>
+              <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix,
+                kpi.unit, kpi.decimals) }}</span>
               <span class="kpi-label">{{ kpi.label }}</span>
             </div>
           </div>
@@ -106,33 +107,47 @@
 
         <!-- 图表 -->
         <div v-if="spec.charts?.length" class="charts-wrap">
-          <div v-for="(chart, i) in spec.charts" :key="'chart-'+i"
-            :class="['chart-card', { 'chart-card-full': isAnalysisChart(chart) }]"
-            :data-chart-key="'chart-' + i">
+          <div v-for="(chart, i) in spec.charts" :key="'chart-' + i"
+            :class="['chart-card', { 'chart-card-full': isAnalysisChart(chart) }]" :data-chart-key="'chart-' + i">
             <div class="rs-handle rs-handle-e" @pointerdown.prevent="onResizeStart($event, 'e')"></div>
             <div class="rs-handle rs-handle-s" @pointerdown.prevent="onResizeStart($event, 's')"></div>
             <div class="rs-handle rs-handle-se" @pointerdown.prevent="onResizeStart($event, 'se')"></div>
-            <TimeseriesChart v-if="chart.type === 'timeseries'" :rows="filteredChartRows(chart)" :date-column="chart.dateColumn || spec.dateRange?.column || ''" :metric="chart.metric || spec.primaryMetric || ''" :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title" :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
-            <DecileChart v-else-if="chart.type === 'decile'" :rows="filteredChartRows(chart)" :metric="chart.metric || spec.primaryMetric || ''" :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title" :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
-            <ClusterChart v-else-if="chart.type === 'cluster'" :rows="filteredChartRows(chart)" :metrics="chart.clusterMetrics || chart.metrics || (spec.primaryMetric ? [spec.primaryMetric] : [])" :k="chart.k" :title="chart.title" :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
-            <BarChartComponent v-else-if="chart.type === 'bar'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            <HorizontalBarChart v-else-if="chart.type === 'horizontal_bar'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            <DoughnutChart v-else-if="chart.type === 'doughnut'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            <HistogramChart v-else-if="chart.type === 'histogram'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            <LineChartComponent v-else-if="chart.type === 'line'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+            <TimeseriesChart v-if="chart.type === 'timeseries'" :rows="filteredChartRows(chart)"
+              :date-column="chart.dateColumn || spec.dateRange?.column || ''"
+              :metric="chart.metric || spec.primaryMetric || ''"
+              :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title"
+              :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
+            <DecileChart v-else-if="chart.type === 'decile'" :rows="filteredChartRows(chart)"
+              :metric="chart.metric || spec.primaryMetric || ''"
+              :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title"
+              :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
+            <ClusterChart v-else-if="chart.type === 'cluster'" :rows="filteredChartRows(chart)"
+              :metrics="chart.clusterMetrics || chart.metrics || (spec.primaryMetric ? [spec.primaryMetric] : [])"
+              :k="chart.k" :title="chart.title" :metric-formats="chart.metricFormats || {}"
+              :metric-ags="chart.metricAggs || {}" />
+            <BarChartComponent v-else-if="chart.type === 'bar'" :chart="chart as any" :rows="filteredChartRows(chart)"
+              :available-metrics="allMetricCols" />
+            <HorizontalBarChart v-else-if="chart.type === 'horizontal_bar'" :chart="chart as any"
+              :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+            <DoughnutChart v-else-if="chart.type === 'doughnut'" :chart="chart as any" :rows="filteredChartRows(chart)"
+              :available-metrics="allMetricCols" />
+            <HistogramChart v-else-if="chart.type === 'histogram'" :chart="chart as any"
+              :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+            <LineChartComponent v-else-if="chart.type === 'line'" :chart="chart as any" :rows="filteredChartRows(chart)"
+              :available-metrics="allMetricCols" />
           </div>
         </div>
 
         <!-- 数据表 -->
-        <div v-if="spec.table" class="data-table-section resizable-card">
+        <div v-if="spec.table" class="data-table-section resizable-card" :class="{ 'is-fullscreen': tableFullscreen }"
+          @dblclick="toggleTableFullscreen">
           <div class="rs-handle rs-handle-e" @pointerdown.prevent="onResizeStart($event, 'e')"></div>
           <div class="rs-handle rs-handle-s" @pointerdown.prevent="onResizeStart($event, 's')"></div>
           <div class="rs-handle rs-handle-se" @pointerdown.prevent="onResizeStart($event, 'se')"></div>
           <div class="table-toolbar">
             <h3>{{ t('dashboard.dataTable') }} · {{ tableRows.length }}<span v-if="tableSearch.trim()"> {{
               t('common.matched')
-                }}</span> / {{
-                  activeTopN >= 999999 ? t('config.rowLimitAll') : activeTopN }} {{ t('common.rows') }}</h3>
+                }}</span> / {{ totalRows }} {{ t('common.rows') }}</h3>
             <div class="table-controls">
               <div class="control-group">
                 <input type="text" v-model="tableSearch" class="input input-xs table-search"
@@ -154,16 +169,11 @@
                   </template>
                 </datalist>
               </div>
-              <div class="control-group">
-                <label>{{ t('dashboard.topNRows') }}</label>
-                <input type="number" v-model.number="activeTopN" class="input input-xs table-input" min="5" max="500"
-                  step="5" />
-              </div>
               <div class="control-group col-picker" v-if="showColPicker">
                 <div class="picker-panel">
                   <div class="picker-actions">
                     <button class="btn-link" @click="activeColumns = allColumns.slice()">{{ t('common.selectAll')
-                      }}</button>
+                    }}</button>
                     <button class="btn-link" @click="activeColumns = []">{{ t('common.clearAll') }}</button>
                   </div>
                   <div class="picker-chips">
@@ -178,6 +188,9 @@
               </div>
               <button class="btn btn-sm" @click="showColPicker = !showColPicker">
                 {{ t('dashboard.columnsLabel') }} ({{ activeColumns.length }}/{{ allColumns.length }})
+              </button>
+              <button class="csv-download" :class="{ done: csvDone }" :disabled="csvDone" @click="downloadTableCsv">
+                {{ csvDone ? t('common.downloaded') : '⬇ CSV' }}
               </button>
             </div>
           </div>
@@ -201,6 +214,15 @@
                   </td>
                 </tr>
               </tbody>
+              <tfoot v-if="hasSummaryRow" class="summary-foot">
+                <tr class="summary-row">
+                  <td class="row-num summary-label">{{ t('config.summaryRow') }}</td>
+                  <td v-for="col in activeColumns" :key="col" class="summary-cell">
+                    <span class="sc-val">{{ formatSummaryValue(col) }}</span>
+                    <span v-if="summaryAggLabel(col)" class="sc-agg">{{ summaryAggLabel(col) }}</span>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -304,7 +326,6 @@ const sortDir = ref<'asc' | 'desc'>('desc')
 
 // ====== Table controls (runtime, not stored in config) ======
 const activeColumns = ref<string[]>([])
-const activeTopN = ref(15)
 const showColPicker = ref(false)
 const tableSearch = ref('')
 const tableCondition = ref('')
@@ -322,7 +343,6 @@ function initTableState() {
   const s = spec.value
   if (s?.table) {
     activeColumns.value = s.table.columns.slice()
-    activeTopN.value = s.table.rowLimit === 'all' ? 999999 : (s.table.rowLimit || 15)
     sortCol.value = s.table.sortBy || ''
   }
 }
@@ -360,7 +380,7 @@ watch(() => spec.value?.dateRange?.column, (col) => {
 function onDateColumnChange() {
   const ds = dataStore.dataSet
   if (!ds || !previewStore.activeDateColumn) return
-  
+
   // 检测图表日期列与当前时间切片不一致
   const mismatched = (spec.value?.charts || []).filter(c =>
     (c.type === 'timeseries' || c.type === 'line') &&
@@ -371,7 +391,7 @@ function onDateColumnChange() {
   } else {
     dateColWarn.value = ''
   }
-  
+
   const dates = ds.rows
     .map((r) => String(r[previewStore.activeDateColumn] ?? ''))
     .filter((v) => v !== '')
@@ -420,6 +440,17 @@ function onFilterChange() {
 const dashboardCleared = ref(false)
 const saveMsg = ref('')
 const saveMsgType = ref<'success' | 'error'>('success')
+const tableFullscreen = ref(false)
+
+function toggleTableFullscreen() {
+  tableFullscreen.value = !tableFullscreen.value
+  if (tableFullscreen.value) {
+    document.addEventListener('keydown', onTableFullscreenEsc)
+  }
+}
+function onTableFullscreenEsc(e: KeyboardEvent) {
+  if (e.key === 'Escape') { tableFullscreen.value = false; document.removeEventListener('keydown', onTableFullscreenEsc) }
+}
 
 function resetFilters() {
   for (const key of Object.keys(previewStore.filterValues)) {
@@ -445,6 +476,10 @@ async function saveDashboard() {
   if (!ds) return
   const s = spec.value
   if (!s) return
+
+  // 1. 等待 Vue 动态 DOM 和图表完全渲染稳定
+  await nextTick()
+  await new Promise(resolve => setTimeout(resolve, 300))
 
   const rows = previewStore.filteredRows.length > 0
     ? previewStore.filteredRows : ds.rows
@@ -480,11 +515,37 @@ async function saveDashboard() {
   const tblCols = s.table.columns
   const tblSort = s.table.sortBy || ''
   const tblRowLimit = s.table.rowLimit
+  const tblSummaryAggs = s.table.summaryAggs || {}
   const tblColColors = s.table.columnColors || {}
   const tblRowCondColors = s.table.rowConditionColors || []
   const date = new Date().toISOString().slice(0, 10)
+  const i18nData = locale.value === 'zh-CN' ? zhCN : enUS
 
-  // 使用模板文件生成 HTML（按需动态加载，避免首屏阻塞）
+  // ====== 收集元数据（取自 dataStore 加载时采集的文件信息） ======
+  let appVersion = '0.0.0'
+  try {
+    const pkg = await import('@/../package.json')
+    appVersion = (pkg as any).default?.version || (pkg as any).version || appVersion
+  } catch { /* ignore */ }
+  const fileMeta = {
+    fileName: ds.fileName || undefined,
+    fileSize: ds.fileSize,
+    fileModified: ds.fileModified,
+    fileHash: ds.fileHash,
+    appVersion,
+    generatedAt: new Date().toISOString(),
+    rowCount: rows.length,
+    colCount: headers.length,
+  }
+
+  // 图表卡片尺寸 CSS
+  const chartSizeCss = s.charts.map((c, i) => {
+    const sizes = chartSizes.value['chart-' + i]
+    if (sizes) return `.chart-card-${i} { width: ${sizes.width}px; height: ${sizes.height}px; flex: none; }`
+    return ''
+  }).filter(Boolean).join('\n')
+
+  // ====== 2. 使用 DOMParser + DOM API 构建 HTML，避免字符串拼接错误 ======
   const [echartsMod, templateMod, rendererMod] = await Promise.all([
     import('echarts/dist/echarts.min.js?raw'),
     import('@/../templates/result_template.html?raw'),
@@ -493,59 +554,109 @@ async function saveDashboard() {
   const echartsCode = (echartsMod as any).default
   const resultTemplate = (templateMod as any).default
   const rendererJS = (rendererMod as any).default
-  const echartsTag = '<script>' + echartsCode + '<\/script>'
 
-  const html = resultTemplate
-    .replace(/\{\{TITLE\}\}/g, title)
-    .replace(/\{\{ECHARTS_TAG\}\}/g, echartsTag)
-    .replace(/\{\{RENDERER_JS\}\}/g, '<script>' + rendererJS + '<\/script>')
-    .replace(/\{\{HEADERS_JSON\}\}/g, JSON.stringify(headers))
-    .replace(/\{\{ROWS_JSON\}\}/g, JSON.stringify(rows))
-    .replace(/\{\{CLASSIFICATIONS_JSON\}\}/g, JSON.stringify(cls))
-    .replace(/\{\{FILTER_SPECS_JSON\}\}/g, JSON.stringify(filterSpecs))
-    .replace(/\{\{KPI_SPECS_JSON\}\}/g, JSON.stringify(kpiSpecs))
-    .replace(/\{\{CHART_SPECS_JSON\}\}/g, JSON.stringify(chartSpecs))
-    .replace(/\{\{METRIC_DEFAULTS_JSON\}\}/g, JSON.stringify(s.metricDefaults || {}))
-    .replace(/\{\{TABLE_COLUMNS_JSON\}\}/g, JSON.stringify(tblCols))
-    .replace(/\{\{TABLE_SORT_BY\}\}/g, tblSort)
-    .replace(/\{\{TABLE_ROW_LIMIT\}\}/g, JSON.stringify(tblRowLimit))
-    .replace(/\{\{TABLE_COL_COLORS_JSON\}\}/g, JSON.stringify(tblColColors))
-    .replace(/\{\{TABLE_ROW_COND_COLORS_JSON\}\}/g, JSON.stringify(tblRowCondColors))
-    .replace(/\{\{DATE_RANGE_JSON\}\}/g, JSON.stringify(s.dateRange || null))
-    .replace(/\{\{DATE_START\}\}/g, previewStore.dateRange.start || '')
-    .replace(/\{\{DATE_END\}\}/g, previewStore.dateRange.end || '')
-    .replace(/\{\{LOCALE\}\}/g, locale.value)
-    .replace(/\{\{I18N_JSON\}\}/g, JSON.stringify(locale.value === 'zh-CN' ? zhCN : enUS))
+  // 解析模板为 DOM，后续所有操作都在 DOM 上进行
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(resultTemplate, 'text/html')
 
-  // 保存的图表卡片尺寸（用于 HTML 输出）
-  const chartSizeCss = s.charts.map((c, i) => {
-    const sizes = chartSizes.value['chart-' + i]
-    if (sizes) return `.chart-card-${i} { width: ${sizes.width}px; height: ${sizes.height}px; flex: none; }`
-    return ''
-  }).filter(Boolean).join('\n')
-  const htmlWithSizes = html.replace('</style>', '\n' + chartSizeCss + '\n</style>')
-
-  // 全屏双击 JS
-  const fullscreenJs = `<script>
-(function() {
-  document.querySelectorAll('.chart-wrapper').forEach(function(el) {
-    el.addEventListener('dblclick', function() {
-      el.classList.toggle('is-fullscreen');
-    });
-  });
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      document.querySelectorAll('.is-fullscreen').forEach(function(el) {
-        el.classList.remove('is-fullscreen');
-      });
+  // --- 替换 head 中的 <!--ECHARTS_TAG--> ---
+  if (doc.head) {
+    // 移除 HTML 注释占位符 <!--ECHARTS_TAG-->
+    for (const child of Array.from(doc.head.childNodes)) {
+      if (child.nodeType === Node.COMMENT_NODE && child.textContent?.trim() === 'ECHARTS_TAG') {
+        child.remove()
+      } else if (child.nodeType === Node.TEXT_NODE && (child.textContent || '').includes('ECHARTS_TAG')) {
+        child.remove()
+      }
     }
-  });
-  var style = document.createElement('style');
-  style.textContent = '.chart-wrapper.is-fullscreen{position:fixed;inset:0;z-index:9999;background:var(--bg,#fff);padding:20px;display:flex;flex-direction:column}';
-  document.head.appendChild(style);
-})();
-<\\/script>`
+    const echartsScript = doc.createElement('script')
+    echartsScript.textContent = echartsCode
+    doc.head.appendChild(echartsScript)
+  }
 
+  // --- 替换标题 ---
+  doc.title = title
+  const h1 = doc.querySelector('h1')
+  if (h1) h1.textContent = title
+
+  // --- 注入 __DATA__ 和 __I18N__ 脚本 ---
+  const allScripts = Array.from(doc.querySelectorAll('script'))
+  const dataScript = allScripts.find(s => (s.textContent || '').includes('__DATA__'))
+  if (dataScript) {
+    // 用 DOM 构建整个 JSON 数据块，避免字符串拼接
+    const dummy = doc.createElement('div')
+    const dataObj: Record<string, any> = {
+      title,
+      headers,
+      rows,
+      classifications: cls,
+      filterSpecs,
+      kpiSpecs,
+      chartSpecs,
+      metricDefaults: s.metricDefaults || {},
+      tableColumns: tblCols,
+      tableSortBy: tblSort,
+      tableRowLimit: tblRowLimit,
+      tableSummaryAggs: tblSummaryAggs,
+      tableColColors: tblColColors,
+      tableRowCondColors: tblRowCondColors,
+      dateRange: s.dateRange || null,
+      dateStart: previewStore.dateRange.start || '',
+      dateEnd: previewStore.dateRange.end || '',
+      locale: locale.value,
+      _fileMeta: fileMeta,
+    }
+    dataScript.textContent =
+      `var __DATA__ = ${JSON.stringify(dataObj)};\n` +
+      `var __I18N__ = ${JSON.stringify(i18nData)};`
+  }
+
+  // --- 替换 /* RENDERER_JS */ ---
+  const rendererScript = allScripts.find(s => {
+    const t = (s.textContent || '').trim()
+    return t === '/* RENDERER_JS */' || t.includes('RENDERER_JS')
+  })
+  if (rendererScript) {
+    rendererScript.textContent = rendererJS
+    rendererScript.removeAttribute('src')
+  }
+
+  // --- 替换 /* FULLSCREEN_JS */（使用 DOM API 避免转义错误）---
+  const fsScript = allScripts.find(s => {
+    const t = (s.textContent || '').trim()
+    return t === '/* FULLSCREEN_JS */' || t.includes('FULLSCREEN_JS')
+  })
+  if (fsScript) {
+    // Fullscreen 由 entry.ts 的 toggleFullscreen + Escape 键处理，此处仅补充 CSS
+    fsScript.textContent = [
+      '// Fullscreen handled by renderer (entry.ts) via toggleFullscreen + Escape key',
+      '// CSS: .chart-card.is-fullscreen has display:flex;flex-direction:column for chart body expansion',
+    ].join('\n')
+  }
+
+  // --- 注入图表卡片尺寸 CSS ---
+  if (chartSizeCss) {
+    const styleEl = doc.querySelector('style')
+    if (styleEl) {
+      styleEl.textContent += '\n/* chart card sizes */\n' + chartSizeCss
+    }
+  }
+
+  // --- 从 DOM 序列化最终 HTML ---
+  let html = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML
+
+  // ====== 3. 替换捕获 HTML 中的外部资源为内联 ======
+  html = await inlineExternalResources(html)
+
+  // ====== 4. DOMParser 校验 ======
+  const validateParser = new DOMParser()
+  const validateDoc = validateParser.parseFromString(html, 'text/html')
+  const parseErrorEl = validateDoc.querySelector('parsererror')
+  if (parseErrorEl) {
+    throw new Error(`拼接错误：${parseErrorEl.textContent}`)
+  }
+
+  // ====== 5. 校验通过后执行文件下载 ======
   const { save, message } = await import('@tauri-apps/plugin-dialog')
   const { writeTextFile } = await import('@tauri-apps/plugin-fs')
   const filePath = await save({
@@ -554,13 +665,97 @@ async function saveDashboard() {
   })
   if (filePath) {
     try {
-      const finalHtml = htmlWithSizes.replace(/\{\{FULLSCREEN_JS\}\}/g, fullscreenJs)
-      await writeTextFile(filePath, finalHtml)
+      await writeTextFile(filePath, html)
       await message(t('dashboard.saveSuccess', { path: filePath }), { title: t('dashboard.saveSuccessTitle'), kind: 'info' })
     } catch (e: any) {
       await message(t('dashboard.saveFailed', { error: e?.message || e }), { title: t('dashboard.saveFailedTitle'), kind: 'error' })
     }
   }
+}
+
+/**
+ * 将 HTML 中的外部资源（link[rel=stylesheet]、script[src]）替换为内联版本。
+ * 从当前页面的 DOM 中捕获外部资源内容，直接嵌入。
+ */
+async function inlineExternalResources(html: string): Promise<string> {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+
+  // 1) 内联外部 CSS：link[rel=stylesheet][href]
+  const externalLinks = doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href]')
+  for (const link of externalLinks) {
+    const href = link.getAttribute('href')
+    if (!href || href.startsWith('data:')) continue
+    try {
+      // 尝试从当前页面的对应样式表中提取内容
+      const liveStyle = findLiveStyleSheet(href)
+      if (liveStyle) {
+        const styleEl = doc.createElement('style')
+        styleEl.textContent = liveStyle
+        link.replaceWith(styleEl)
+      }
+    } catch {
+      // 无法内联则保留原样
+    }
+  }
+
+  // 2) 内联外部 JS：script[src]
+  const externalScripts = doc.querySelectorAll<HTMLScriptElement>('script[src]')
+  for (const script of externalScripts) {
+    const src = script.getAttribute('src')
+    if (!src || src.startsWith('data:')) continue
+    try {
+      // 尝试从当前页面找到对应脚本内容
+      const liveContent = findLiveScriptContent(src)
+      if (liveContent) {
+        const newScript = doc.createElement('script')
+        newScript.textContent = liveContent
+        // 保留原有属性（type, defer 等）
+        for (const attr of Array.from(script.attributes)) {
+          if (attr.name !== 'src') {
+            newScript.setAttribute(attr.name, attr.value)
+          }
+        }
+        script.replaceWith(newScript)
+      }
+    } catch {
+      // 无法内联则保留原样
+    }
+  }
+
+  return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML
+}
+
+/** 从当前页面查找匹配 href 的样式表内容 */
+function findLiveStyleSheet(href: string): string | null {
+  for (const sheet of Array.from(document.styleSheets)) {
+    if (sheet.href && (sheet.href.endsWith(href) || sheet.href === href)) {
+      try {
+        let css = ''
+        for (const rule of Array.from(sheet.cssRules || [])) {
+          css += rule.cssText + '\n'
+        }
+        return css
+      } catch {
+        return null
+      }
+    }
+  }
+  // 回退：通过 fetch 获取（适用于同源资源）
+  return null
+}
+
+/** 从当前页面查找匹配 src 的脚本内容 */
+function findLiveScriptContent(src: string): string | null {
+  const scripts = document.querySelectorAll<HTMLScriptElement>('script[src]')
+  for (const script of scripts) {
+    const s = script.getAttribute('src') || ''
+    if (s.endsWith(src) || s === src) {
+      // 通过重新 fetch 获取脚本内容
+      return null // 浏览器安全限制，无法直接获取已执行脚本的源码
+    }
+  }
+  return null
 }
 
 // ====== Date range presets (dynamic based on data span) ======
@@ -728,9 +923,9 @@ function matchColTextRule(col: string, val: any): string | null {
         if (m) {
           const op = m[1]; const n = parseFloat(m[2])
           if ((op === '>' && numVal > n) || (op === '>=' && numVal >= n) ||
-              (op === '<' && numVal < n) || (op === '<=' && numVal <= n) ||
-              (op === '=' || op === '==') && numVal === n ||
-              (op === '!=' && numVal !== n)) {
+            (op === '<' && numVal < n) || (op === '<=' && numVal <= n) ||
+            (op === '=' || op === '==') && numVal === n ||
+            (op === '!=' && numVal !== n)) {
             return rule.color
           }
         }
@@ -741,8 +936,8 @@ function matchColTextRule(col: string, val: any): string | null {
         if (mStr) {
           const op = mStr[1]; const t = mStr[2]
           if ((op === '=' && strVal === t) ||
-              (op === '!=' && strVal !== t) ||
-              (op === '~' && strVal.includes(t))) {
+            (op === '!=' && strVal !== t) ||
+            (op === '~' && strVal.includes(t))) {
             return rule.color
           }
         }
@@ -807,9 +1002,97 @@ const tableRows = computed(() => {
     })
   }
 
-  const limit = activeTopN.value
-  return limit >= 999999 ? sorted : sorted.slice(0, limit)
+  return sorted
 })
+
+// ====== Summary row (底部汇总行) ======
+const hasSummaryRow = computed(() => {
+  const aggs = spec.value?.table?.summaryAggs
+  return aggs && Object.keys(aggs).length > 0
+})
+
+const summaryValues = computed(() => {
+  const rows = tableRows.value
+  const result: Record<string, number> = {}
+  const aggs = spec.value?.table?.summaryAggs || {}
+  for (const col of Object.keys(aggs)) {
+    const agg = aggs[col]
+    if (agg === 'unique_count') {
+      const raw = rows.map(r => String(r[col] ?? '')).filter(v => v !== '')
+      result[col] = new Set(raw).size
+      continue
+    }
+    const vals = rows.map(r => getNumericVal(r[col])).filter(v => !isNaN(v))
+    if (vals.length === 0) { result[col] = 0; continue }
+    switch (agg) {
+      case 'sum': result[col] = vals.reduce((a, b) => a + b, 0); break
+      case 'avg': result[col] = vals.reduce((a, b) => a + b, 0) / vals.length; break
+      case 'count': result[col] = vals.length; break
+      case 'min': result[col] = Math.min(...vals); break
+      case 'max': result[col] = Math.max(...vals); break
+    }
+  }
+  return result
+})
+
+function formatSummaryValue(col: string): string {
+  const val = summaryValues.value[col]
+  if (val === undefined) return '—'
+  const cls = dataStore.dataSet?.classifications[col]
+  const agg = spec.value?.table?.summaryAggs?.[col]
+  if (agg === 'count' || agg === 'unique_count') return String(val)
+  if (cls?.type === 'numeric') {
+    const def = spec.value?.metricDefaults?.[col]
+    if (def && (!def.sections || def.sections.includes('table')) && def.format) {
+      return fmtByChart(val, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
+    }
+    return fmt(val, 2)
+  }
+  return String(val)
+}
+
+function summaryAggLabel(col: string): string {
+  const agg = spec.value?.table?.summaryAggs?.[col]
+  if (!agg) return ''
+  const map: Record<string, string> = {
+    sum: t('config.aggSum'),
+    avg: t('config.aggAvg'),
+    count: t('config.aggCount'),
+    unique_count: t('config.aggUniqueCount'),
+    min: t('config.aggMin'),
+    max: t('config.aggMax'),
+  }
+  return map[agg] || ''
+}
+
+// ====== CSV download ======
+const csvDone = ref(false)
+async function downloadTableCsv() {
+  const rows = tableRows.value
+  const cols = activeColumns.value
+  if (!rows.length || !cols.length) return
+  const BOM = '\uFEFF'
+  let csv = BOM + cols.join(',') + '\n'
+  for (const row of rows) {
+    csv += cols.map(c => {
+      const v = row[c]
+      if (v == null || v === '') return ''
+      const s = String(v)
+      return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+    }).join(',') + '\n'
+  }
+  const { save } = await import('@tauri-apps/plugin-dialog')
+  const { writeTextFile } = await import('@tauri-apps/plugin-fs')
+  const filePath = await save({
+    defaultPath: `${spec.value?.title || 'data'}_${new Date().toISOString().slice(0, 10)}.csv`,
+    filters: [{ name: 'CSV 文件', extensions: ['csv'] }],
+  })
+  if (filePath) {
+    await writeTextFile(filePath, csv)
+    csvDone.value = true
+    setTimeout(() => { csvDone.value = false }, 1500)
+  }
+}
 
 // ====== Active rows (filtered or all) ======
 function getRows(): Record<string, string | number>[] {
@@ -1062,6 +1345,7 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   color: #92400e;
   margin-bottom: 8px;
 }
+
 .dcw-close {
   border: none;
   background: none;
@@ -1071,7 +1355,10 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   padding: 0 2px;
   opacity: 0.6;
 }
-.dcw-close:hover { opacity: 1; }
+
+.dcw-close:hover {
+  opacity: 1;
+}
 
 .date-range-bar {
   display: flex;
@@ -1204,6 +1491,7 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   gap: 14px;
   margin-bottom: 20px;
 }
+
 .kpi-row .kpi-card {
   flex: 1;
   min-width: 180px;
@@ -1217,6 +1505,7 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   gap: 16px;
   margin-bottom: 24px;
 }
+
 .chart-card {
   flex: 1 1 400px;
   max-width: 100%;
@@ -1230,6 +1519,7 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   position: relative;
   overflow: hidden;
 }
+
 .chart-card-full {
   flex: 1 1 100%;
   max-width: 100%;
@@ -1243,19 +1533,34 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   opacity: 0;
   transition: opacity 0.15s;
 }
+
 .chart-card:hover .rs-handle,
-.resizable-card:hover .rs-handle { opacity: 1; }
+.resizable-card:hover .rs-handle {
+  opacity: 1;
+}
+
 .rs-handle-e {
-  right: 0; top: 0; bottom: 0;
-  width: 6px; cursor: col-resize;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
 }
+
 .rs-handle-s {
-  left: 0; right: 0; bottom: 0;
-  height: 6px; cursor: row-resize;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  cursor: row-resize;
 }
+
 .rs-handle-se {
-  right: 0; bottom: 0;
-  width: 14px; height: 14px; cursor: nwse-resize;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
 }
 
 .chart-card {
@@ -1340,6 +1645,18 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+}
+
+.data-table-section.is-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  max-height: 100vh;
+  border-radius: 0;
+  padding: 24px;
 }
 
 .table-toolbar {
@@ -1487,6 +1804,47 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 
 .data-table tbody tr:hover {
   background: var(--bg-hover);
+}
+
+/* Summary row (底部汇总行) */
+.summary-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+}
+
+.summary-row {
+  background: var(--bg-hover);
+  border-top: 2px solid var(--primary);
+  font-weight: 600;
+}
+
+.summary-row td {
+  padding: 8px 12px;
+  border-bottom: none;
+}
+
+.summary-label {
+  color: var(--primary);
+  font-size: 12px;
+}
+
+.summary-cell {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.sc-val {
+  display: block;
+  font-weight: 600;
+}
+
+.sc-agg {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 .row-num {

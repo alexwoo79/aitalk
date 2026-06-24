@@ -34,6 +34,10 @@ export interface DataSet {
   chartDimensions: string[]
   filePath: string
   fileName: string
+  /** 文件元数据（加载时收集，供 save 使用） */
+  fileSize?: number
+  fileModified?: string
+  fileHash?: string
 }
 
 /** 解析原始文件结果（解析后、分类前） */

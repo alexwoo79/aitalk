@@ -23,12 +23,12 @@
 </template>
 
 <script setup lang="ts">
-import {  ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
-import {  buildHistogramOption, resolveTitle, buildToolbox } from '@/core/chart-options'
-import {  useChartDownload } from '@/composables/use-chart-download'
-import {  useTheme } from '@/composables/use-theme'
+import { buildHistogramOption, resolveTitle, buildToolbox } from '@/core/chart-options'
+import { useChartDownload } from '@/composables/use-chart-download'
+import { useTheme } from '@/composables/use-theme'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()

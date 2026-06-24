@@ -11,7 +11,7 @@ export const useConfigStore = defineStore('config', () => {
     kpis: [],
     filters: [],
     charts: [],
-    table: { sortBy: '', rowLimit: 15, columns: [] },
+    table: { sortBy: '', columns: [], summaryAggs: {} },
   })
 
   const dataStore = useDataStore()
@@ -110,10 +110,18 @@ export const useConfigStore = defineStore('config', () => {
     const base = _autoBase()
     if (!base) return
     const { ds, metricCols, excluded } = base
+    const cols = ds.headers.filter((h) => !excluded.has(h))
+    // 预设合计：数值列默认求和，维度/日期列默认唯一计数
+    const summaryAggs: Record<string, string> = {}
+    for (const h of cols) {
+      const cls = ds.classifications[h]
+      if (cls?.type === 'numeric') summaryAggs[h] = 'sum'
+      else if (cls?.role === 'dimension' || cls?.type === 'date') summaryAggs[h] = 'unique_count'
+    }
     config.value.table = {
       sortBy: (ds.primaryMetric && !excluded.has(ds.primaryMetric) ? ds.primaryMetric : metricCols[0]) || '',
-      rowLimit: 15,
-      columns: ds.headers.filter((h) => !excluded.has(h)),
+      columns: cols,
+      summaryAggs,
     }
   }
 
@@ -259,6 +267,18 @@ export const useConfigStore = defineStore('config', () => {
     config.value.table.rowConditionColors?.splice(index, 1)
   }
 
+  /** 设置底部汇总行聚合函数 */
+  function setSummaryAgg(col: string, agg: 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max' | '') {
+    if (!config.value.table.summaryAggs) {
+      config.value.table.summaryAggs = {}
+    }
+    if (!agg) {
+      delete config.value.table.summaryAggs[col]
+    } else {
+      config.value.table.summaryAggs[col] = agg
+    }
+  }
+
   /** 添加/更新列条件字体色规则 */
   function setColumnTextRule(column: string, index: number, rule: { condition: string; color: string }) {
     if (!config.value.table.columnTextRules) {
@@ -289,7 +309,7 @@ export const useConfigStore = defineStore('config', () => {
       kpis: [],
       filters: [],
       charts: [],
-      table: { sortBy: '', rowLimit: 15, columns: [] },
+      table: { sortBy: '', columns: [], summaryAggs: {} },
     }
     sectionSnapshots.value = {}
   }
@@ -409,6 +429,7 @@ export const useConfigStore = defineStore('config', () => {
     removeColumnTextRule,
     addRowConditionColor,
     removeRowConditionColor,
+    setSummaryAgg,
     resetConfig,
   }
 })
