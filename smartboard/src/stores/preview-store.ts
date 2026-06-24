@@ -88,6 +88,8 @@ export const usePreviewStore = defineStore('preview', () => {
       sortBy: cfg.table.sortBy || '',
       rowLimit: cfg.table.rowLimit,
       columnColors: cfg.table.columnColors,
+      columnTextColors: cfg.table.columnTextColors,
+      columnTextRules: cfg.table.columnTextRules,
       rowConditionColors: cfg.table.rowConditionColors,
     }
 

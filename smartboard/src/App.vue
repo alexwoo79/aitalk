@@ -22,13 +22,15 @@
         <span>SmartBoard</span>
       </div>
       <StepIndicator :current="currentStep" />
-      <button class="theme-toggle" @click="toggleTheme"
-        :title="theme === 'light' ? t('theme.switchDark') : t('theme.switchLight')">
-        {{ theme === 'light' ? '🌙' : '☀️' }}
-      </button>
-      <select class="lang-switch" v-model="locale" @change="setLocale">
-        <option v-for="l in LOCALES" :key="l.key" :value="l.key">{{ l.label }}</option>
-      </select>
+      <div class="header-right">
+        <button class="theme-toggle" @click="toggleTheme"
+          :title="theme === 'light' ? t('theme.switchDark') : t('theme.switchLight')">
+          {{ theme === 'light' ? '🌙' : '☀️' }}
+        </button>
+        <select class="lang-switch" v-model="locale" @change="setLocale">
+          <option v-for="l in LOCALES" :key="l.key" :value="l.key">{{ l.label }}</option>
+        </select>
+      </div>
     </header>
     <main class="app-main">
       <router-view v-slot="{ Component }">
@@ -114,6 +116,12 @@ if (typeof window !== 'undefined') {
 
 .logo-icon {
   flex-shrink: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .theme-toggle {

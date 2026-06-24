@@ -2,11 +2,13 @@
   <div class="step-indicator">
     <div v-for="step in steps" :key="step.num" class="step"
       :class="{ active: step.num === current, done: step.num < current }">
-      <div class="step-circle">{{ step.num < current ? '✓' : step.num }}</div>
-          <span class="step-label">{{ step.label }}</span>
-          <div v-if="step.num < steps.length" class="step-line" :class="{ filled: step.num < current }"></div>
-      </div>
+      <router-link :to="step.to" class="step-circle" :title="step.label">
+        {{ step.num < current ? '✓' : step.num }}
+      </router-link>
+      <span class="step-label">{{ step.label }}</span>
+      <div v-if="step.num < steps.length" class="step-line" :class="{ filled: step.num < current }"></div>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -18,9 +20,9 @@ defineProps<{ current: number }>()
 const { t } = useI18n()
 
 const steps = computed(() => [
-  { num: 1, label: t('steps.upload') },
-  { num: 2, label: t('steps.config') },
-  { num: 3, label: t('steps.result') },
+  { num: 1, label: t('steps.upload'), to: '/' },
+  { num: 2, label: t('steps.config'), to: '/config' },
+  { num: 3, label: t('steps.result'), to: '/dashboard' },
 ])
 </script>
 
@@ -49,6 +51,13 @@ const steps = computed(() => [
   border: 2px solid var(--border);
   color: var(--text-secondary);
   transition: all 0.3s;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.step-circle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .step.active .step-circle {

@@ -194,7 +194,7 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  /** 设置/清除列颜色 */
+  /** 设置/清除列背景色 */
   function setColumnColor(column: string, color: string) {
     if (!config.value.table.columnColors) {
       config.value.table.columnColors = {}
@@ -206,8 +206,20 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
+  /** 设置/清除列字体色 */
+  function setColumnTextColor(column: string, color: string) {
+    if (!config.value.table.columnTextColors) {
+      config.value.table.columnTextColors = {}
+    }
+    if (color) {
+      config.value.table.columnTextColors[column] = color
+    } else {
+      delete config.value.table.columnTextColors[column]
+    }
+  }
+
   /** 添加行条件颜色规则 */
-  function addRowConditionColor(rule: { condition: string; color: string }) {
+  function addRowConditionColor(rule: { condition: string; color: string; textColor?: string }) {
     if (!config.value.table.rowConditionColors) {
       config.value.table.rowConditionColors = []
     }
@@ -217,6 +229,30 @@ export const useConfigStore = defineStore('config', () => {
   /** 移除行条件颜色规则 */
   function removeRowConditionColor(index: number) {
     config.value.table.rowConditionColors?.splice(index, 1)
+  }
+
+  /** 添加/更新列条件字体色规则 */
+  function setColumnTextRule(column: string, index: number, rule: { condition: string; color: string }) {
+    if (!config.value.table.columnTextRules) {
+      config.value.table.columnTextRules = {}
+    }
+    if (!config.value.table.columnTextRules[column]) {
+      config.value.table.columnTextRules[column] = []
+    }
+    const arr = config.value.table.columnTextRules[column]
+    if (index >= arr.length) {
+      arr.push({ condition: rule.condition, color: rule.color })
+    } else {
+      arr[index] = { condition: rule.condition, color: rule.color }
+    }
+  }
+
+  /** 移除列条件字体色规则 */
+  function removeColumnTextRule(column: string, index: number) {
+    config.value.table.columnTextRules?.[column]?.splice(index, 1)
+    if (config.value.table.columnTextRules?.[column]?.length === 0) {
+      delete config.value.table.columnTextRules[column]
+    }
   }
 
   function resetConfig() {
@@ -337,6 +373,9 @@ export const useConfigStore = defineStore('config', () => {
     toggleFilter,
     toggleTableColumn,
     setColumnColor,
+    setColumnTextColor,
+    setColumnTextRule,
+    removeColumnTextRule,
     addRowConditionColor,
     removeRowConditionColor,
     resetConfig,

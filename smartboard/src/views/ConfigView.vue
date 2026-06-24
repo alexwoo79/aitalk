@@ -217,93 +217,108 @@
               <div v-for="col in allHeaders" :key="col" class="table-col-card" :class="[
                 'role-' + (dataStore.dataSet?.classifications[col]?.role || 'ignore'),
               ]" @click="configStore.toggleTableColumn(col)">
-                <label class="tcc-cb" @click.stop>
-                  <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
-                    @change="configStore.toggleTableColumn(col)" />
-                </label>
-                <div class="tcc-icon">
-                  <span>{{ roleIcon(dataStore.dataSet?.classifications[col]?.role) }}</span>
-                </div>
-                <div class="tcc-body">
-                  <div class="tcc-name">{{ col }}</div>
-                  <div class="tcc-meta">
-                    {{ typeLabel(dataStore.dataSet?.classifications[col]?.type) }} · {{
-                      roleLabel(dataStore.dataSet?.classifications[col]?.role) }}
+                <div class="tcc-row">
+                  <label class="tcc-cb" @click.stop>
+                    <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
+                      @change="configStore.toggleTableColumn(col)" />
+                  </label>
+                  <div class="tcc-icon">
+                    <span>{{ roleIcon(dataStore.dataSet?.classifications[col]?.role) }}</span>
+                  </div>
+                  <div class="tcc-body">
+                    <div class="tcc-name">{{ col }}</div>
+                    <div class="tcc-meta">
+                      {{ typeLabel(dataStore.dataSet?.classifications[col]?.type) }} · {{
+                        roleLabel(dataStore.dataSet?.classifications[col]?.role) }}
+                    </div>
+                  </div>
+                  <!-- 颜色选择器：背景色 + 字体色 -->
+                  <div class="tcc-color" @click.stop>
+                    <input type="color" class="color-picker-mini"
+                      :value="configStore.config.table.columnColors?.[col] || '#ffffff'"
+                      @input="(e) => configStore.setColumnColor(col, (e.target as HTMLInputElement).value)"
+                      :title="t('config.columnColor')" />
+                    <input type="color" class="color-picker-mini tcc-text-color"
+                      :value="configStore.config.table.columnTextColors?.[col] || '#000000'"
+                      @input="(e) => configStore.setColumnTextColor(col, (e.target as HTMLInputElement).value)"
+                      :title="t('config.columnTextColor')" />
+                    <button v-if="configStore.config.table.columnColors?.[col] || configStore.config.table.columnTextColors?.[col]"
+                      class="tcc-color-clear"
+                      @click.stop="configStore.setColumnColor(col, ''); configStore.setColumnTextColor(col, '')"
+                      :title="t('config.removeColor')">✕</button>
                   </div>
                 </div>
-                <!-- 颜色选择器 -->
-                <div class="tcc-color" @click.stop>
-                  <input type="color" class="color-picker-mini"
-                    :value="configStore.config.table.columnColors?.[col] || '#ffffff'"
-                    @input="(e) => configStore.setColumnColor(col, (e.target as HTMLInputElement).value)"
-                    :title="t('config.columnColor')" />
-                  <button v-if="configStore.config.table.columnColors?.[col]" class="tcc-color-clear"
-                    @click.stop="configStore.setColumnColor(col, '')" :title="t('config.removeColor')">✕</button>
+                <!-- 列条件着色规则（折叠） -->
+                <div class="tcc-rule-area" v-if="dataStore.dataSet?.classifications[col]?.type === 'numeric'">
+                  <button class="tcc-rule-toggle"
+                    :class="{ active: expandedColRules.has(col) }"
+                    @click.stop="toggleColRules(col)">
+                    <span class="tcc-rule-icon">{{ expandedColRules.has(col) ? '▼' : '▶' }}</span>
+                    <span>{{ t('config.columnTextRule') }}</span>
+                    <span v-if="ruleCount(col)" class="tcc-rule-count">{{ ruleCount(col) }}</span>
+                  </button>
+                  <div v-if="expandedColRules.has(col)" class="tcc-rule-list" @click.stop>
+                    <div v-for="(rule, ri) in (configStore.config.table.columnTextRules?.[col] || [])" :key="ri"
+                      class="tcc-rule-row">
+                      <input type="text" class="input input-xs tcc-rule-cond" :value="rule.condition"
+                        :placeholder="t('config.columnTextRulePlaceholder')"
+                        @input="(e) => configStore.setColumnTextRule(col, ri, { condition: (e.target as HTMLInputElement).value, color: rule.color })" />
+                      <input type="color" class="color-picker-mini rule-text-color" :value="rule.color"
+                        @input="(e) => configStore.setColumnTextRule(col, ri, { condition: rule.condition, color: (e.target as HTMLInputElement).value })"
+                        :title="t('config.columnTextColor')" />
+                      <button class="btn-icon tcc-rule-remove" @click="configStore.removeColumnTextRule(col, ri)">✕</button>
+                    </div>
+                    <button class="btn-link tcc-rule-add"
+                      @click="configStore.setColumnTextRule(col, (configStore.config.table.columnTextRules?.[col]?.length || 0), { condition: '', color: '#333333' })">
+                      {{ t('config.columnTextRuleAdd') }}</button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- 行数限制：All 或指定数量 -->
-            <div class="table-config-row">
-              <label>{{ t('config.rowLimit') }}</label>
-              <div class="row-limit-group">
-                <label class="chip" :class="{ active: configStore.config.table.rowLimit === 'all' }">
-                  <input type="radio" :checked="configStore.config.table.rowLimit === 'all'"
-                    @change="configStore.config.table.rowLimit = 'all'" hidden />
-                  {{ t('config.rowLimitAll') }}
-                </label>
-                <label class="chip" :class="{ active: typeof configStore.config.table.rowLimit === 'number' }">
-                  <input type="radio" :checked="typeof configStore.config.table.rowLimit === 'number'"
-                    @change="configStore.config.table.rowLimit = 15" hidden />
-                </label>
-                <select v-if="typeof configStore.config.table.rowLimit === 'number'"
-                  v-model.number="configStore.config.table.rowLimit" class="input select-sm" style="width:80px">
-                  <option v-for="n in [5, 10, 15, 20, 30, 50, 100, 200, 500]" :key="n" :value="n">{{ n }}</option>
+            <!-- 行数限制 + 行条件颜色（同行） -->
+            <div class="table-config-row table-config-bottom">
+              <div class="table-row-limit-wrap">
+                <label>{{ t('config.rowLimit') }}</label>
+                <div class="row-limit-toggle" @click="configStore.config.table.rowLimit = configStore.config.table.rowLimit === 'all' ? 15 : 'all'">
+                  <span class="rlt-knob" :class="{ right: configStore.config.table.rowLimit !== 'all' }"></span>
+                  <span class="rlt-label left" :class="{ active: configStore.config.table.rowLimit === 'all' }">All</span>
+                  <span class="rlt-label right" :class="{ active: configStore.config.table.rowLimit !== 'all' }">{{ typeof configStore.config.table.rowLimit === 'number' ? configStore.config.table.rowLimit : 15 }}</span>
+                </div>
+                <select v-if="typeof configStore.config.table.rowLimit === 'number'" v-model.number="configStore.config.table.rowLimit" class="input select-sm" style="width:70px">
+                  <option v-for="n in [5,10,15,20,30,50,100,200,500]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
-            </div>
-
-            <!-- 行条件颜色 -->
-            <div class="table-config-row" style="align-items:flex-start">
-              <label>{{ t('config.rowConditionColor') }}</label>
-              <div class="row-colors-list">
-                <div v-if="(configStore.config.table.rowConditionColors || []).length === 0" class="row-colors-empty">
-                  {{ t('config.rowConditionColorEmpty') }}
-                </div>
-                <div v-for="(rule, ri) in (configStore.config.table.rowConditionColors || [])" :key="'rc-' + ri"
-                  class="color-rule-row">
-                  <span class="rule-index">{{ ri + 1 }}</span>
-                  <div class="filter-wrap rule-condition">
-                    <input type="text" class="input input-sm" :value="rule.condition"
+              <div class="table-row-cond-wrap">
+                <label>{{ t('config.rowConditionColor') }}</label>
+                <div class="row-colors-list">
+                  <div v-for="(rule, ri) in (configStore.config.table.rowConditionColors || [])" :key="'rc-' + ri" class="color-rule-row">
+                    <span class="rule-index">{{ ri + 1 }}</span>
+                    <input type="text" class="input input-xs rule-cond-input" :value="rule.condition"
                       :placeholder="t('config.rowConditionPlaceholder')" list="row-cond-cols"
                       @input="(e) => rule.condition = (e.target as HTMLInputElement).value" />
+                    <input type="color" class="color-picker-mini" :value="rule.color"
+                      @input="(e) => rule.color = (e.target as HTMLInputElement).value"
+                      :title="t('config.columnColor')" />
+                    <input type="color" class="color-picker-mini rule-text-color" :value="rule.textColor || '#000000'"
+                      @input="(e) => rule.textColor = (e.target as HTMLInputElement).value"
+                      :title="t('config.columnTextColor')" />
+                    <button class="btn-icon rule-remove" @click="configStore.removeRowConditionColor(ri)" :title="t('config.removeColor')">✕</button>
                   </div>
-                  <div class="rule-color-group">
-                    <input type="color" class="color-picker" :value="rule.color"
-                      @input="(e) => rule.color = (e.target as HTMLInputElement).value" />
-                    <input type="text" class="input input-sm rule-color-text" :value="rule.color"
-                      :placeholder="t('config.colorPlaceholder')"
-                      @input="(e) => rule.color = (e.target as HTMLInputElement).value" />
-                  </div>
-                  <button class="btn-icon rule-remove" @click="configStore.removeRowConditionColor(ri)"
-                    :title="t('config.removeColor')">✕</button>
+                  <button class="btn-link tcc-rule-add"
+                    @click="configStore.addRowConditionColor({ condition: '', color: '#ffff00' })">
+                    {{ t('config.rowConditionColorAdd') }}</button>
+                  <datalist id="row-cond-cols">
+                    <template v-for="col in filterableColumns" :key="col">
+                      <option :value="col + ' = '" />
+                      <option :value="col + ' != '" />
+                      <option v-if="isNumericCol(col)" :value="col + ' > '" />
+                      <option v-if="isNumericCol(col)" :value="col + ' < '" />
+                      <option v-if="!isNumericCol(col)" :value="col + ' in '" />
+                      <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
+                    </template>
+                  </datalist>
                 </div>
-                <span class="filter-hint" style="margin-bottom:4px">{{ t('config.filterSyntax') }}</span>
-                <!-- 共享 datalist -->
-                <datalist id="row-cond-cols">
-                  <template v-for="col in filterableColumns" :key="col">
-                    <option :value="col + ' = '" />
-                    <option :value="col + ' != '" />
-                    <option v-if="isNumericCol(col)" :value="col + ' > '" />
-                    <option v-if="isNumericCol(col)" :value="col + ' < '" />
-                    <option v-if="!isNumericCol(col)" :value="col + ' in '" />
-                    <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
-                  </template>
-                </datalist>
-                <button class="btn btn-sm btn-add"
-                  @click="configStore.addRowConditionColor({ condition: '', color: '#ffff00' })">
-                  {{ t('config.rowConditionColorAdd') }}
-                </button>
               </div>
             </div>
           </section>
@@ -831,6 +846,21 @@ const filterableColumns = computed(() =>
 /** 判断列是否为数值类型（数值列用 > < >= <=，非数值列用 in ~） */
 function isNumericCol(col: string): boolean {
   return dataStore.dataSet?.classifications[col]?.type === 'numeric'
+}
+
+// ====== Column conditional text rules ======
+const expandedColRules = ref(new Set<string>())
+function toggleColRules(col: string) {
+  if (expandedColRules.value.has(col)) {
+    expandedColRules.value.delete(col)
+  } else {
+    expandedColRules.value.add(col)
+  }
+  // trigger reactivity
+  expandedColRules.value = new Set(expandedColRules.value)
+}
+function ruleCount(col: string): number {
+  return configStore.config.table.columnTextRules?.[col]?.length || 0
 }
 
 // ====== Column card helpers (参考首页列信息卡片) ======
@@ -1869,8 +1899,7 @@ function cancelChartEdit() {
 
 .table-col-card {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid var(--border-light);
@@ -1879,6 +1908,12 @@ function cancelChartEdit() {
   position: relative;
   overflow: hidden;
   user-select: none;
+}
+
+.tcc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .table-col-card:hover {
@@ -1970,6 +2005,11 @@ function cancelChartEdit() {
   padding: 1px;
   cursor: pointer;
   background: transparent;
+  flex-shrink: 0;
+}
+.color-picker-mini.tcc-text-color,
+.color-picker-mini.rule-text-color {
+  border-style: dashed;
 }
 
 .tcc-color-clear {
@@ -1991,15 +2031,104 @@ function cancelChartEdit() {
   color: #ef4444;
 }
 
+/* Column conditional text rules (inside card) */
+.tcc-rule-area {
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+  margin-top: 6px;
+}
+.tcc-rule-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 0;
+  width: 100%;
+}
+.tcc-rule-toggle:hover { color: var(--primary); }
+.tcc-rule-toggle.active { color: var(--primary); font-weight: 500; }
+.tcc-rule-icon { font-size: 8px; width: 10px; }
+.tcc-rule-count {
+  background: var(--primary);
+  color: #fff;
+  font-size: 9px;
+  padding: 0 5px;
+  border-radius: 8px;
+  line-height: 16px;
+  min-width: 16px;
+  text-align: center;
+}
+.tcc-rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+}
+.tcc-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tcc-rule-cond {
+  flex: 1;
+  font-size: 11px;
+  padding: 3px 6px;
+  height: 24px;
+}
+.tcc-rule-row .color-picker-mini {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+}
+.tcc-rule-remove {
+  font-size: 10px;
+  opacity: 0.4;
+}
+.tcc-rule-remove:hover { opacity: 1; color: #ef4444; }
+.tcc-rule-add {
+  font-size: 11px;
+  padding: 2px 0;
+  text-align: left;
+}
+
 /* Shared table config rows (row limit, row condition color) */
 .table-config-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   margin-bottom: 12px;
 }
 
-.table-config-row label {
+.table-config-bottom {
+  gap: 24px;
+}
+
+.table-row-limit-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.table-row-cond-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.table-row-cond-wrap > label {
+  flex-shrink: 0;
+  padding-top: 3px;
+}
+
+.table-config-row label,
+.table-row-limit-wrap label {
   font-size: 13px;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -2014,63 +2143,76 @@ function cancelChartEdit() {
   color: var(--text-secondary);
 }
 
-.row-limit-group {
+.row-limit-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  width: 64px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+}
+.rlt-knob {
+  position: absolute;
+  left: 2px;
+  width: 30px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--primary);
+  transition: left 0.2s;
+}
+.rlt-knob.right { left: 30px; }
+.rlt-label {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  z-index: 1;
+  transition: color 0.2s;
+}
+.rlt-label.active { color: #fff; }
+
+.rule-cond-input {
+  flex: 1;
+  min-width: 140px;
+  font-size: 11px;
+  height: 24px;
+  padding: 2px 6px;
 }
 
 .color-rule-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  padding: 8px 10px;
+  gap: 4px;
+  margin-bottom: 2px;
+  padding: 2px 4px;
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: 5px;
   border: 1px solid var(--border-light);
 }
 
 .rule-index {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-secondary);
-  min-width: 18px;
+  min-width: 14px;
   text-align: center;
   font-family: monospace;
-}
-
-.rule-condition {
-  flex: 1;
-  min-width: 140px;
-}
-
-.rule-color-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.rule-color-text {
-  width: 90px;
 }
 
 .rule-remove {
   flex-shrink: 0;
   opacity: 0.5;
   transition: opacity 0.15s;
+  font-size: 10px;
 }
 
 .rule-remove:hover {
   opacity: 1;
-}
-
-.row-colors-empty {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-style: italic;
-  padding: 8px 0 4px;
 }
 
 .color-picker {

@@ -14,7 +14,17 @@ export interface MetricDefault {
 export interface RowConditionColor {
   /** 筛选条件，格式同 filter 语法: "列名 运算符 值" */
   condition: string
-  /** CSS 颜色值，如 #ff0000 / rgb(255,0,0) */
+  /** CSS 背景颜色值，如 #ff0000 / rgb(255,0,0) */
+  color: string
+  /** CSS 字体颜色值 */
+  textColor?: string
+}
+
+/** 列条件字体色规则（仅按值比较，不需要列名） */
+export interface ColumnTextRule {
+  /** 值条件，如 "> 100" / "< 0" / "= 张三" */
+  condition: string
+  /** CSS 颜色值 */
   color: string
 }
 
@@ -26,8 +36,12 @@ export interface TableConfig {
   sortBy?: string
   /** 行数限制：数字或 'all' 表示全部 */
   rowLimit: number | 'all'
-  /** 列颜色：列名 -> CSS 颜色（背景色） */
+  /** 列背景色：列名 -> CSS 颜色 */
   columnColors?: Record<string, string>
+  /** 列字体色：列名 -> CSS 颜色 */
+  columnTextColors?: Record<string, string>
+  /** 列条件字体色：列名 -> 按值条件着色的规则列表 */
+  columnTextRules?: Record<string, ColumnTextRule[]>
   /** 行条件颜色：满足条件时整行着色 */
   rowConditionColors?: RowConditionColor[]
 }

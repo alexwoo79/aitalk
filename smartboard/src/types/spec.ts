@@ -81,6 +81,13 @@ export interface FilterSpec {
 export interface RowConditionColor {
   condition: string
   color: string
+  textColor?: string
+}
+
+/** 列条件字体色规则 */
+export interface ColumnTextRule {
+  condition: string
+  color: string
 }
 
 /** 数据表 */
@@ -89,6 +96,8 @@ export interface TableSpec {
   sortBy: string
   rowLimit: number | 'all'
   columnColors?: Record<string, string>
+  columnTextColors?: Record<string, string>
+  columnTextRules?: Record<string, ColumnTextRule[]>
   rowConditionColors?: RowConditionColor[]
 }
 
