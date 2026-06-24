@@ -18,11 +18,12 @@ const router = createRouter({
       name: 'dashboard',
       component: () => import('@/views/DashboardView.vue'),
     },
-    {
-      path: '/canvas-test',
-      name: 'canvasTest',
-      component: () => import('@/views/CanvasTest.vue'),
-    },
+    // CanvasTest 暂未就绪（依赖 vue3-grid-layout）
+    // {
+    //   path: '/canvas-test',
+    //   name: 'canvasTest',
+    //   component: () => import('@/views/CanvasTest.vue'),
+    // },
   ],
 })
 

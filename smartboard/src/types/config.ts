@@ -48,6 +48,15 @@ export interface TableConfig {
   rowConditionColors?: RowConditionColor[]
 }
 
+/** 画布布局项（拖拽位置/大小） */
+export interface LayoutItem {
+  i: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 /** 用户配置（表单输出，等价于 YAML 模板） */
 export interface DashboardConfig {
   title: string

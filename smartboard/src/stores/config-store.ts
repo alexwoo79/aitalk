@@ -121,7 +121,7 @@ export const useConfigStore = defineStore('config', () => {
     config.value.table = {
       sortBy: (ds.primaryMetric && !excluded.has(ds.primaryMetric) ? ds.primaryMetric : metricCols[0]) || '',
       columns: cols,
-      summaryAggs,
+      summaryAggs: summaryAggs as Record<string, 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max'>,
     }
   }
 
