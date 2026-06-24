@@ -21,55 +21,88 @@
       </div>
 
       <div class="config-layout">
-        <!-- 左侧：配置面板 -->
+        <!-- 左侧：配置栏 -->
         <div class="config-panel">
           <!-- 标题 -->
           <section class="config-section">
-            <div class="section-header-row">
+            <div class="section-header-row" @click="toggleConfigSection('title')">
+              <span class="sec-arrow">{{ isSectionOpen('title') ? '▼' : '▶' }}</span>
               <h3>{{ t('config.dashboardTitle') }}</h3>
-              <div class="section-actions">
+              <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('title') }"
-                  @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾'
-                  }}</button>
+                  @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾' }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('title')">↺</button>
               </div>
             </div>
-            <input v-model="configStore.config.title" class="input" :placeholder="t('config.titlePlaceholder')" />
+            <div v-show="isSectionOpen('title')" class="section-body">
+              <input v-model="configStore.config.title" class="input" :placeholder="t('config.titlePlaceholder')" />
+            </div>
           </section>
 
-          <!-- {{ t('config.filters') }} -->
+          <!-- 筛选 -->
           <section class="config-section">
-            <div class="section-header-row">
+            <div class="section-header-row" @click="toggleConfigSection('filters')">
+              <span class="sec-arrow">{{ isSectionOpen('filters') ? '▼' : '▶' }}</span>
               <h3>{{ t('config.filters') }} ({{ configStore.config.filters.length }})</h3>
-              <div class="section-actions">
+              <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('filters') }"
-                  @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾'
-                  }}</button>
+                  @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾' }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('filters')">↺</button>
               </div>
             </div>
-            <div class="filter-chips">
-              <label v-for="col in dimensionCols" :key="col" class="chip"
-                :class="{ active: configStore.config.filters.includes(col) }">
-                <input type="checkbox" :checked="configStore.config.filters.includes(col)"
-                  @change="configStore.toggleFilter(col)" hidden />
-                {{ col }}
-              </label>
+            <div v-show="isSectionOpen('filters')" class="section-body">
+              <div class="filter-chips">
+                <label v-for="col in dimensionCols" :key="col" class="chip"
+                  :class="{ active: configStore.config.filters.includes(col) }">
+                  <input type="checkbox" :checked="configStore.config.filters.includes(col)"
+                    @change="configStore.toggleFilter(col)" hidden />
+                  {{ col }}
+                </label>
+              </div>
             </div>
           </section>
 
-          <!-- 全局指标格式默认值 -->
+          <!-- 时间切片 -->
+          <section class="config-section" v-if="dateCols.length > 0">
+            <div class="section-header-row" @click="toggleConfigSection('dateColumn')">
+              <span class="sec-arrow">{{ isSectionOpen('dateColumn') ? '▼' : '▶' }}</span>
+              <h3>{{ t('config.timeSlice') }} ({{ selectedDateCols.length || dateCols.length }})</h3>
+              <div class="section-actions" @click.stop>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('dateColumn') }"
+                  @click="configStore.saveSection('dateColumn')">{{ configStore.isSectionSaved('dateColumn') ? '✅' : '💾' }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('dateColumn')">↺</button>
+              </div>
+            </div>
+            <div v-show="isSectionOpen('dateColumn')" class="section-body">
+              <p class="sec-desc">{{ t('config.timeSliceHint') }}</p>
+              <div class="filter-chips">
+                <label v-for="col in dateCols" :key="col" class="chip"
+                  :class="{ active: selectedDateCols.includes(col) }">
+                  <input type="checkbox" :checked="selectedDateCols.includes(col)"
+                    @change="toggleDateCol(col)" hidden />
+                  {{ col }}
+                </label>
+              </div>
+              <p v-if="selectedDateCols.length > 0" class="sec-desc" style="margin-top:6px">
+                {{ t('config.date') }}{{ previewSpec?.dateRange?.min }} ~ {{ previewSpec?.dateRange?.max }}
+              </p>
+            </div>
+          </section>
+
+          <!-- 全局指标格式 -->
           <section class="config-section">
-            <div class="section-header-row">
+            <div class="section-header-row" @click="toggleConfigSection('metricDefaults')">
+              <span class="sec-arrow">{{ isSectionOpen('metricDefaults') ? '▼' : '▶' }}</span>
               <h3>{{ t('config.globalMetricFormat') }}</h3>
-              <div class="section-actions">
+              <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('metricDefaults') }"
                   @click="saveMetricDefaults">{{ configStore.isSectionSaved('metricDefaults') ? '✅' : '💾' }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="resetMetricDefaults">↺</button>
               </div>
             </div>
-            <p class="sec-desc">{{ t('config.globalMetricHint') }}</p>
-            <div class="metric-defaults-table">
+            <div v-show="isSectionOpen('metricDefaults')" class="section-body">
+              <p class="sec-desc">{{ t('config.globalMetricHint') }}</p>
+              <div class="metric-defaults-table">
               <div class="md-header">
                 <span class="md-col-name">{{ t('config.metricColumn') }}</span>
                 <span class="md-col-fmt">{{ t('config.format') }}</span>
@@ -118,20 +151,21 @@
                 </label>
               </div>
             </div>
+            </div>
           </section>
 
-          <!-- KPI 卡片 -->
+          <!-- KPI -->
           <section class="config-section">
-            <div class="section-header-row">
-              <h3>{{ t('config.kpiCards') }} ({{ configStore.config.kpis.length }}) <span class="drag-hint">{{
-                t('config.dragHint') }}</span></h3>
-              <div class="section-actions">
+            <div class="section-header-row" @click="toggleConfigSection('kpis')">
+              <span class="sec-arrow">{{ isSectionOpen('kpis') ? '▼' : '▶' }}</span>
+              <h3>{{ t('config.kpiCards') }} ({{ configStore.config.kpis.length }}) <span class="drag-hint">{{ t('config.dragHint') }}</span></h3>
+              <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('kpis') }"
-                  @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾'
-                  }}</button>
+                  @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾' }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('kpis')">↺</button>
               </div>
             </div>
+            <div v-show="isSectionOpen('kpis')" class="section-body">
             <div class="kpi-list" data-drag-list="kpi">
               <div v-for="(kpi, i) in configStore.config.kpis" :key="i" class="kpi-item" :data-drag-idx="i"
                 :class="{ 'drag-placeholder': dragPlaceholder === i && dragList === 'kpi' }">
@@ -151,20 +185,21 @@
               </div>
             </div>
             <button class="btn btn-sm btn-add" @click="openAddKpi">{{ t('config.addKPICard') }}</button>
+            </div>
           </section>
 
-          <!-- 图表块 -->
+          <!-- 图表 -->
           <section class="config-section">
-            <div class="section-header-row">
-              <h3>{{ t('config.charts') }} ({{ configStore.config.charts.length }}) <span class="drag-hint">{{
-                t('config.dragHint') }}</span></h3>
-              <div class="section-actions">
+            <div class="section-header-row" @click="toggleConfigSection('charts')">
+              <span class="sec-arrow">{{ isSectionOpen('charts') ? '▼' : '▶' }}</span>
+              <h3>{{ t('config.charts') }} ({{ configStore.config.charts.length }}) <span class="drag-hint">{{ t('config.dragHint') }}</span></h3>
+              <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('charts') }"
-                  @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾'
-                  }}</button>
+                  @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾' }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('charts')">↺</button>
               </div>
             </div>
+            <div v-show="isSectionOpen('charts')" class="section-body">
             <div class="chart-list" data-drag-list="chart">
               <div v-for="(chart, ci) in configStore.config.charts" :key="chart.id" class="chart-item"
                 :data-drag-idx="ci" :class="{ 'drag-placeholder': dragPlaceholder === ci && dragList === 'chart' }">
@@ -190,19 +225,21 @@
               </div>
             </div>
             <button class="btn btn-sm btn-add" @click="openAddChart">{{ t('config.addChart') }}</button>
+            </div>
           </section>
 
-          <!-- 表格配置 -->
+          <!-- 表格 -->
           <section class="config-section">
-            <div class="section-header-row">
+            <div class="section-header-row" @click="toggleConfigSection('table')">
+              <span class="sec-arrow">{{ isSectionOpen('table') ? '▼' : '▶' }}</span>
               <h3>{{ t('config.sections.table') }}</h3>
-              <div class="section-actions">
+              <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('table') }"
-                  @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾'
-                  }}</button>
+                  @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾' }}</button>
                 <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('table')">↺</button>
               </div>
             </div>
+            <div v-show="isSectionOpen('table')" class="section-body">
 
             <!-- 显示列：卡片式布局（轻量化） -->
             <div class="table-col-header">
@@ -217,11 +254,11 @@
               <div v-for="col in allHeaders" :key="col" class="table-col-card" :class="[
                 'role-' + (dataStore.dataSet?.classifications[col]?.role || 'ignore'),
               ]" @click="configStore.toggleTableColumn(col)">
+                <label class="tcc-cb" @click.stop>
+                  <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
+                    @change="configStore.toggleTableColumn(col)" />
+                </label>
                 <div class="tcc-row">
-                  <label class="tcc-cb" @click.stop>
-                    <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
-                      @change="configStore.toggleTableColumn(col)" />
-                  </label>
                   <div class="tcc-icon">
                     <span>{{ roleIcon(dataStore.dataSet?.classifications[col]?.role) }}</span>
                   </div>
@@ -276,8 +313,8 @@
               </div>
             </div>
 
-            <!-- 行数限制 + 行条件颜色（同行） -->
-            <div class="table-config-row table-config-bottom">
+            <!-- 行数限制：All / 限定数量 toggle -->
+            <div class="table-config-bottom">
               <div class="table-row-limit-wrap">
                 <label>{{ t('config.rowLimit') }}</label>
                 <div class="row-limit-toggle" @click="configStore.config.table.rowLimit = configStore.config.table.rowLimit === 'all' ? 15 : 'all'">
@@ -289,6 +326,8 @@
                   <option v-for="n in [5,10,15,20,30,50,100,200,500]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
+
+              <!-- 行条件颜色 -->
               <div class="table-row-cond-wrap">
                 <label>{{ t('config.rowConditionColor') }}</label>
                 <div class="row-colors-list">
@@ -321,36 +360,66 @@
                 </div>
               </div>
             </div>
+            </div>
           </section>
         </div>
 
-        <!-- 右侧：预览 -->
+        <!-- 右侧：实时预览 -->
         <div class="config-preview">
-          <div class="preview-card">
-            <h3>{{ t('common.preview') }}</h3>
-            <div class="preview-stats">
-              <div class="stat-item">
-                <span class="stat-label">{{ t('config.kpiCards') }}</span>
-                <span class="stat-value">{{ configStore.config.kpis.length }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">{{ t('config.filters') }}</span>
-                <span class="stat-value">{{ configStore.config.filters.length }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">{{ t('config.charts') }}</span>
-                <span class="stat-value">{{ configStore.config.charts.length }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">{{ t('config.dataRows') }}</span>
-                <span class="stat-value">{{ dataStore.dataSet.rows.length }}</span>
+          <div class="preview-dash">
+            <div class="preview-dash-header">
+              <h3>{{ configStore.config.title || t('common.preview') }}</h3>
+              <button class="btn btn-primary btn-sm" @click="goToDashboard">{{ t('config.generateArrow') }}</button>
+            </div>
+            <div class="save-status" v-if="allSaved">{{ t('config.savedAll') }}</div>
+            <div class="save-status unsaved" v-else>{{ t('config.savedPartial', { n: savedCount, total: totalSections }) }}</div>
+
+            <!-- 筛选条件预览 -->
+            <div v-if="configStore.config.filters.length > 0" class="preview-section">
+              <h4 class="ps-title">{{ t('config.filters') }}</h4>
+              <div class="preview-filters">
+                <span v-for="f in configStore.config.filters" :key="f" class="pf-chip">{{ f }}</span>
               </div>
             </div>
-            <button class="btn btn-primary" @click="goToDashboard">
-              {{ t('config.generateArrow') }}
-            </button>
-            <div class="save-status" v-if="allSaved">{{ t('config.savedAll') }}</div>
-            <div class="save-status unsaved" v-else>{{ t('config.savedPartial', { n: savedCount }) }}</div>
+
+            <!-- 时间切片预览 -->
+            <div v-if="previewSpec?.dateRange" class="preview-section">
+              <h4 class="ps-title">{{ t('config.timeSlice') }}</h4>
+              <div class="preview-filters">
+                <span class="pf-chip">{{ previewSpec!.dateRange!.min }} ~ {{ previewSpec!.dateRange!.max }}</span>
+              </div>
+            </div>
+
+            <!-- KPI 预览 -->
+            <div v-if="previewKpis.length > 0" class="preview-section">
+              <h4 class="ps-title">{{ t('config.kpiCards') }}</h4>
+              <div class="preview-kpi-row">
+                <div v-for="(kpi, i) in previewKpis" :key="'pk-'+i" class="preview-kpi-card">
+                  <div class="pk-label">{{ kpi.label }}</div>
+                  <div class="pk-value" style="font-size:16px">{{ formatPreviewValue(kpi) }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 图表占位预览 -->
+            <div v-if="configStore.config.charts.length > 0" class="preview-section">
+              <h4 class="ps-title">{{ t('config.charts') }}</h4>
+              <div class="preview-chart-grid">
+                <div v-for="(chart, i) in configStore.config.charts" :key="chart.id || i" class="preview-chart-card">
+                  <span class="pc-type">{{ chartTypeLabel(chart.type) }}</span>
+                  <span class="pc-title">{{ chart.title }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 数据表摘要 -->
+            <div v-if="configStore.config.table.columns.length > 0" class="preview-section">
+              <h4 class="ps-title">{{ t('config.sections.table') }}</h4>
+              <div class="preview-table-info">
+                <span>{{ t('config.displayColumns') }}: {{ configStore.config.table.columns.length }}</span>
+                <span>{{ t('config.dataRows') }}: {{ dataStore.dataSet?.rows.length || 0 }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -706,6 +775,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
+import { usePreviewStore } from '@/stores/preview-store'
 import type { ConfigSection } from '@/stores/config-store'
 import { CHART_TYPES, AGG_OPTIONS, KPI_FORMAT_OPTIONS } from '@/types/config'
 import type { ChartFormItem } from '@/types/config'
@@ -714,17 +784,59 @@ const router = useRouter()
 const { t } = useI18n()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
+const previewStore = usePreviewStore()
 
 // 全部区域是否都已保存（与快照一致）
 const allSaved = computed(() => {
-  const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table']
+  const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'metricDefaults', 'kpis', 'charts', 'table']
   return sections.every((s) => configStore.isSectionSaved(s))
 })
 
 const savedCount = computed(() => {
-  const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table']
+  const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'metricDefaults', 'kpis', 'charts', 'table']
   return sections.filter((s) => configStore.isSectionSaved(s)).length
 })
+const totalSections = 7
+
+// ====== Accordion state ======
+const expandedSections = ref(new Set<ConfigSection>(['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'metricDefaults']))
+function toggleConfigSection(section: ConfigSection) {
+  if (expandedSections.value.has(section)) {
+    expandedSections.value.delete(section)
+  } else {
+    expandedSections.value.add(section)
+  }
+  expandedSections.value = new Set(expandedSections.value)
+}
+function isSectionOpen(section: ConfigSection): boolean {
+  return expandedSections.value.has(section)
+}
+
+// ====== Preview computed ======
+const previewSpec = computed(() => previewStore.buildSpec())
+
+type KpiPreview = { label: string; value: number; format: string; prefix: string; unit?: string; decimals?: number }
+const previewKpis = computed((): KpiPreview[] => {
+  const spec = previewSpec.value
+  if (!spec) return []
+  return spec.kpis.map((k) => {
+    const val = previewStore.computeKpiValue(k)
+    return { label: k.label, value: val, format: k.format || '', prefix: k.prefix || '', unit: k.unit, decimals: k.decimals }
+  })
+})
+
+function formatPreviewValue(kpi: KpiPreview): string {
+  const n = kpi.value
+  if (kpi.format === 'percent') return n.toFixed(kpi.decimals ?? 1) + '%'
+  if (kpi.format === 'integer') return Math.round(n).toLocaleString()
+  if (kpi.format === 'currency') {
+    const p = kpi.prefix || ''
+    if (kpi.unit === 'wan') return p + (n / 10000).toFixed(kpi.decimals ?? 2).toLocaleString() + '万'
+    if (kpi.unit === 'yi') return p + (n / 100000000).toFixed(kpi.decimals ?? 2).toLocaleString() + '亿'
+    return p + n.toFixed(kpi.decimals ?? 2).toLocaleString()
+  }
+  return n.toFixed(kpi.decimals ?? 2).toLocaleString()
+}
 
 // ====== Drag state ======
 const dragList = ref<'kpi' | 'chart' | null>(null)
@@ -959,7 +1071,7 @@ function insertOp(op: string) {
 function openAddKpi() {
   editingKpiIdx.value = -1
   kpiForm.useFormula = false
-  kpiForm.column = ''
+  kpiForm.column = allNumericCols.value[0] || ''
   kpiForm.label = ''
   kpiForm.agg = 'sum'
   kpiForm.format = 'global'
@@ -1069,6 +1181,19 @@ const dateCols = computed(() => {
   return ds.headers.filter((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
 })
 
+// ====== Date column multi-select ======
+const selectedDateCols = computed({
+  get: () => configStore.config.dateColumns || dateCols.value,
+  set: (v) => { configStore.config.dateColumns = v },
+})
+function toggleDateCol(col: string) {
+  const arr = [...selectedDateCols.value]
+  const idx = arr.indexOf(col)
+  if (idx !== -1) arr.splice(idx, 1)
+  else arr.push(col)
+  configStore.config.dateColumns = arr.length > 0 ? arr : undefined
+}
+
 // ====== 全局指标聚合 ======
 function initMetricDefaultsForm() {
   const form: Record<string, { format: string; unit: string; prefix: string; decimals: number; sections: string[] }> = {}
@@ -1154,10 +1279,10 @@ const canSaveChart = computed(() => {
 function resetChartForm() {
   chartForm.type = 'bar'
   chartForm.title = ''
-  chartForm.dimension = ''
-  chartForm.metric = ''
-  chartForm.metrics = []
-  chartForm.dateColumn = ''
+  chartForm.dimension = dimensionCols.value[0] || ''
+  chartForm.metric = allMetricCols.value[0] || ''
+  chartForm.metrics = allMetricCols.value.length > 0 ? [allMetricCols.value[0]] : []
+  chartForm.dateColumn = dateCols.value[0] || ''
   chartForm.agg = 'sum'
   chartForm.k = 3
   chartForm.clusterMetrics = []
@@ -1333,8 +1458,9 @@ function cancelChartEdit() {
 }
 
 .config-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   text-align: center;
+  position: relative;
 }
 
 .config-header-top {
@@ -1343,7 +1469,7 @@ function cancelChartEdit() {
   justify-content: center;
   gap: 12px;
   margin-bottom: 4px;
-  position: relative;
+  min-height: 36px;
 }
 
 .config-header-top .btn-ghost {
@@ -1354,14 +1480,27 @@ function cancelChartEdit() {
 .header-actions {
   position: absolute;
   right: 0;
+  top: 0;
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  align-items: center;
+}
+
+.header-actions .btn-save,
+.header-actions .btn-reset-sec {
+  width: auto;
+  height: auto;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 5px;
+  white-space: nowrap;
 }
 
 .config-header h2 {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   margin-bottom: 0;
+  line-height: 36px;
 }
 
 .subtitle {
@@ -1372,48 +1511,75 @@ function cancelChartEdit() {
 
 .config-layout {
   display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 24px;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
   align-items: start;
 }
 
 .config-panel {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 8px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .config-section {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 8px;
+  padding: 8px 12px;
 }
 
 /* Section header with per-section save/reset */
 .section-header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  gap: 8px;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .section-header-row h3 {
   margin-bottom: 0;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sec-arrow {
+  font-size: 9px;
+  color: var(--text-secondary);
+  width: 12px;
   flex-shrink: 0;
+}
+
+.sec-tag {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--primary);
+  background: var(--primary-light, #eff6ff);
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 2px;
 }
 
 .section-actions {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   flex-shrink: 0;
 }
 
+.section-body {
+  padding-top: 8px;
+}
+
 .config-section h3 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   color: var(--text-primary);
 }
 
@@ -1421,11 +1587,16 @@ function cancelChartEdit() {
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border);
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
 }
 
 .btn-save:hover {
@@ -1434,26 +1605,24 @@ function cancelChartEdit() {
 }
 
 .btn-save.saved {
-  background: #16a34a;
-  color: white;
-  border-color: #16a34a;
-}
-
-.btn-save.saved:hover {
-  background: #15803d;
-  border-color: #15803d;
-  color: white;
+  color: #16a34a;
+  border-color: transparent;
 }
 
 .btn-reset-sec {
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border);
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
 }
 
 .btn-reset-sec:hover {
@@ -1468,6 +1637,11 @@ function cancelChartEdit() {
   cursor: not-allowed;
 }
 
+.section-body .input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .select-sm {
   flex: 1;
 }
@@ -1480,19 +1654,19 @@ function cancelChartEdit() {
 .kpi-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 5px;
+  margin-bottom: 8px;
 }
 
 .kpi-item {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 4px;
+  padding: 5px 8px;
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid transparent;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s;
   cursor: default;
 }
 
@@ -1675,23 +1849,23 @@ function cancelChartEdit() {
 .filter-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 5px;
 }
 
 /* Chart list */
 .chart-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .chart-item {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: 4px;
+  padding: 6px 10px;
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid transparent;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -1914,6 +2088,7 @@ function cancelChartEdit() {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding-right: 14px;
 }
 
 .table-col-card:hover {
@@ -1974,17 +2149,18 @@ function cancelChartEdit() {
   margin-top: 1px;
 }
 
-/* Checkbox inside card */
+/* Checkbox inside card — top right */
 .tcc-cb {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 2;
   cursor: pointer;
 }
 
 .tcc-cb input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   accent-color: var(--primary);
   cursor: pointer;
   margin: 0;
@@ -1995,6 +2171,7 @@ function cancelChartEdit() {
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
+  margin-right: 6px;
 }
 
 .color-picker-mini {
@@ -2093,6 +2270,10 @@ function cancelChartEdit() {
   font-size: 11px;
   padding: 2px 0;
   text-align: left;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 2px;
 }
 
 /* Shared table config rows (row limit, row condition color) */
@@ -2104,7 +2285,10 @@ function cancelChartEdit() {
 }
 
 .table-config-bottom {
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .table-row-limit-wrap {
@@ -2126,8 +2310,7 @@ function cancelChartEdit() {
   flex-shrink: 0;
   padding-top: 3px;
 }
-
-.table-config-row label,
+.table-row-cond-wrap > label,
 .table-row-limit-wrap label {
   font-size: 13px;
   color: var(--text-secondary);
@@ -2236,45 +2419,139 @@ function cancelChartEdit() {
 
 /* Preview panel */
 .config-preview {
-  position: sticky;
-  top: 24px;
+  min-width: 0;
 }
 
-.preview-card {
+.preview-dash {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
+  min-height: 300px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.preview-card h3 {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
-.preview-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.stat-item {
+.preview-dash-header {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
-.stat-label {
+.preview-dash-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pf-label {
   font-size: 12px;
   color: var(--text-secondary);
 }
+.pf-chip {
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
 
-.stat-value {
-  font-size: 20px;
+/* Preview section labels */
+.preview-section {
+  margin-bottom: 14px;
+}
+.ps-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.preview-kpi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.preview-kpi-card {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.pk-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.pk-value {
+  font-size: 22px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.preview-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.preview-canvas {
+  min-height: 100px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.preview-chart-card {
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pc-type {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--primary);
+  text-transform: uppercase;
+}
+
+.pc-title {
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-table-info {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 /* Save status indicator */

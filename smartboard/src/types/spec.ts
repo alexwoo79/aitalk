@@ -1,4 +1,5 @@
 import type { ColumnClassification } from './data'
+import type { LayoutItem } from './config'
 
 /** Dashboard 完整规格（渲染引擎消费） */
 export interface DashboardSpec {
@@ -12,6 +13,10 @@ export interface DashboardSpec {
   table: TableSpec
   analyses: Record<string, AnalysisResult>
   dateRange?: { column: string; min: string; max: string }
+  /** 可用的时间列（展示页可切换） */
+  dateColumns?: string[]
+  /** 画布布局 */
+  layout?: LayoutItem[]
   /** 全局指标格式默认值，按列名 key */
   metricDefaults?: Record<string, MetricDefault>
 }

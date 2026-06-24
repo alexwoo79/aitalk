@@ -8,7 +8,7 @@
         <option v-for="m in activeMetrics" :key="m" :value="m">{{ m }}</option>
       </select>
     </div>
-    <div class="chart-container" v-if="option">
+    <div class="chart-container" v-if="option" ref="containerRef">
       <v-chart ref="chartRef" :option="option" :theme="theme === 'dark' ? 'dark' : ''" autoresize
         style="flex:1;min-height:200px" />
     </div>
@@ -77,6 +77,7 @@ const { downloadPNG, downloadCSV } = useChartDownload()
 
 // Fullscreen
 const wrapRef = ref<HTMLElement | null>(null)
+const containerRef = ref<HTMLElement | null>(null)
 const chartRef = ref<InstanceType<typeof VChart> | null>(null)
 const isFullscreen = ref(false)
 function toggleFullscreen() {

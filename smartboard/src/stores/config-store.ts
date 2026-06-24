@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type { DashboardConfig, KpiFormItem, ChartFormItem } from '@/types/config'
 import { useDataStore } from './data-store'
 
-export type ConfigSection = 'title' | 'filters' | 'kpis' | 'charts' | 'table' | 'metricDefaults'
+export type ConfigSection = 'title' | 'filters' | 'dateColumn' | 'kpis' | 'charts' | 'table' | 'metricDefaults'
 
 export const useConfigStore = defineStore('config', () => {
   const config = ref<DashboardConfig>({
@@ -117,6 +117,33 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
+  function generateAutoLayout() {
+    const layout: any[] = []
+    let y = 0
+    // KPIs: 每行最多 4 个
+    const kpis = config.value.kpis
+    for (let i = 0; i < kpis.length; i++) {
+      const col = i % 4
+      layout.push({ i: `kpi-${i}`, x: col * 3, y: Math.floor(i / 4), w: 3, h: 2, minW: 2, minH: 2 })
+    }
+    y = Math.ceil(kpis.length / 4)
+    // Charts: 基础图表宽 6，分析图表宽 12
+    const charts = config.value.charts
+    let chartY = y
+    for (let i = 0; i < charts.length; i++) {
+      const isAnalysis = ['timeseries', 'decile', 'cluster', 'line'].includes(charts[i].type)
+      if (isAnalysis) {
+        layout.push({ i: `chart-${i}`, x: 0, y: chartY, w: 12, h: 5, minW: 6, minH: 4 })
+        chartY += 5
+      } else {
+        const col = i % 2
+        layout.push({ i: `chart-${i}`, x: col * 6, y: chartY, w: 6, h: 4, minW: 3, minH: 3 })
+        if (col === 1) chartY += 4
+      }
+    }
+    config.value.layout = layout
+  }
+
   // 全部自动生成（兼容旧接口）
   function generateAutoConfig() {
     generateAutoTitle()
@@ -124,6 +151,7 @@ export const useConfigStore = defineStore('config', () => {
     generateAutoKpis()
     generateAutoCharts()
     generateAutoTable()
+    generateAutoLayout()
   }
 
   function editTitle(title: string) {
@@ -271,6 +299,7 @@ export const useConfigStore = defineStore('config', () => {
   const sectionGetters: Record<ConfigSection, () => any> = {
     title: () => config.value.title,
     filters: () => [...config.value.filters],
+    dateColumn: () => config.value.dateColumns ? [...config.value.dateColumns] : [],
     kpis: () => JSON.parse(JSON.stringify(config.value.kpis)),
     charts: () => JSON.parse(JSON.stringify(config.value.charts)),
     table: () => JSON.parse(JSON.stringify(config.value.table)),
@@ -280,6 +309,7 @@ export const useConfigStore = defineStore('config', () => {
   const sectionSetters: Record<ConfigSection, (data: any) => void> = {
     title: (v) => { config.value.title = v },
     filters: (v) => { config.value.filters = v },
+    dateColumn: (v) => { config.value.dateColumns = v && v.length > 0 ? v : undefined },
     kpis: (v) => { config.value.kpis = v },
     charts: (v) => { config.value.charts = v },
     table: (v) => { config.value.table = v },
@@ -289,6 +319,7 @@ export const useConfigStore = defineStore('config', () => {
   const sectionAutoGens: Record<ConfigSection, () => void> = {
     title: generateAutoTitle,
     filters: generateAutoFilters,
+    dateColumn: () => { config.value.dateColumns = undefined },
     kpis: generateAutoKpis,
     charts: generateAutoCharts,
     table: generateAutoTable,
@@ -328,7 +359,7 @@ export const useConfigStore = defineStore('config', () => {
 
   /** 全部保存/解除 */
   function saveAll() {
-    const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table', 'metricDefaults']
+    const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'metricDefaults']
     if (sections.every((s) => isSectionSaved(s))) {
       // 全部已保存 → 全部解除
       sectionSnapshots.value = {}

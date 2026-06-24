@@ -51,10 +51,14 @@ export interface DashboardConfig {
   title: string
   kpis: KpiFormItem[]
   filters: string[]
+  /** 可用的时间切片列（多选，展示页可动态切换） */
+  dateColumns?: string[]
   charts: ChartFormItem[]
   table: TableConfig
   /** 全局指标格式默认值，按列名 key，KPI/图表单独设定会覆盖此值 */
   metricDefaults?: Record<string, MetricDefault>
+  /** 画布布局（拖拽位置/大小），为空时自动生成 */
+  layout?: LayoutItem[]
 }
 
 /** KPI 表单项 */

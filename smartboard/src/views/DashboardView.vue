@@ -61,8 +61,17 @@
       </div>
 
       <!-- 日期范围 -->
+      <div v-if="dateColWarn" class="date-col-warn">
+        <span>⚠️ {{ dateColWarn }}</span>
+        <button class="dcw-close" @click="dateColWarn = ''">✕</button>
+      </div>
       <div v-if="spec.dateRange" class="date-range-bar">
-        <span class="dr-label">{{ t('dashboard.timeSlice') }}: {{ spec.dateRange.column }}</span>
+        <span class="dr-label">{{ t('dashboard.timeSlice') }}:</span>
+        <select v-if="spec.dateColumns && spec.dateColumns.length > 1" v-model="previewStore.activeDateColumn" @change="onDateColumnChange"
+          class="input input-xs dr-date-col">
+          <option v-for="col in spec.dateColumns" :key="col" :value="col">{{ col }}</option>
+        </select>
+        <span v-else class="dr-label dr-col-name">{{ spec.dateRange.column }}</span>
         <input type="date" v-model="dateStart" :min="spec.dateRange.min" :max="spec.dateRange.max"
           class="dr-date-input" />
         <span class="dr-sep">{{ t('dashboard.to') }}</span>
@@ -84,69 +93,33 @@
 
       <template v-if="!dashboardCleared">
         <!-- KPI 卡片 -->
-        <div v-if="spec.kpis.length > 0" class="kpi-grid">
-          <div v-for="(kpi, i) in spec.kpis" :key="i" class="kpi-card"
+        <div v-if="spec.kpis?.length" class="kpi-row">
+          <div v-for="(kpi, i) in spec.kpis" :key="'kpi-'+i" class="kpi-card"
             :style="{ background: KPI_BG[i % KPI_BG.length], color: KPI_TEXT[i % KPI_TEXT.length] }">
-            <div class="kpi-icon">
-              <span>{{ kpiIcon(kpi, i) }}</span>
-            </div>
+            <div class="kpi-icon"><span>{{ kpiIcon(kpi, i) }}</span></div>
             <div class="kpi-content">
-              <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix,
-                kpi.unit, kpi.decimals)
-              }}</span>
+              <span class="kpi-value">{{ formatKpiValue(previewStore.computeKpiValue(kpi), kpi.format, kpi.prefix, kpi.unit, kpi.decimals) }}</span>
               <span class="kpi-label">{{ kpi.label }}</span>
             </div>
           </div>
         </div>
 
-        <!-- 图表网格 -->
-        <div class="charts-grid">
-          <div v-for="(chart, i) in spec.charts" :key="i" class="chart-card resizable-card"
-            :class="{ 'chart-card-full': isAnalysisChart(chart) }" v-show="!chart._skip">
+        <!-- 图表 -->
+        <div v-if="spec.charts?.length" class="charts-wrap">
+          <div v-for="(chart, i) in spec.charts" :key="'chart-'+i"
+            :class="['chart-card', { 'chart-card-full': isAnalysisChart(chart) }]"
+            :data-chart-key="'chart-' + i">
             <div class="rs-handle rs-handle-e" @pointerdown.prevent="onResizeStart($event, 'e')"></div>
             <div class="rs-handle rs-handle-s" @pointerdown.prevent="onResizeStart($event, 's')"></div>
             <div class="rs-handle rs-handle-se" @pointerdown.prevent="onResizeStart($event, 'se')"></div>
-
-            <!-- 时序分析 -->
-            <template v-if="chart.type === 'timeseries'">
-              <TimeseriesChart :rows="filteredChartRows(chart)"
-                :date-column="chart.dateColumn || spec.dateRange?.column || ''"
-                :metric="chart.metric || spec.primaryMetric || ''"
-                :metrics="chart.metrics && chart.metrics.length > 0 ? chart.metrics : allMetricCols"
-                :title="chart.title" :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
-            </template>
-
-            <!-- 十分位分析 -->
-            <template v-else-if="chart.type === 'decile'">
-              <DecileChart :rows="filteredChartRows(chart)" :metric="chart.metric || spec.primaryMetric || ''"
-                :metrics="chart.metrics && chart.metrics.length > 0 ? chart.metrics : allMetricCols"
-                :title="chart.title" :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
-            </template>
-
-            <!-- 聚类分析 -->
-            <template v-else-if="chart.type === 'cluster'">
-              <ClusterChart :rows="filteredChartRows(chart)"
-                :metrics="chart.clusterMetrics || chart.metrics || (spec.primaryMetric ? [spec.primaryMetric] : [])"
-                :k="chart.k" :title="chart.title" :metric-formats="chart.metricFormats || {}"
-                :metric-ags="chart.metricAggs || {}" />
-            </template>
-
-            <!-- 基础图表 -->
-            <template v-else-if="chart.type === 'bar'">
-              <BarChartComponent :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            </template>
-            <template v-else-if="chart.type === 'horizontal_bar'">
-              <HorizontalBarChart :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            </template>
-            <template v-else-if="chart.type === 'doughnut'">
-              <DoughnutChart :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            </template>
-            <template v-else-if="chart.type === 'histogram'">
-              <HistogramChart :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            </template>
-            <template v-else-if="chart.type === 'line'">
-              <LineChartComponent :chart="chart" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            </template>
+            <TimeseriesChart v-if="chart.type === 'timeseries'" :rows="filteredChartRows(chart)" :date-column="chart.dateColumn || spec.dateRange?.column || ''" :metric="chart.metric || spec.primaryMetric || ''" :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title" :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
+            <DecileChart v-else-if="chart.type === 'decile'" :rows="filteredChartRows(chart)" :metric="chart.metric || spec.primaryMetric || ''" :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title" :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
+            <ClusterChart v-else-if="chart.type === 'cluster'" :rows="filteredChartRows(chart)" :metrics="chart.clusterMetrics || chart.metrics || (spec.primaryMetric ? [spec.primaryMetric] : [])" :k="chart.k" :title="chart.title" :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
+            <BarChartComponent v-else-if="chart.type === 'bar'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+            <HorizontalBarChart v-else-if="chart.type === 'horizontal_bar'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+            <DoughnutChart v-else-if="chart.type === 'doughnut'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+            <HistogramChart v-else-if="chart.type === 'histogram'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+            <LineChartComponent v-else-if="chart.type === 'line'" :chart="chart as any" :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
           </div>
         </div>
 
@@ -262,12 +235,7 @@ import LineChartComponent from '@/components/dashboard/LineChart.vue'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { usePreviewStore } from '@/stores/preview-store'
-import { save, message } from '@tauri-apps/plugin-dialog'
-import { writeTextFile } from '@tauri-apps/plugin-fs'
 import type { ChartSpec, KpiSpec } from '@/types/spec'
-import echartsCode from 'echarts/dist/echarts.min.js?raw'
-import resultTemplate from '@/../templates/result_template.html?raw'
-import rendererJS from '@/../dist-standalone/renderer.js?raw'
 import { useTheme } from '@/composables/use-theme'
 import { applyFilter } from '@/core/filter'
 
@@ -286,12 +254,13 @@ const { theme } = useTheme()
 let resizeDir: 'e' | 's' | 'se' = 'se'
 let resizeSX = 0, resizeSY = 0, resizeSW = 0, resizeSH = 0
 let resizeTarget: HTMLElement | null = null
+const chartSizes = ref<Record<string, { width: number; height: number }>>({})
 
 function onResizeStart(e: PointerEvent, dir: 'e' | 's' | 'se') {
   resizeDir = dir
   resizeSX = e.clientX
   resizeSY = e.clientY
-  resizeTarget = (e.target as HTMLElement).closest('.resizable-card') as HTMLElement
+  resizeTarget = (e.target as HTMLElement).closest('.chart-card, .resizable-card') as HTMLElement
   if (!resizeTarget) return
   resizeSW = resizeTarget.offsetWidth
   resizeSH = resizeTarget.offsetHeight
@@ -313,6 +282,13 @@ function onResizeMove(e: PointerEvent) {
 }
 
 function onResizeEnd() {
+  // Store chart card size if it was a chart card
+  if (resizeTarget?.classList.contains('chart-card')) {
+    const key = resizeTarget.getAttribute('data-chart-key') || ''
+    if (key) {
+      chartSizes.value = { ...chartSizes.value, [key]: { width: resizeTarget.offsetWidth, height: resizeTarget.offsetHeight } }
+    }
+  }
   resizeTarget = null
   document.removeEventListener('pointermove', onResizeMove)
   document.removeEventListener('pointerup', onResizeEnd)
@@ -374,6 +350,40 @@ const KPI_TEXT = computed(() => theme.value === 'dark' ? KPI_TEXT_DARK : KPI_TEX
 // ====== Date picker bridge (local ref ↔ store) ======
 const dateStart = ref(previewStore.dateRange.start)
 const dateEnd = ref(previewStore.dateRange.end)
+const dateColWarn = ref('')
+
+// Initialize activeDateColumn from spec
+watch(() => spec.value?.dateRange?.column, (col) => {
+  if (col && !previewStore.activeDateColumn) previewStore.activeDateColumn = col
+}, { immediate: true })
+
+function onDateColumnChange() {
+  const ds = dataStore.dataSet
+  if (!ds || !previewStore.activeDateColumn) return
+  
+  // 检测图表日期列与当前时间切片不一致
+  const mismatched = (spec.value?.charts || []).filter(c =>
+    (c.type === 'timeseries' || c.type === 'line') &&
+    c.dateColumn && c.dateColumn !== previewStore.activeDateColumn
+  )
+  if (mismatched.length > 0) {
+    dateColWarn.value = `时序分析基于「${mismatched[0].dateColumn}」计算，当前切片使用「${previewStore.activeDateColumn}」，图表数据可能不一致`
+  } else {
+    dateColWarn.value = ''
+  }
+  
+  const dates = ds.rows
+    .map((r) => String(r[previewStore.activeDateColumn] ?? ''))
+    .filter((v) => v !== '')
+    .sort()
+  if (dates.length > 0) {
+    previewStore.dateRange.start = dates[0]
+    previewStore.dateRange.end = dates[dates.length - 1]
+    dateStart.value = dates[0]
+    dateEnd.value = dates[dates.length - 1]
+    previewStore.applyFilters()
+  }
+}
 
 watch(dateStart, (v) => {
   if (v !== previewStore.dateRange.start) {
@@ -392,6 +402,12 @@ watch(() => previewStore.dateRange.end, (v) => { if (v !== dateEnd.value) dateEn
 
 // ====== Init ======
 onMounted(() => {
+  // 默认选中"全部"
+  if (spec.value?.filters) {
+    for (const f of spec.value.filters) {
+      if (!previewStore.filterValues[f.column]) previewStore.filterValues[f.column] = '__all__'
+    }
+  }
   previewStore.applyFilters()
   initTableState()
 })
@@ -468,7 +484,15 @@ async function saveDashboard() {
   const tblRowCondColors = s.table.rowConditionColors || []
   const date = new Date().toISOString().slice(0, 10)
 
-  // 使用模板文件生成 HTML
+  // 使用模板文件生成 HTML（按需动态加载，避免首屏阻塞）
+  const [echartsMod, templateMod, rendererMod] = await Promise.all([
+    import('echarts/dist/echarts.min.js?raw'),
+    import('@/../templates/result_template.html?raw'),
+    import('@/../dist-standalone/renderer.js?raw'),
+  ])
+  const echartsCode = (echartsMod as any).default
+  const resultTemplate = (templateMod as any).default
+  const rendererJS = (rendererMod as any).default
   const echartsTag = '<script>' + echartsCode + '<\/script>'
 
   const html = resultTemplate
@@ -493,13 +517,45 @@ async function saveDashboard() {
     .replace(/\{\{LOCALE\}\}/g, locale.value)
     .replace(/\{\{I18N_JSON\}\}/g, JSON.stringify(locale.value === 'zh-CN' ? zhCN : enUS))
 
+  // 保存的图表卡片尺寸（用于 HTML 输出）
+  const chartSizeCss = s.charts.map((c, i) => {
+    const sizes = chartSizes.value['chart-' + i]
+    if (sizes) return `.chart-card-${i} { width: ${sizes.width}px; height: ${sizes.height}px; flex: none; }`
+    return ''
+  }).filter(Boolean).join('\n')
+  const htmlWithSizes = html.replace('</style>', '\n' + chartSizeCss + '\n</style>')
+
+  // 全屏双击 JS
+  const fullscreenJs = `<script>
+(function() {
+  document.querySelectorAll('.chart-wrapper').forEach(function(el) {
+    el.addEventListener('dblclick', function() {
+      el.classList.toggle('is-fullscreen');
+    });
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.is-fullscreen').forEach(function(el) {
+        el.classList.remove('is-fullscreen');
+      });
+    }
+  });
+  var style = document.createElement('style');
+  style.textContent = '.chart-wrapper.is-fullscreen{position:fixed;inset:0;z-index:9999;background:var(--bg,#fff);padding:20px;display:flex;flex-direction:column}';
+  document.head.appendChild(style);
+})();
+<\\/script>`
+
+  const { save, message } = await import('@tauri-apps/plugin-dialog')
+  const { writeTextFile } = await import('@tauri-apps/plugin-fs')
   const filePath = await save({
     defaultPath: `${title}_${date}.html`,
     filters: [{ name: 'HTML', extensions: ['html'] }],
   })
   if (filePath) {
     try {
-      await writeTextFile(filePath, html)
+      const finalHtml = htmlWithSizes.replace(/\{\{FULLSCREEN_JS\}\}/g, fullscreenJs)
+      await writeTextFile(filePath, finalHtml)
       await message(t('dashboard.saveSuccess', { path: filePath }), { title: t('dashboard.saveSuccessTitle'), kind: 'info' })
     } catch (e: any) {
       await message(t('dashboard.saveFailed', { error: e?.message || e }), { title: t('dashboard.saveFailedTitle'), kind: 'error' })
@@ -993,6 +1049,30 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 }
 
 /* Date range bar */
+.date-col-warn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #92400e;
+  margin-bottom: 8px;
+}
+.dcw-close {
+  border: none;
+  background: none;
+  color: #92400e;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  opacity: 0.6;
+}
+.dcw-close:hover { opacity: 1; }
+
 .date-range-bar {
   display: flex;
   gap: 10px;
@@ -1010,6 +1090,17 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   color: var(--text-secondary);
   font-weight: 600;
   white-space: nowrap;
+}
+
+.dr-col-name {
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.dr-date-col {
+  width: 130px;
+  font-size: 12px;
+  height: 28px;
 }
 
 .dr-sep {
@@ -1106,24 +1197,70 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   margin-top: 2px;
 }
 
-/* Charts grid */
-.charts-grid {
+/* KPI row */
+.kpi-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.kpi-row .kpi-card {
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+}
+
+/* Charts flex layout with resize handles */
+.charts-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-bottom: 24px;
+}
+.chart-card {
+  flex: 1 1 400px;
+  max-width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 350px;
+  position: relative;
+  overflow: hidden;
+}
+.chart-card-full {
+  flex: 1 1 100%;
+  max-width: 100%;
+  min-height: 420px;
+}
+
+/* Resize handles */
+.rs-handle {
+  position: absolute;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.chart-card:hover .rs-handle,
+.resizable-card:hover .rs-handle { opacity: 1; }
+.rs-handle-e {
+  right: 0; top: 0; bottom: 0;
+  width: 6px; cursor: col-resize;
+}
+.rs-handle-s {
+  left: 0; right: 0; bottom: 0;
+  height: 6px; cursor: row-resize;
+}
+.rs-handle-se {
+  right: 0; bottom: 0;
+  width: 14px; height: 14px; cursor: nwse-resize;
 }
 
 .chart-card {
   flex: 1 1 400px;
   max-width: 100%;
-}
-
-.chart-card-full {
-  flex: 1 1 100%;
-}
-
-.chart-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -1133,6 +1270,10 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   min-height: 280px;
   min-width: 320px;
   position: relative;
+}
+
+.chart-card-full {
+  flex: 1 1 100%;
 }
 
 .resizable-card {

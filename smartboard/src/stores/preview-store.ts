@@ -10,6 +10,7 @@ export const usePreviewStore = defineStore('preview', () => {
   const filteredRows = ref<Record<string, string | number>[]>([])
   const filterValues = ref<Record<string, string>>({})
   const dateRange = ref<{ start: string; end: string }>({ start: '', end: '' })
+  const activeDateColumn = ref('')
   const searchText = ref('')
   const conditionFilter = ref('')
 
@@ -93,9 +94,11 @@ export const usePreviewStore = defineStore('preview', () => {
       rowConditionColors: cfg.table.rowConditionColors,
     }
 
-    // Date range detection（跳过已排除的列）
+    // Date range detection（使用配置的时间列或自动检测）
     let dateRangeSpec: DashboardSpec['dateRange'] | undefined
-    const dateCol = ds.headers.find((h) => ds.classifications[h]?.type === 'date' && !excluded.has(h))
+    const allDateCols = ds.headers.filter((h) => ds.classifications[h]?.type === 'date' && !excluded.has(h))
+    const configuredDates = cfg.dateColumns && cfg.dateColumns.length > 0 ? cfg.dateColumns : allDateCols
+    const dateCol = configuredDates.length > 0 ? configuredDates[0] : undefined
     if (dateCol) {
       const dates = ds.rows
         .map((r) => String(r[dateCol] ?? ''))
@@ -117,6 +120,8 @@ export const usePreviewStore = defineStore('preview', () => {
       table,
       analyses: {},
       dateRange: dateRangeSpec,
+      dateColumns: configuredDates,
+      layout: cfg.layout,
       metricDefaults: defaults,
     }
   }
@@ -138,9 +143,9 @@ export const usePreviewStore = defineStore('preview', () => {
       }
     }
 
-    // Apply date range（跳过已排除的列）
+    // Apply date range（使用当前活跃的时间列）
     if (dateRange.value.start && dateRange.value.end) {
-      const dateCol = ds.headers.find((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
+      const dateCol = activeDateColumn.value || ds.headers.find((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
       if (dateCol) {
         const start = dateRange.value.start
         const end = dateRange.value.end
@@ -253,6 +258,7 @@ export const usePreviewStore = defineStore('preview', () => {
     filteredRows,
     filterValues,
     dateRange,
+    activeDateColumn,
     searchText,
     conditionFilter,
     rowCount,
