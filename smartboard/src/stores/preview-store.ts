@@ -27,7 +27,9 @@ export const usePreviewStore = defineStore('preview', () => {
 
     const defaults = cfg.metricDefaults || {}
 
-    const kpis: KpiSpec[] = cfg.kpis.map((k) => {
+    const kpis: KpiSpec[] = cfg.kpis
+      .filter((k) => k.selected !== false)
+      .map((k) => {
       const def = defaults[k.column]
       const useGlobal = def && (!def.sections || def.sections.includes('kpi'))
       // 仅在 per-item 标记为继承全局时，才完整套用全局默认
@@ -51,7 +53,9 @@ export const usePreviewStore = defineStore('preview', () => {
       }
     })
 
-    const charts: ChartSpec[] = cfg.charts.map((c) => {
+    const charts: ChartSpec[] = cfg.charts
+      .filter((c) => c.selected !== false)
+      .map((c) => {
       // 收集该图表涉及的指标 + 全部启用了图表的全局格式（因 Dashboard 可切换额外指标）
       const allMetrics = new Set<string>()
       if (c.metrics) c.metrics.forEach(m => allMetrics.add(m))

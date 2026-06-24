@@ -91,6 +91,8 @@ export interface KpiFormItem {
     expression: string
     filter?: string
   }
+  /** 是否选中（用于预览渲染过滤，默认 true） */
+  selected?: boolean
 }
 
 /** 图表表单项 */
@@ -115,6 +117,8 @@ export interface ChartFormItem {
   metricFormats?: Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi'; prefix?: string; decimals?: number }>
   /** 各指标独立聚合方式（key=指标名），覆盖全局 agg */
   metricAggs?: Record<string, string>
+  /** 是否选中（用于预览渲染过滤，默认 true） */
+  selected?: boolean
 }
 
 /** 图表类型选项 */

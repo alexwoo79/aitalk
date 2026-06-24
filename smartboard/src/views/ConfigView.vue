@@ -113,13 +113,24 @@
                   <span class="md-col-unit">{{ t('config.unit') }}</span>
                   <span class="md-col-prefix">{{ t('config.prefix') }}</span>
                   <span class="md-col-dec">{{ t('config.decimals') }}</span>
-                  <span class="md-col-cb"><label>KPI</label></span>
-                  <span class="md-col-cb"><label>{{ t('config.sections.chart') }}</label></span>
-                  <span class="md-col-cb"><label>{{ t('config.sections.table') }}</label></span>
+                  <span class="md-col-cb" @click.stop>
+                    <input type="checkbox" :checked="isSectionAllSelected('kpi')" @change="toggleSectionAll('kpi')" />
+                    <label>KPI</label>
+                  </span>
+                  <span class="md-col-cb" @click.stop>
+                    <input type="checkbox" :checked="isSectionAllSelected('chart')"
+                      @change="toggleSectionAll('chart')" />
+                    <label>{{ t('config.sections.chart') }}</label>
+                  </span>
+                  <span class="md-col-cb" @click.stop>
+                    <input type="checkbox" :checked="isSectionAllSelected('table')"
+                      @change="toggleSectionAll('table')" />
+                    <label>{{ t('config.sections.table') }}</label>
+                  </span>
                 </div>
                 <div v-for="col in allMetricCols" :key="col" class="md-row">
                   <span class="md-col-name">{{ col }}</span>
-                  <select v-model="metricDefaultsForm[col].format" class="input input-sm md-sel">
+                  <select v-model="metricDefaultsForm[col].format" class="input input-xs md-sel">
                     <option value="">{{ t('config.formatOptions.unset') }}</option>
                     <option value="number">{{ t('config.formatOptions.number') }}</option>
                     <option value="integer">{{ t('config.formatOptions.integer') }}</option>
@@ -127,14 +138,14 @@
                     <option value="currency">{{ t('config.formatOptions.currency') }}</option>
                   </select>
                   <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].unit"
-                    class="input input-sm md-sel">
+                    class="input input-xs md-sel">
                     <option value="yuan">{{ t('config.unitOptions.yuan') }}</option>
                     <option value="wan">{{ t('config.unitOptions.wan') }}</option>
                     <option value="yi">{{ t('config.unitOptions.yi') }}</option>
                   </select>
                   <span v-else class="md-na">—</span>
                   <select v-if="metricDefaultsForm[col].format === 'currency'" v-model="metricDefaultsForm[col].prefix"
-                    class="input input-sm md-sel">
+                    class="input input-xs md-sel">
                     <option value="">{{ t('common.none') }}</option>
                     <option value="¥">¥</option>
                     <option value="$">$</option>
@@ -142,7 +153,7 @@
                     <option value="£">£</option>
                   </select>
                   <span v-else class="md-na">—</span>
-                  <input v-model.number="metricDefaultsForm[col].decimals" type="number" class="input input-sm md-dec"
+                  <input v-model.number="metricDefaultsForm[col].decimals" type="number" class="input input-xs md-dec"
                     min="0" max="6" step="1" />
                   <label class="md-cb" :class="{ active: hasSection(col, 'kpi') }">
                     <input type="checkbox" :checked="hasSection(col, 'kpi')" @change="toggleSection(col, 'kpi')" />
@@ -172,6 +183,12 @@
               </div>
             </div>
             <div v-show="isSectionOpen('kpis')" class="section-body">
+              <div class="chart-quick-actions">
+                <span>{{ t('config.displayColumns') }} ({{ selectedKpiCount }}/{{ configStore.config.kpis.length
+                  }})</span>
+                <button class="btn-link" @click="configStore.selectAllKpis()">{{ t('common.selectAll') }}</button>
+                <button class="btn-link" @click="configStore.clearAllKpis()">{{ t('common.clearAll') }}</button>
+              </div>
               <div class="kpi-list" data-drag-list="kpi">
                 <div v-for="(kpi, i) in configStore.config.kpis" :key="i" class="kpi-item" :data-drag-idx="i"
                   :class="{ 'drag-placeholder': dragPlaceholder === i && dragList === 'kpi' }">
@@ -186,6 +203,10 @@
                       <span v-if="kpi.filter" class="kpi-filter-tag" :title="kpi.filter">{{ t('common.filter') }}</span>
                       <button class="btn-icon" @click="openEditKpi(i)" :title="t('config.edit')">✎</button>
                       <button class="btn-icon" @click="configStore.removeKpi(i)" :title="t('config.remove')">✕</button>
+                      <label class="chart-select-cb" @click.stop>
+                        <input type="checkbox" :checked="kpi.selected !== false"
+                          @change="configStore.toggleKpiSelected(i)" />
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -208,6 +229,12 @@
               </div>
             </div>
             <div v-show="isSectionOpen('charts')" class="section-body">
+              <div class="chart-quick-actions">
+                <span>{{ t('config.displayColumns') }} ({{ selectedChartCount }}/{{ configStore.config.charts.length
+                }})</span>
+                <button class="btn-link" @click="configStore.selectAllCharts()">{{ t('common.selectAll') }}</button>
+                <button class="btn-link" @click="configStore.clearAllCharts()">{{ t('common.clearAll') }}</button>
+              </div>
               <div class="chart-list" data-drag-list="chart">
                 <div v-for="(chart, ci) in configStore.config.charts" :key="chart.id" class="chart-item"
                   :data-drag-idx="ci" :class="{ 'drag-placeholder': dragPlaceholder === ci && dragList === 'chart' }">
@@ -229,6 +256,10 @@
                       <span v-if="chart.dateColumn">{{ t('config.date') }} {{ chart.dateColumn }}</span>
                       <span v-if="chart.k">K: {{ chart.k }}</span>
                     </div>
+                    <label class="chart-select-cb" @click.stop>
+                      <input type="checkbox" :checked="chart.selected !== false"
+                        @change="configStore.toggleChartSelected(chart.id)" />
+                    </label>
                   </div>
                 </div>
               </div>
@@ -250,7 +281,7 @@
             </div>
             <div v-show="isSectionOpen('table')" class="section-body">
 
-              <!-- 显示列：卡片式布局（轻量化） -->
+              <!-- 显示列：表格布局（参考全局指标格式） -->
               <div class="table-col-header">
                 <span>{{ t('config.displayColumns') }} ({{ configStore.config.table.columns.length }}/{{
                   allHeaders.length
@@ -260,82 +291,91 @@
                 <button class="btn-link" @click="configStore.config.table.columns = []">{{ t('common.clearAll')
                   }}</button>
               </div>
-              <div class="table-col-grid">
-                <div v-for="col in allHeaders" :key="col" class="table-col-card" :class="[
-                  'role-' + (dataStore.dataSet?.classifications[col]?.role || 'ignore'),
-                ]" @click="configStore.toggleTableColumn(col)">
-                  <label class="tcc-cb" @click.stop>
-                    <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
-                      @change="configStore.toggleTableColumn(col)" />
-                  </label>
-                  <!-- Row 1: icon + name + meta -->
-                  <div class="tcc-row">
-                    <div class="tcc-icon">
-                      <span>{{ roleIcon(dataStore.dataSet?.classifications[col]?.role) }}</span>
-                    </div>
-                    <div class="tcc-body">
-                      <div class="tcc-name">{{ col }}</div>
-                      <div class="tcc-meta">
-                        {{ typeLabel(dataStore.dataSet?.classifications[col]?.type) }} · {{
-                          roleLabel(dataStore.dataSet?.classifications[col]?.role) }}
-                      </div>
-                    </div>
-                  </div>
-                  <!-- Row 2: 颜色 + 汇总聚合 -->
-                  <div class="tcc-actions" @click.stop>
-                    <div class="tcc-color">
+              <div class="table-col-table">
+                <div class="tct-header">
+                  <span class="tct-col-name">{{ t('config.columnName') }}</span>
+                  <span class="tct-col-type">{{ t('config.columnType') }}</span>
+                  <span class="tct-col-role">{{ t('config.columnRole') }}</span>
+                  <span class="tct-col-bgcolor">{{ t('config.columnBgColor') }}</span>
+                  <span class="tct-col-txtcolor">{{ t('config.columnFontColor') }}</span>
+                  <span class="tct-col-summary">{{ t('config.summaryRow') }}</span>
+                  <span class="tct-col-rules">{{ t('config.columnTextRule') }}</span>
+                  <span class="tct-col-cb"></span>
+                </div>
+                <template v-for="col in allHeaders" :key="col">
+                  <div class="tct-row" :class="[
+                    'role-' + (dataStore.dataSet?.classifications[col]?.role || 'ignore'),
+                    { selected: configStore.config.table.columns.includes(col) }
+                  ]" @click="configStore.toggleTableColumn(col)">
+                    <span class="tct-col-name">
+                      <span class="tct-icon">{{ roleIcon(dataStore.dataSet?.classifications[col]?.role) }}</span>
+                      {{ col }}
+                    </span>
+                    <span class="tct-col-type">{{ typeLabel(dataStore.dataSet?.classifications[col]?.type) }}</span>
+                    <span class="tct-col-role">{{ roleLabel(dataStore.dataSet?.classifications[col]?.role) }}</span>
+                    <span class="tct-col-bgcolor" @click.stop>
                       <input type="color" class="color-picker-mini"
                         :value="configStore.config.table.columnColors?.[col] || '#ffffff'"
                         @input="(e) => configStore.setColumnColor(col, (e.target as HTMLInputElement).value)"
                         :title="t('config.columnColor')" />
-                      <input type="color" class="color-picker-mini tcc-text-color"
+                    </span>
+                    <span class="tct-col-txtcolor" @click.stop>
+                      <input type="color" class="color-picker-mini"
                         :value="configStore.config.table.columnTextColors?.[col] || '#000000'"
                         @input="(e) => configStore.setColumnTextColor(col, (e.target as HTMLInputElement).value)"
                         :title="t('config.columnTextColor')" />
                       <button
                         v-if="configStore.config.table.columnColors?.[col] || configStore.config.table.columnTextColors?.[col]"
-                        class="tcc-color-clear"
+                        class="tct-color-clear"
                         @click.stop="configStore.setColumnColor(col, ''); configStore.setColumnTextColor(col, '')"
                         :title="t('config.removeColor')">✕</button>
-                    </div>
-                    <select class="tcc-summary-sel" :value="(configStore.config.table.summaryAggs || {})[col] || ''"
-                      @change="(e) => configStore.setSummaryAgg(col, (e.target as HTMLSelectElement).value as any)"
-                      :title="t('config.summaryRow')">
-                      <option value="">{{ t('common.none') }}</option>
-                      <option value="sum">{{ t('config.aggSum') }}</option>
-                      <option value="avg">{{ t('config.aggAvg') }}</option>
-                      <option value="count">{{ t('config.aggCount') }}</option>
-                      <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
-                      <option value="min">{{ t('config.aggMin') }}</option>
-                      <option value="max">{{ t('config.aggMax') }}</option>
-                    </select>
+                    </span>
+                    <span class="tct-col-summary" @click.stop>
+                      <select class="tct-summary-sel" :value="(configStore.config.table.summaryAggs || {})[col] || ''"
+                        @change="(e) => configStore.setSummaryAgg(col, (e.target as HTMLSelectElement).value as any)"
+                        :title="t('config.summaryRow')">
+                        <option value="">{{ t('common.none') }}</option>
+                        <option value="sum">{{ t('config.aggSum') }}</option>
+                        <option value="avg">{{ t('config.aggAvg') }}</option>
+                        <option value="count">{{ t('config.aggCount') }}</option>
+                        <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
+                        <option value="min">{{ t('config.aggMin') }}</option>
+                        <option value="max">{{ t('config.aggMax') }}</option>
+                      </select>
+                    </span>
+                    <span class="tct-col-rules" @click.stop>
+                      <button v-if="dataStore.dataSet?.classifications[col]?.type === 'numeric'" class="tct-rule-toggle"
+                        :class="{ active: expandedColRules.has(col) }" @click="toggleColRules(col)"
+                        :title="t('config.columnTextRule')">
+                        <span v-if="ruleCount(col)" class="tct-rule-count">{{ ruleCount(col) }}</span>
+                        <span v-else class="tct-rule-add-icon">+</span>
+                      </button>
+                      <span v-else class="tct-na">—</span>
+                    </span>
+                    <span class="tct-col-cb" @click.stop>
+                      <input type="checkbox" :checked="configStore.config.table.columns.includes(col)"
+                        @change="configStore.toggleTableColumn(col)" />
+                    </span>
                   </div>
-                  <!-- 列条件着色规则（折叠） -->
-                  <div class="tcc-rule-area" v-if="dataStore.dataSet?.classifications[col]?.type === 'numeric'">
-                    <button class="tcc-rule-toggle" :class="{ active: expandedColRules.has(col) }"
-                      @click.stop="toggleColRules(col)">
-                      <span class="tcc-rule-icon">{{ expandedColRules.has(col) ? '▼' : '▶' }}</span>
-                      <span>{{ t('config.columnTextRule') }}</span>
-                      <span v-if="ruleCount(col)" class="tcc-rule-count">{{ ruleCount(col) }}</span>
-                    </button>
-                    <div v-if="expandedColRules.has(col)" class="tcc-rule-list" @click.stop>
-                      <div v-for="(rule, ri) in (configStore.config.table.columnTextRules?.[col] || [])" :key="ri"
-                        class="tcc-rule-row">
-                        <input type="text" class="input input-xs tcc-rule-cond" :value="rule.condition"
-                          :placeholder="t('config.columnTextRulePlaceholder')"
-                          @input="(e) => configStore.setColumnTextRule(col, ri, { condition: (e.target as HTMLInputElement).value, color: rule.color })" />
-                        <input type="color" class="color-picker-mini rule-text-color" :value="rule.color"
-                          @input="(e) => configStore.setColumnTextRule(col, ri, { condition: rule.condition, color: (e.target as HTMLInputElement).value })"
-                          :title="t('config.columnTextColor')" />
-                        <button class="btn-icon tcc-rule-remove"
-                          @click="configStore.removeColumnTextRule(col, ri)">✕</button>
-                      </div>
-                      <button class="btn-link tcc-rule-add"
-                        @click="configStore.setColumnTextRule(col, (configStore.config.table.columnTextRules?.[col]?.length || 0), { condition: '', color: '#333333' })">
-                        {{ t('config.columnTextRuleAdd') }}</button>
+                  <!-- 列条件着色规则展开行 -->
+                  <div v-if="expandedColRules.has(col) && dataStore.dataSet?.classifications[col]?.type === 'numeric'"
+                    class="tct-rule-expand" @click.stop>
+                    <div v-for="(rule, ri) in (configStore.config.table.columnTextRules?.[col] || [])" :key="ri"
+                      class="tct-rule-row">
+                      <input type="text" class="input input-xs tct-rule-cond" :value="rule.condition"
+                        :placeholder="t('config.columnTextRulePlaceholder')"
+                        @input="(e) => configStore.setColumnTextRule(col, ri, { condition: (e.target as HTMLInputElement).value, color: rule.color })" />
+                      <input type="color" class="color-picker-mini rule-text-color" :value="rule.color"
+                        @input="(e) => configStore.setColumnTextRule(col, ri, { condition: rule.condition, color: (e.target as HTMLInputElement).value })"
+                        :title="t('config.columnTextColor')" />
+                      <button class="btn-icon tct-rule-remove"
+                        @click="configStore.removeColumnTextRule(col, ri)">✕</button>
                     </div>
+                    <button class="btn-link tct-rule-add-btn"
+                      @click="configStore.setColumnTextRule(col, (configStore.config.table.columnTextRules?.[col]?.length || 0), { condition: '', color: '#333333' })">
+                      {{ t('config.columnTextRuleAdd') }}</button>
                   </div>
-                </div>
+                </template>
               </div>
 
               <!-- 行条件颜色 -->
@@ -408,7 +448,7 @@
 
             <!-- KPI 预览 -->
             <div v-if="previewKpis.length > 0" class="preview-section">
-              <h4 class="ps-title">{{ t('config.kpiCards') }}</h4>
+              <h4 class="ps-title">{{ t('config.kpiCards') }} ({{ previewKpis.length }})</h4>
               <div class="preview-kpi-row">
                 <div v-for="(kpi, i) in previewKpis" :key="'pk-' + i" class="preview-kpi-card">
                   <div class="pk-label">{{ kpi.label }}</div>
@@ -418,10 +458,10 @@
             </div>
 
             <!-- 图表占位预览 -->
-            <div v-if="configStore.config.charts.length > 0" class="preview-section">
-              <h4 class="ps-title">{{ t('config.charts') }}</h4>
+            <div v-if="selectedCharts.length > 0" class="preview-section">
+              <h4 class="ps-title">{{ t('config.charts') }} ({{ selectedCharts.length }})</h4>
               <div class="preview-chart-grid">
-                <div v-for="(chart, i) in configStore.config.charts" :key="chart.id || i" class="preview-chart-card">
+                <div v-for="(chart, i) in selectedCharts" :key="chart.id || i" class="preview-chart-card">
                   <span class="pc-type">{{ chartTypeLabel(chart.type) }}</span>
                   <span class="pc-title">{{ chart.title }}</span>
                 </div>
@@ -1204,6 +1244,16 @@ const dateCols = computed(() => {
   return ds.headers.filter((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
 })
 
+// ====== Chart selection ======
+const selectedCharts = computed(() =>
+  configStore.config.charts.filter((c) => c.selected !== false)
+)
+const selectedChartCount = computed(() => selectedCharts.value.length)
+
+const selectedKpiCount = computed(() =>
+  configStore.config.kpis.filter((k) => k.selected !== false).length
+)
+
 // ====== Date column multi-select ======
 const selectedDateCols = computed({
   get: () => configStore.config.dateColumns || dateCols.value,
@@ -1252,6 +1302,31 @@ function toggleSection(col: string, section: string) {
   const idx = arr.indexOf(section)
   if (idx !== -1) arr.splice(idx, 1)
   else arr.push(section)
+}
+
+function selectAllSection(section: string) {
+  for (const col of allMetricCols.value) {
+    if (!metricDefaultsForm[col].sections.includes(section)) {
+      metricDefaultsForm[col].sections.push(section)
+    }
+  }
+}
+function clearAllSection(section: string) {
+  for (const col of allMetricCols.value) {
+    const arr = metricDefaultsForm[col].sections
+    const idx = arr.indexOf(section)
+    if (idx !== -1) arr.splice(idx, 1)
+  }
+}
+function isSectionAllSelected(section: string): boolean {
+  return allMetricCols.value.length > 0 && allMetricCols.value.every(col => metricDefaultsForm[col]?.sections.includes(section))
+}
+function toggleSectionAll(section: string) {
+  if (isSectionAllSelected(section)) {
+    clearAllSection(section)
+  } else {
+    selectAllSection(section)
+  }
 }
 
 // ====== 保存/重置全局格式 ======
@@ -1933,6 +2008,8 @@ function cancelChartEdit() {
 
 .chart-item-body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .chart-item-header {
@@ -1964,6 +2041,35 @@ function cancelChartEdit() {
   font-size: 12px;
   color: var(--text-secondary);
   flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Chart select checkbox (bottom-right) */
+.chart-select-cb {
+  margin-left: auto;
+  margin-top: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.chart-select-cb input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  margin: 0;
+}
+
+/* Chart quick actions bar */
+.chart-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 /* Modal overlay */
@@ -2118,155 +2224,105 @@ function cancelChartEdit() {
   text-align: center;
 }
 
-/* Table config - Column Card Grid (参考首页列信息卡片) */
-.table-col-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+/* Table config - Column Table (参考全局指标格式) */
+.table-col-table {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
   margin-bottom: 16px;
 }
 
-.table-col-card {
-  display: flex;
-  flex-direction: column;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border-light);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-  user-select: none;
-}
-
-.tcc-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-/* Actions row: colors + summary dropdown */
-.tcc-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.tct-header,
+.tct-row {
+  display: grid;
+  grid-template-columns: 1fr 56px 56px 54px 54px 72px 64px 28px;
   gap: 4px;
-  padding-left: 42px;
+  padding: 8px 10px;
+  align-items: center;
 }
 
-.tcc-summary-sel {
+.tct-header {
+  background: var(--bg-hover);
   font-size: 11px;
-  padding: 1px 4px;
-  height: 22px;
-  width: 56px;
-  border-radius: 4px;
-  border: 1px solid var(--border-light);
-  background: var(--bg);
+  font-weight: 600;
   color: var(--text-secondary);
+}
+
+.tct-row {
+  border-top: 1px solid var(--border-light);
+  font-size: 12px;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
-.table-col-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+.tct-row:hover {
+  background: var(--bg-hover);
 }
 
-.table-col-card.role-metric {
-  background: var(--role-metric-bg, #eff6ff);
+.tct-row.selected {
+  background: var(--primary-light, #eff6ff);
 }
 
-.table-col-card.role-dimension {
-  background: var(--role-dimension-bg, #f0fdf4);
+.tct-row.role-ignore {
+  opacity: 0.55;
 }
 
-.table-col-card.role-time_axis {
-  background: var(--role-time-bg, #fefce8);
-}
-
-.table-col-card.role-label {
-  background: var(--role-label-bg, #fef2f2);
-}
-
-.table-col-card.role-ignore {
-  background: var(--role-ignore-bg, #f8fafc);
-  opacity: 0.65;
-}
-
-.tcc-icon {
+.tct-col-cb {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: rgba(128, 128, 128, .10);
-  font-size: 15px;
-  flex-shrink: 0;
 }
 
-.tcc-body {
-  flex: 1;
-  min-width: 0;
-  padding-top: 1px;
-}
-
-.tcc-name {
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tcc-meta {
-  font-size: 10px;
-  color: var(--text-secondary);
-  margin-top: 1px;
-}
-
-/* Checkbox inside card — top left */
-.tcc-cb {
-  position: absolute;
-  top: 8px;
-  left: 10px;
-  z-index: 2;
-  cursor: pointer;
-}
-
-.tcc-cb input[type="checkbox"] {
-  width: 13px;
-  height: 13px;
+.tct-col-cb input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
   accent-color: var(--primary);
   cursor: pointer;
   margin: 0;
 }
 
-.tcc-color {
+.tct-col-name {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tct-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: rgba(128, 128, 128, .10);
+  font-size: 12px;
   flex-shrink: 0;
 }
 
-.color-picker-mini {
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 1px;
-  cursor: pointer;
-  background: transparent;
-  flex-shrink: 0;
+.tct-col-type,
+.tct-col-role {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.color-picker-mini.tcc-text-color,
-.color-picker-mini.rule-text-color {
-  border-style: dashed;
+.tct-col-bgcolor,
+.tct-col-txtcolor {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: center;
 }
 
-.tcc-color-clear {
+.tct-color-clear {
   width: 16px;
   height: 16px;
   border: none;
@@ -2281,92 +2337,112 @@ function cancelChartEdit() {
   line-height: 1;
 }
 
-.tcc-color-clear:hover {
+.tct-color-clear:hover {
   color: #ef4444;
 }
 
-/* Column conditional text rules (inside card) */
-.tcc-rule-area {
-  border-top: 1px solid var(--border-light);
-  padding-top: 6px;
-  margin-top: 6px;
+.tct-col-summary {
+  display: flex;
+  justify-content: center;
 }
 
-.tcc-rule-toggle {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border: none;
-  background: none;
+.tct-summary-sel {
   font-size: 11px;
+  padding: 1px 4px;
+  height: 22px;
+  width: 64px;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+  background: var(--bg);
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 2px 0;
-  width: 100%;
 }
 
-.tcc-rule-toggle:hover {
+.tct-col-rules {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tct-rule-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-light);
+  background: var(--bg);
+  border-radius: 4px;
+  width: 28px;
+  height: 22px;
+  cursor: pointer;
+  padding: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.tct-rule-toggle:hover {
+  border-color: var(--primary);
   color: var(--primary);
 }
 
-.tcc-rule-toggle.active {
-  color: var(--primary);
-  font-weight: 500;
-}
-
-.tcc-rule-icon {
-  font-size: 8px;
-  width: 10px;
-}
-
-.tcc-rule-count {
+.tct-rule-toggle.active {
   background: var(--primary);
   color: #fff;
-  font-size: 9px;
-  padding: 0 5px;
-  border-radius: 8px;
-  line-height: 16px;
-  min-width: 16px;
-  text-align: center;
+  border-color: var(--primary);
 }
 
-.tcc-rule-list {
+.tct-rule-count {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.tct-rule-add-icon {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.tct-na {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.4;
+}
+
+/* Column conditional text rules (expand row) */
+.tct-rule-expand {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  margin-top: 4px;
+  padding: 6px 10px 8px 38px;
+  border-top: 1px dashed var(--border-light);
+  background: var(--bg);
+  font-size: 11px;
 }
 
-.tcc-rule-row {
+.tct-rule-row {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.tcc-rule-cond {
+.tct-rule-cond {
   flex: 1;
   font-size: 11px;
   padding: 3px 6px;
   height: 24px;
 }
 
-.tcc-rule-row .color-picker-mini {
-  width: 18px;
-  height: 18px;
-  padding: 0;
-}
-
-.tcc-rule-remove {
+.tct-rule-remove {
   font-size: 10px;
   opacity: 0.4;
 }
 
-.tcc-rule-remove:hover {
+.tct-rule-remove:hover {
   opacity: 1;
   color: #ef4444;
 }
 
-.tcc-rule-add {
+.tct-rule-add-btn {
   font-size: 11px;
   padding: 2px 0;
   text-align: left;
@@ -2374,6 +2450,22 @@ function cancelChartEdit() {
   display: inline-flex;
   align-items: center;
   margin-top: 2px;
+}
+
+/* Shared: mini color picker (table + row condition) */
+.color-picker-mini {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px;
+  cursor: pointer;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.color-picker-mini.rule-text-color {
+  border-style: dashed;
 }
 
 /* Shared table config rows (row limit, row condition color) */
@@ -2699,25 +2791,31 @@ function cancelChartEdit() {
   overflow: hidden;
 }
 
-.md-header {
+.md-header,
+.md-row {
   display: grid;
-  grid-template-columns: 1fr 90px 64px 52px 56px 28px 28px 28px;
-  gap: 6px;
-  padding: 8px 12px;
+  grid-template-columns: 1fr 80px 54px 46px 46px 42px 50px 60px;
+  gap: 4px;
+  align-items: center;
+}
+
+.md-header {
+  padding: 8px 10px;
   background: var(--bg-hover);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
 .md-row {
-  display: grid;
-  grid-template-columns: 1fr 90px 64px 52px 56px 28px 28px 28px;
-  gap: 6px;
-  padding: 6px 12px;
-  align-items: center;
+  padding: 6px 10px;
   border-top: 1px solid var(--border-light);
-  font-size: 13px;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+
+.md-row:hover {
+  background: var(--bg-hover);
 }
 
 .md-col-name {
@@ -2728,32 +2826,41 @@ function cancelChartEdit() {
 
 .md-col-cb {
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
 .md-na {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   text-align: center;
 }
 
 .md-sel {
   width: 100%;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .md-dec {
   width: 100%;
   text-align: center;
-  font-size: 13px;
-  padding: 4px 2px;
+  font-size: 12px;
+  height: 26px;
+  line-height: 24px;
+  box-sizing: border-box;
+  -moz-appearance: textfield;
+}
+
+.md-dec::-webkit-outer-spin-button,
+.md-dec::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .md-prefix {
   width: 100%;
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   padding: 4px 2px;
 }
 
@@ -2766,8 +2873,8 @@ function cancelChartEdit() {
 }
 
 .md-cb input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   accent-color: var(--primary);
   cursor: pointer;
   margin: 0;

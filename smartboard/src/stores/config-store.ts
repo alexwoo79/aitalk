@@ -62,6 +62,7 @@ export const useConfigStore = defineStore('config', () => {
         agg: (cls.format === 'percent' ? 'avg' : 'sum') as 'sum' | 'avg',
         format: 'global',
         prefix: cls.prefix,
+        selected: true,
       }
     })
   }
@@ -103,7 +104,7 @@ export const useConfigStore = defineStore('config', () => {
     if (metricCols.length >= 2) {
       basic.push({ id: crypto.randomUUID(), type: 'cluster', title: '聚类分析', metrics: metricCols.slice(0, 5), clusterMetrics: metricCols.slice(0, 5), k: 3 })
     }
-    config.value.charts = basic
+    config.value.charts = basic.map((c) => ({ ...c, selected: true }))
   }
 
   function generateAutoTable() {
@@ -167,7 +168,7 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   function addKpi(kpi: KpiFormItem) {
-    config.value.kpis.push(kpi)
+    config.value.kpis.push({ ...kpi, selected: kpi.selected ?? true })
   }
 
   function removeKpi(index: number) {
@@ -191,8 +192,19 @@ export const useConfigStore = defineStore('config', () => {
     config.value.kpis = arr
   }
 
+  function selectAllKpis() {
+    config.value.kpis = config.value.kpis.map((k) => ({ ...k, selected: true }))
+  }
+  function clearAllKpis() {
+    config.value.kpis = config.value.kpis.map((k) => ({ ...k, selected: false }))
+  }
+  function toggleKpiSelected(index: number) {
+    const kpi = config.value.kpis[index]
+    if (kpi) kpi.selected = !kpi.selected
+  }
+
   function addChart(chart: ChartFormItem) {
-    config.value.charts.push(chart)
+    config.value.charts.push({ ...chart, selected: chart.selected ?? true })
   }
 
   function removeChart(id: string) {
@@ -210,6 +222,17 @@ export const useConfigStore = defineStore('config', () => {
     const [item] = arr.splice(fromIndex, 1)
     arr.splice(toIndex, 0, item)
     config.value.charts = arr
+  }
+
+  function selectAllCharts() {
+    config.value.charts = config.value.charts.map((c) => ({ ...c, selected: true }))
+  }
+  function clearAllCharts() {
+    config.value.charts = config.value.charts.map((c) => ({ ...c, selected: false }))
+  }
+  function toggleChartSelected(id: string) {
+    const chart = config.value.charts.find((c) => c.id === id)
+    if (chart) chart.selected = !chart.selected
   }
 
   function toggleFilter(column: string) {
@@ -417,10 +440,16 @@ export const useConfigStore = defineStore('config', () => {
     removeKpi,
     updateKpi,
     reorderKpis,
+    selectAllKpis,
+    clearAllKpis,
+    toggleKpiSelected,
     addChart,
     removeChart,
     updateChart,
     reorderCharts,
+    selectAllCharts,
+    clearAllCharts,
+    toggleChartSelected,
     toggleFilter,
     toggleTableColumn,
     setColumnColor,
