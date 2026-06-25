@@ -194,6 +194,7 @@ export default {
     savedPartial: '⚠️ {n}/{total} sections saved, button resets on change 💾',
     exportConfig: '📤 Export Config',
     importConfig: '📥 Import Config',
+    exportSuccess: 'Config file exported',
     importSuccess: '✅ Config imported',
     importError: '❌ Import failed: invalid config file',
     importSkipped: '⚠️ {n} items skipped due to column mismatch',

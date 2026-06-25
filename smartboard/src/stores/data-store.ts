@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { DataSet } from '@/types/data'
 import { parseFile } from '@/core/parser'
+import { getXLSXSheetNames, parseXLSXSheet } from '@/core/parser'
 import { classifyAllColumns, selectPrimaryMetric, selectChartDimensions } from '@/core/classifier'
 import { readTextFile, readFile, stat } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -12,6 +13,9 @@ export const useDataStore = defineStore('data', () => {
   const error = ref<string | null>(null)
   const excludedColumns = ref<Set<string>>(new Set())
   const roleOverrides = ref<Record<string, string>>({})
+  const xlsxSheetNames = ref<string[]>([])
+  const activeSheetIndex = ref(0)
+  let _xlsxRawData: Uint8Array | null = null
 
   async function loadFromDialog() {
     const selected = await open({
@@ -38,8 +42,14 @@ export const useDataStore = defineStore('data', () => {
       let parsed
       if (ext === 'xlsx' || ext === 'xls') {
         const data = await readFile(filePath)
-        parsed = parseFile(fileName, data)
+        _xlsxRawData = data
+        const names = getXLSXSheetNames(data)
+        xlsxSheetNames.value = names
+        activeSheetIndex.value = 0
+        parsed = parseXLSXSheet(data, 0)
       } else {
+        xlsxSheetNames.value = []
+        _xlsxRawData = null
         const text = await readTextFile(filePath)
         parsed = parseFile(fileName, text)
       }
@@ -109,5 +119,31 @@ export const useDataStore = defineStore('data', () => {
     roleOverrides.value = { ...roleOverrides.value, [col]: role }
   }
 
-  return { dataSet, loading, error, excludedColumns, roleOverrides, loadFromDialog, loadFile, clearData, toggleExcludeColumn, clearExcluded, setRoleOverride }
+  async function selectSheet(index: number) {
+    if (!_xlsxRawData || index >= xlsxSheetNames.value.length) return
+    loading.value = true
+    activeSheetIndex.value = index
+    try {
+      const parsed = parseXLSXSheet(_xlsxRawData, index)
+      const classifications = classifyAllColumns(parsed.headers, parsed.rows)
+      const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
+      const chartDimensions = selectChartDimensions(parsed.headers, classifications)
+      const ds = dataSet.value
+      dataSet.value = {
+        ...ds!,
+        headers: parsed.headers,
+        rows: parsed.rows,
+        rawRows: parsed.rawRows,
+        classifications,
+        primaryMetric,
+        chartDimensions,
+      }
+    } catch (e: any) {
+      error.value = e.message || 'Sheet 加载失败'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return { dataSet, loading, error, excludedColumns, roleOverrides, xlsxSheetNames, activeSheetIndex, loadFromDialog, loadFile, clearData, toggleExcludeColumn, clearExcluded, setRoleOverride, selectSheet }
 })

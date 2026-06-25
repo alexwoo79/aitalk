@@ -68,8 +68,24 @@ function isExcelDateSerial(n: number, colName: string): boolean {
 }
 
 export function parseXLSX(data: Uint8Array): ParsedFile {
+  return parseXLSXSheet(data, 0)
+}
+
+/** Get valid sheet names from an XLSX file (filter out sheets with no data) */
+export function getXLSXSheetNames(data: Uint8Array): string[] {
   const workbook = read(data, { type: 'array' })
-  const sheetName = workbook.SheetNames[0]
+  return workbook.SheetNames.filter(name => {
+    const sheet = workbook.Sheets[name]
+    const raw = utils.sheet_to_json(sheet, { header: 1, defval: '' })
+    // Must have at least 1 header row + 1 data row
+    return Array.isArray(raw) && raw.length >= 2
+  })
+}
+
+/** Parse a specific sheet by index (0-based) */
+export function parseXLSXSheet(data: Uint8Array, sheetIndex: number): ParsedFile {
+  const workbook = read(data, { type: 'array' })
+  const sheetName = workbook.SheetNames[sheetIndex]
   if (!sheetName) throw new Error('XLSX 文件没有工作表')
 
   const sheet = workbook.Sheets[sheetName]

@@ -1,0 +1,188 @@
+{
+  "title": "设计公司外委合同分析看板",
+  "kpis": [
+    {
+      "column": "外委合同额",
+      "label": "外委合同额",
+      "agg": "sum",
+      "format": "global",
+      "prefix": "",
+      "selected": true
+    },
+    {
+      "column": "合同编号",
+      "label": "合同个数",
+      "agg": "unique_count",
+      "format": "integer",
+      "prefix": "",
+      "selected": true
+    },
+    {
+      "column": "乙方单位名称",
+      "label": "外包单位数量",
+      "agg": "unique_count",
+      "format": "integer",
+      "prefix": "",
+      "selected": true
+    },
+    {
+      "column": "",
+      "label": "平均外委合同金额",
+      "agg": "sum",
+      "format": "currency",
+      "prefix": "",
+      "unit": "wan",
+      "formula": {
+        "variables": [
+          {
+            "column": "外委合同额",
+            "agg": "sum"
+          },
+          {
+            "column": "合同编号",
+            "agg": "unique_count"
+          }
+        ],
+        "expression": "[0] / [1]"
+      },
+      "selected": true
+    }
+  ],
+  "filters": [
+    "区域"
+  ],
+  "charts": [
+    {
+      "id": "495c53c9-0031-4ae1-b816-598d64631735",
+      "type": "bar",
+      "title": "区域 排行",
+      "dimension": "区域",
+      "metric": "外委合同额",
+      "metrics": [
+        "外委合同额"
+      ],
+      "selected": true,
+      "agg": "sum"
+    },
+    {
+      "id": "0024477a-12a3-47d5-8418-b1c3aedd3f2c",
+      "type": "histogram",
+      "title": "外委合同额 分布",
+      "metric": "外委合同额",
+      "selected": true
+    },
+    {
+      "id": "7b19c4d3-8e48-4acf-a53f-b634eafde173",
+      "type": "line",
+      "title": "外委合同额 月度趋势",
+      "dateColumn": "签订日期",
+      "metric": "外委合同额",
+      "selected": true
+    },
+    {
+      "id": "e386a199-a0cb-48e9-b9b7-6edcdc79d062",
+      "type": "timeseries",
+      "title": "外委合同额 时序分析",
+      "dateColumn": "签订日期",
+      "metric": "外委合同额",
+      "selected": true
+    },
+    {
+      "id": "54c4f0b8-4c98-4617-bea6-d34327aca2ed",
+      "type": "decile",
+      "title": "外委合同额 十分位分析",
+      "metric": "外委合同额",
+      "selected": true
+    }
+  ],
+  "table": {
+    "sortBy": "外委合同额",
+    "columns": [
+      "区域",
+      "签订日期",
+      "项目名称",
+      "合同名称",
+      "合同编号",
+      "乙方单位名称",
+      "外委合同额"
+    ],
+    "summaryAggs": {
+      "区域": "unique_count",
+      "签订日期": "unique_count",
+      "外委合同额": "sum",
+      "项目名称": "unique_count",
+      "合同名称": "unique_count",
+      "合同编号": "unique_count",
+      "乙方单位名称": "unique_count"
+    }
+  },
+  "layout": [
+    {
+      "i": "kpi-0",
+      "x": 0,
+      "y": 0,
+      "w": 3,
+      "h": 2,
+      "minW": 2,
+      "minH": 2
+    },
+    {
+      "i": "chart-0",
+      "x": 0,
+      "y": 1,
+      "w": 6,
+      "h": 4,
+      "minW": 3,
+      "minH": 3
+    },
+    {
+      "i": "chart-1",
+      "x": 6,
+      "y": 1,
+      "w": 6,
+      "h": 4,
+      "minW": 3,
+      "minH": 3
+    },
+    {
+      "i": "chart-2",
+      "x": 0,
+      "y": 5,
+      "w": 12,
+      "h": 5,
+      "minW": 6,
+      "minH": 4
+    },
+    {
+      "i": "chart-3",
+      "x": 0,
+      "y": 10,
+      "w": 12,
+      "h": 5,
+      "minW": 6,
+      "minH": 4
+    },
+    {
+      "i": "chart-4",
+      "x": 0,
+      "y": 15,
+      "w": 12,
+      "h": 5,
+      "minW": 6,
+      "minH": 4
+    }
+  ],
+  "metricDefaults": {
+    "外委合同额": {
+      "format": "currency",
+      "unit": "wan",
+      "prefix": "¥",
+      "decimals": 2,
+      "sections": [
+        "kpi",
+        "chart",
+        "table"
+      ]
+    }
+  }
+}

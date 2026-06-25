@@ -199,6 +199,7 @@ export default {
     savedPartial: '⚠️ 已保存 {n}/{total} 区域，修改后按钮自动恢复 💾',
     exportConfig: '📤 导出配置',
     importConfig: '📥 导入配置',
+    exportSuccess: '导出配置文件成功',
     importSuccess: '✅ 配置已导入',
     importError: '❌ 导入失败：无效的配置文件',
     importSkipped: '⚠️ {n} 个项目因列名不匹配已跳过',

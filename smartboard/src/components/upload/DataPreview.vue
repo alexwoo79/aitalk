@@ -4,6 +4,10 @@
     <div class="preview-header">
       <div class="file-info">
         <h3>{{ dataSet.fileName }}</h3>
+        <select v-if="dataStore.xlsxSheetNames.length > 1" :value="dataStore.activeSheetIndex"
+          @change="onSheetChange(($event.target as HTMLSelectElement).value)" class="sheet-sel">
+          <option v-for="(name, i) in dataStore.xlsxSheetNames" :key="i" :value="i">{{ name }}</option>
+        </select>
         <span class="badge">{{ dataSet.rows.length }} {{ t('common.rows') }}</span>
         <span class="badge">{{ dataSet.headers.length }} {{ t('common.columns') }}</span>
       </div>
@@ -107,6 +111,11 @@ function resetExcluded() {
   emit('toggleExclude')
 }
 
+async function onSheetChange(val: string) {
+  await dataStore.selectSheet(Number(val))
+  emit('toggleExclude')
+}
+
 const typeLabels: Record<string, string> = {
   numeric: t('classification.type.numeric'),
   categorical: t('classification.type.categorical'),
@@ -190,6 +199,16 @@ function truncate(val: string | number | undefined): string {
 .file-info h3 {
   font-size: 18px;
   font-weight: 600;
+}
+
+.sheet-sel {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
 }
 
 .badge {

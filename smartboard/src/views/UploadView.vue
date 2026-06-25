@@ -11,8 +11,7 @@
         <span class="sample-download" role="button" tabindex="0"
           @click="downloadSample"
           @keydown.enter="downloadSample"
-          @keydown.space.prevent="downloadSample"
-          @pointerdown.prevent="onSamplePointerDown">
+          @keydown.space.prevent="downloadSample">
           {{ t('upload.sampleDownload') }}
         </span>
       </div>
@@ -63,8 +62,6 @@ import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
-import { parseFile } from '@/core/parser'
-import { classifyAllColumns, selectPrimaryMetric, selectChartDimensions } from '@/core/classifier'
 import FileUploader from '@/components/upload/FileUploader.vue'
 import DataPreview from '@/components/upload/DataPreview.vue'
 
@@ -235,97 +232,6 @@ async function downloadSample() {
   }
 }
 
-// Pointer-based drag: more reliable than HTML5 drag in Tauri webview
-let _sampleGhost: HTMLElement | null = null
-let _samplePointerId = -1
-
-function onSamplePointerDown(e: PointerEvent) {
-  const el = e.currentTarget as HTMLElement
-  el.setPointerCapture(e.pointerId)
-  _samplePointerId = e.pointerId
-
-  // Create ghost element
-  _sampleGhost = el.cloneNode(true) as HTMLElement
-  _sampleGhost.classList.add('sample-ghost')
-  _sampleGhost.style.position = 'fixed'
-  _sampleGhost.style.zIndex = '9999'
-  _sampleGhost.style.pointerEvents = 'none'
-  _sampleGhost.style.opacity = '0.85'
-  _sampleGhost.style.left = (e.clientX - el.offsetWidth / 2) + 'px'
-  _sampleGhost.style.top = (e.clientY - el.offsetHeight / 2) + 'px'
-  document.body.appendChild(_sampleGhost)
-
-  el.addEventListener('pointermove', onSamplePointerMove)
-  el.addEventListener('pointerup', onSamplePointerUp)
-  el.addEventListener('pointercancel', onSamplePointerUp)
-}
-
-function onSamplePointerMove(e: PointerEvent) {
-  if (!_sampleGhost) return
-  _sampleGhost.style.left = (e.clientX - _sampleGhost.offsetWidth / 2) + 'px'
-  _sampleGhost.style.top = (e.clientY - _sampleGhost.offsetHeight / 2) + 'px'
-
-  // Highlight upload area if dragging over it
-  const el = document.elementFromPoint(e.clientX, e.clientY)
-  const uploader = el?.closest('.file-uploader') as HTMLElement | null
-  // Toggle class on any .file-uploader in the document
-  document.querySelectorAll('.file-uploader').forEach((u) => {
-    if (u === uploader) {
-      u.classList.add('dragging')
-    } else {
-      u.classList.remove('dragging')
-    }
-  })
-}
-
-function onSamplePointerUp(e: PointerEvent) {
-  const el = e.currentTarget as HTMLElement
-  el.removeEventListener('pointermove', onSamplePointerMove)
-  el.removeEventListener('pointerup', onSamplePointerUp)
-  el.removeEventListener('pointercancel', onSamplePointerUp)
-  el.releasePointerCapture(_samplePointerId)
-
-  // Remove ghost
-  if (_sampleGhost) { _sampleGhost.remove(); _sampleGhost = null }
-  _samplePointerId = -1
-
-  // Remove dragging highlight
-  document.querySelectorAll('.file-uploader').forEach((u) => u.classList.remove('dragging'))
-
-  // Check if dropped on upload area
-  const target = document.elementFromPoint(e.clientX, e.clientY)
-  const uploader = target?.closest('.file-uploader')
-  if (!uploader) return // dropped outside upload area
-
-  // Load sample data directly
-  loadSampleData()
-}
-
-function loadSampleData() {
-  dataStore.loading = true
-  dataStore.error = null
-  try {
-    const parsed = parseFile('smartboard-sample-data.csv', sampleCsv.value)
-    const classifications = classifyAllColumns(parsed.headers, parsed.rows)
-    const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
-    const chartDimensions = selectChartDimensions(parsed.headers, classifications)
-
-    dataStore.dataSet = {
-      headers: parsed.headers,
-      rows: parsed.rows,
-      rawRows: parsed.rawRows,
-      classifications,
-      primaryMetric,
-      chartDimensions,
-      filePath: 'smartboard-sample-data.csv',
-      fileName: 'smartboard-sample-data.csv',
-    }
-  } catch (err: any) {
-    dataStore.error = err.message || t('upload.parseError')
-  } finally {
-    dataStore.loading = false
-  }
-}
 </script>
 
 <style scoped>
@@ -431,26 +337,29 @@ function loadSampleData() {
   font-size: 13px;
   color: var(--text-secondary);
   text-decoration: none;
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   transition: all 0.2s;
 }
 
 .sample-download:active {
-  cursor: grabbing;
-}
-
-.sample-ghost {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
-  border: 1px solid #16a34a !important;
-  color: #16a34a !important;
-  background: #f0fdf4 !important;
+  cursor: pointer;
 }
 
 .sample-download:hover {
   border-color: #16a34a;
   color: #16a34a;
   background: #f0fdf4;
+}
+
+.sheet-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .tips-panel {

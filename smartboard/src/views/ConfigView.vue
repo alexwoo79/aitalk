@@ -28,8 +28,8 @@
             </span>
           </div>
         </div>
-        <p class="subtitle">{{ t('config.hint') }}</p>
         <div v-if="configMsg" class="config-toast">{{ configMsg }}</div>
+        <p class="subtitle">{{ t('config.hint') }}</p>
       </div>
 
       <div class="config-layout">
@@ -902,7 +902,7 @@ async function exportConfig() {
     })
     if (!filePath) return // user cancelled
     await writeTextFile(filePath, json)
-    configMsg.value = '✅ ' + t('config.saved')
+    configMsg.value = t('config.exportSuccess')
     setTimeout(() => { configMsg.value = '' }, 2000)
   } catch {
     // Fallback: browser download
@@ -1768,14 +1768,10 @@ function cancelChartEdit() {
 }
 
 .config-toast {
-  text-align: center;
+  text-align: right;
   font-size: 12px;
-  padding: 6px 16px;
-  margin-top: 4px;
+  padding: 2px 0;
   color: #065f46;
-  background: #ecfdf5;
-  border-radius: 8px;
-  display: inline-block;
 }
 
 .config-header h2 {
