@@ -985,7 +985,11 @@ var SmartboardRenderer = (function(exports) {
     const bt = document.getElementById("themeToggle");
     if (bt) {
       bt.textContent = t2 === "dark" ? "☀️" : "🌙";
-      bt.title = t2 === "dark" ? "切换亮色主题" : "切换暗色主题";
+      bt.title = t2 === "dark" ? "Switch to Light" : "Switch to Dark";
+    }
+    if (DATA && DATA.rows) {
+      renderKpiCards(DATA.rows);
+      renderCharts(DATA.rows);
     }
   }
   function toggleTheme() {
@@ -1142,7 +1146,7 @@ var SmartboardRenderer = (function(exports) {
     const cf = document.createElement("input");
     cf.type = "text";
     cf.placeholder = t("dashboard.conditionPlaceholder") || "e.g. Amount > 100 & Region = Beijing";
-    cf.style.cssText = "padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;min-width:200px";
+    cf.style.cssText = "padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:200px;background:var(--bg-surface);color:var(--text-primary)";
     cf.oninput = () => {
       condFilter = cf.value;
       refreshAll();
@@ -1151,7 +1155,7 @@ var SmartboardRenderer = (function(exports) {
     const si = document.createElement("input");
     si.type = "text";
     si.placeholder = "搜索...";
-    si.style.cssText = "padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:120px";
+    si.style.cssText = "padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;width:120px;background:var(--bg-surface);color:var(--text-primary)";
     si.oninput = () => {
       searchText = si.value;
       refreshAll();
@@ -1287,8 +1291,9 @@ var SmartboardRenderer = (function(exports) {
   function renderKpiCards(rows) {
     const el = document.getElementById("kpiRow");
     el.innerHTML = "";
-    const bg = ["#EBF5FF", "#ECFDF5", "#FFFBEB", "#FEF2F2", "#F5F3FF", "#ECFEFF"];
-    const tx = ["#1e40af", "#065f46", "#92400e", "#991b1b", "#5b21b6", "#155e75"];
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const bg = isDark ? ["#1e293b", "#1a2e1a", "#2d2416", "#2d1a1a", "#1e1a2e", "#162d2d"] : ["#EBF5FF", "#ECFDF5", "#FFFBEB", "#FEF2F2", "#F5F3FF", "#ECFEFF"];
+    const tx = isDark ? ["#93c5fd", "#6ee7b7", "#fcd34d", "#fca5a5", "#c4b5fd", "#67e8f9"] : ["#1e40af", "#065f46", "#92400e", "#991b1b", "#5b21b6", "#155e75"];
     const ic = ["📊", "📈", "📋", "💰", "💵", "👥"];
     DATA.kpiSpecs.forEach((k, i) => {
       const vs = rows.map((r) => {
@@ -1324,14 +1329,15 @@ var SmartboardRenderer = (function(exports) {
         dv = v2.toFixed(dc) + "%";
       } else if (k.format === "currency") {
         let cv = val, cs = "";
+        const isEn = DATA.locale === "en-US";
         if (k.unit === "wan") {
           cv = val / 1e4;
-          cs = "万";
+          cs = isEn ? "W" : "万";
         } else if (k.unit === "yi") {
           cv = val / 1e8;
-          cs = "亿";
+          cs = isEn ? "Yi" : "亿";
         }
-        dv = (k.prefix || "") + (k.prefix ? "" : "¥") + fmt(cv, cv >= 100 ? 0 : dc) + cs;
+        dv = (k.prefix || "") + (k.prefix ? "" : isEn ? "$" : "¥") + fmt(cv, cv >= 100 ? 0 : dc) + cs;
       } else if (k.format === "integer") dv = (k.prefix || "") + fmt(val, 0);
       else dv = (k.prefix || "") + fmt(val, dc);
       const card = document.createElement("div");
@@ -1481,7 +1487,7 @@ var SmartboardRenderer = (function(exports) {
         const cRows = ch.filter ? applyFilter(rows, void 0, ch.filter) : rows;
         const isAn = ch.type === "timeseries" || ch.type === "decile" || ch.type === "cluster";
         const card = document.createElement("div");
-        card.className = isAn ? "chart-card chart-card-full" : "chart-card";
+        card.className = (isAn ? "chart-card chart-card-full" : "chart-card") + " chart-card-" + i;
         card.setAttribute("data-chart-idx", String(i));
         card.ondblclick = (e) => {
           e.stopPropagation();
@@ -1718,6 +1724,74 @@ var SmartboardRenderer = (function(exports) {
         console.error(e);
       }
     });
+    const allCards = grid.querySelectorAll(".chart-card");
+    allCards.forEach((card) => {
+      const el = card;
+      const he = document.createElement("span");
+      he.className = "resize-handle resize-e";
+      he.title = "Drag to resize width";
+      el.appendChild(he);
+      const hs = document.createElement("span");
+      hs.className = "resize-handle resize-s";
+      hs.title = "Drag to resize height";
+      el.appendChild(hs);
+      const hse = document.createElement("span");
+      hse.className = "resize-handle resize-se";
+      hse.title = "Drag to resize";
+      el.appendChild(hse);
+    });
+    if (!window.__sbResizeInit) {
+      let resizeChartInCard = function(card) {
+        const bodies = card.querySelectorAll(".chart-body, .chart-body-ts, .chart-body-cl");
+        bodies.forEach((body) => {
+          const b = body;
+          const h3 = card.querySelector("h3");
+          const headerH = h3 ? h3.offsetHeight + 12 : 40;
+          const newH = card.offsetHeight - headerH - 32;
+          if (newH > 100) b.style.height = newH + "px";
+          if (typeof echarts !== "undefined") {
+            const inst = echarts.getInstanceByDom(b);
+            if (inst) inst.resize();
+          }
+        });
+      };
+      window.__sbResizeInit = true;
+      let rzDir = "", rzEl = null, rzSX = 0, rzSY = 0, rzSW = 0, rzSH = 0;
+      grid.addEventListener("pointerdown", (e) => {
+        const pe = e;
+        const h = pe.target.closest(".resize-handle");
+        if (!h) return;
+        pe.preventDefault();
+        pe.stopPropagation();
+        rzDir = h.classList.contains("resize-e") ? "e" : h.classList.contains("resize-s") ? "s" : "se";
+        rzEl = h.closest(".chart-card");
+        if (!rzEl) return;
+        rzSX = pe.clientX;
+        rzSY = pe.clientY;
+        rzSW = rzEl.offsetWidth;
+        rzSH = rzEl.offsetHeight;
+        rzEl.setPointerCapture(pe.pointerId);
+      });
+      grid.addEventListener("pointermove", (e) => {
+        if (!rzEl) return;
+        const pe = e;
+        const dx = pe.clientX - rzSX, dy = pe.clientY - rzSY;
+        if (rzDir === "e" || rzDir === "se") rzEl.style.width = Math.max(280, rzSW + dx) + "px";
+        if (rzDir === "s" || rzDir === "se") rzEl.style.height = Math.max(200, rzSH + dy) + "px";
+      });
+      grid.addEventListener("pointerup", () => {
+        if (rzEl) {
+          resizeChartInCard(rzEl);
+          rzEl.releasePointerCapture(1);
+          rzEl = null;
+          rzDir = "";
+        }
+      });
+      grid.addEventListener("pointercancel", () => {
+        rzEl = null;
+        rzDir = "";
+      });
+    }
   }
   let fsCard = null;
   function toggleFullscreen(card) {
@@ -1917,7 +1991,7 @@ var SmartboardRenderer = (function(exports) {
     const tbs = document.createElement("input");
     tbs.type = "text";
     tbs.placeholder = t("common.searchEllipsis");
-    tbs.style.cssText = "padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:120px";
+    tbs.style.cssText = "padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:120px;background:var(--bg-surface);color:var(--text-primary)";
     tbs.oninput = () => {
       tblSearch = tbs.value;
       renderTableContent(rows, el, tb);
@@ -1926,7 +2000,7 @@ var SmartboardRenderer = (function(exports) {
     const tbc = document.createElement("input");
     tbc.type = "text";
     tbc.placeholder = t("dashboard.conditionPlaceholderShort") || "Amount > 100";
-    tbc.style.cssText = "padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:160px";
+    tbc.style.cssText = "padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:160px;background:var(--bg-surface);color:var(--text-primary)";
     tbc.oninput = () => {
       tblCond = tbc.value;
       renderTableContent(rows, el, tb);
@@ -1941,7 +2015,7 @@ var SmartboardRenderer = (function(exports) {
     ccd.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-top:4px";
     DATA.tableColumns.forEach((c) => {
       const l = document.createElement("label");
-      l.style.cssText = "padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #e2e8f0;cursor:pointer;user-select:none;" + (tblCols.includes(c) ? "background:#3B82F6;color:white;border-color:#3B82F6" : "");
+      l.style.cssText = "padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid var(--border);cursor:pointer;user-select:none;" + (tblCols.includes(c) ? "background:#3B82F6;color:white;border-color:#3B82F6" : "background:var(--bg-surface);color:var(--text-primary)");
       l.textContent = c;
       l.onclick = () => {
         const idx = tblCols.indexOf(c);
@@ -2023,6 +2097,8 @@ var SmartboardRenderer = (function(exports) {
     h3.textContent = `${t("dashboard.dataTable")} · ${sorted.length} / ${filtered.length} ${t("common.rows")}`;
     const tw = document.createElement("div");
     tw.style.overflowX = "auto";
+    const scrollWrap = document.createElement("div");
+    scrollWrap.className = "table-scroll";
     let html = '<table><thead><tr><th class="rn">#</th>';
     tblCols.forEach((c) => {
       const ind = sortCol === c ? sortDir ? " ↓" : " ↑" : "";
@@ -2100,7 +2176,8 @@ var SmartboardRenderer = (function(exports) {
       html += "</tr></tfoot>";
     }
     html += "</table>";
-    tw.innerHTML = html;
+    scrollWrap.innerHTML = html;
+    tw.appendChild(scrollWrap);
     el.appendChild(tw);
   }
   window._sortTable = (c) => {

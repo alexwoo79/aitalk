@@ -16,6 +16,7 @@
         <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← {{ t('dashboard.backToConfigText')
           }}</button>
         <h2 class="dashboard-title">{{ spec.title }}</h2>
+        <span class="layout-size">{{ layoutW }} × {{ layoutH }}</span>
       </div>
 
       <!-- 筛选栏 -->
@@ -321,6 +322,15 @@ const previewStore = usePreviewStore()
 
 const spec = computed(() => previewStore.buildSpec())
 
+// Layout size tracker (for display and save)
+const layoutW = ref(0)
+const layoutH = ref(0)
+function updateLayoutSize() {
+  const el = document.querySelector('.dashboard-view') as HTMLElement | null
+  if (el) { layoutW.value = el.offsetWidth; layoutH.value = el.offsetHeight }
+}
+onMounted(() => { updateLayoutSize(); window.addEventListener('resize', updateLayoutSize) })
+
 const sortCol = ref('')
 const sortDir = ref<'asc' | 'desc'>('desc')
 
@@ -538,12 +548,17 @@ async function saveDashboard() {
     colCount: headers.length,
   }
 
-  // 图表卡片尺寸 CSS
-  const chartSizeCss = s.charts.map((c, i) => {
-    const sizes = chartSizes.value['chart-' + i]
-    if (sizes) return `.chart-card-${i} { width: ${sizes.width}px; height: ${sizes.height}px; flex: none; }`
+  // 图表卡片尺寸 CSS — 仅对用户手动拖拽过的图表固定尺寸，其余保持自适应
+  const chartSizeCss = s.charts.map((_c, i) => {
+    const explicit = chartSizes.value['chart-' + i]
+    if (explicit) return `.chart-card-${i} { width: ${explicit.width}px; height: ${explicit.height}px; flex: none; }`
     return ''
   }).filter(Boolean).join('\n')
+
+  // 捕获当前布局容器宽度，避免浏览器窗口更宽时图表排列变化
+  const containerEl = document.querySelector('.dashboard-view') as HTMLElement | null
+  const layoutWidth = containerEl ? containerEl.offsetWidth : 0
+  const layoutCss = layoutWidth > 0 ? `.container { max-width: ${layoutWidth}px !important; }` : ''
 
   // ====== 2. 使用 DOMParser + DOM API 构建 HTML，避免字符串拼接错误 ======
   const [echartsMod, templateMod, rendererMod] = await Promise.all([
@@ -634,11 +649,12 @@ async function saveDashboard() {
     ].join('\n')
   }
 
-  // --- 注入图表卡片尺寸 CSS ---
-  if (chartSizeCss) {
+  // --- 注入布局宽度 + 图表卡片尺寸 CSS ---
+  const injectCss = [layoutCss, chartSizeCss].filter(Boolean).join('\n')
+  if (injectCss) {
     const styleEl = doc.querySelector('style')
     if (styleEl) {
-      styleEl.textContent += '\n/* chart card sizes */\n' + chartSizeCss
+      styleEl.textContent += '\n/* layout & chart sizes */\n' + injectCss
     }
   }
 
@@ -1211,6 +1227,17 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   font-size: 22px;
   font-weight: 700;
   text-align: center;
+}
+
+.layout-size {
+  position: absolute;
+  right: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  background: var(--bg-hover);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
 .row-count {

@@ -93,7 +93,12 @@ function applyTheme(t: 'light' | 'dark') {
   document.documentElement.setAttribute('data-theme', t)
   localStorage.setItem(THEME_KEY, t)
   const bt = document.getElementById('themeToggle')
-  if (bt) { bt.textContent = t === 'dark' ? '☀️' : '🌙'; bt.title = t === 'dark' ? '切换亮色主题' : '切换暗色主题' }
+  if (bt) { bt.textContent = t === 'dark' ? '☀️' : '🌙'; bt.title = t === 'dark' ? 'Switch to Light' : 'Switch to Dark' }
+  // Re-render KPI cards and charts for dark mode colors
+  if (DATA && DATA.rows) {
+    renderKpiCards(DATA.rows)
+    renderCharts(DATA.rows)
+  }
 }
 function toggleTheme() {
   const cur = document.documentElement.getAttribute('data-theme') || 'light'
@@ -243,11 +248,11 @@ function renderFilterBar() {
   // Condition filter
   const cf = document.createElement('input'); cf.type = 'text'
   cf.placeholder = t('dashboard.conditionPlaceholder') || 'e.g. Amount > 100 & Region = Beijing'
-  cf.style.cssText = 'padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;min-width:200px'
+  cf.style.cssText = 'padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:200px;background:var(--bg-surface);color:var(--text-primary)'
   cf.oninput = () => { condFilter = cf.value; refreshAll() }; bar.appendChild(cf)
   // Search
   const si = document.createElement('input'); si.type = 'text'; si.placeholder = '搜索...'
-  si.style.cssText = 'padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;width:120px'
+  si.style.cssText = 'padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;width:120px;background:var(--bg-surface);color:var(--text-primary)'
   si.oninput = () => { searchText = si.value; refreshAll() }; bar.appendChild(si)
   // Reset
   const rb = document.createElement('button'); rb.className = 'btn'; rb.textContent = t('dashboard.resetFilter')
@@ -356,8 +361,13 @@ function updateDrInfo() {
 function renderKpiCards(rows: Record<string, string | number>[]) {
   const el = document.getElementById('kpiRow')!
   el.innerHTML = ''
-  const bg = ['#EBF5FF', '#ECFDF5', '#FFFBEB', '#FEF2F2', '#F5F3FF', '#ECFEFF']
-  const tx = ['#1e40af', '#065f46', '#92400e', '#991b1b', '#5b21b6', '#155e75']
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  const bg = isDark
+    ? ['#1e293b', '#1a2e1a', '#2d2416', '#2d1a1a', '#1e1a2e', '#162d2d']
+    : ['#EBF5FF', '#ECFDF5', '#FFFBEB', '#FEF2F2', '#F5F3FF', '#ECFEFF']
+  const tx = isDark
+    ? ['#93c5fd', '#6ee7b7', '#fcd34d', '#fca5a5', '#c4b5fd', '#67e8f9']
+    : ['#1e40af', '#065f46', '#92400e', '#991b1b', '#5b21b6', '#155e75']
   const ic = ['📊', '📈', '📋', '💰', '💵', '👥']
 
   DATA.kpiSpecs.forEach((k, i) => {
@@ -381,9 +391,10 @@ function renderKpiCards(rows: Record<string, string | number>[]) {
     if (k.format === 'percent') { const v2 = val <= 1 && val >= -1 ? val * 100 : val; dv = v2.toFixed(dc) + '%' }
     else if (k.format === 'currency') {
       let cv = val, cs = ''
-      if (k.unit === 'wan') { cv = val / 10000; cs = '万' }
-      else if (k.unit === 'yi') { cv = val / 100000000; cs = '亿' }
-      dv = (k.prefix || '') + (k.prefix ? '' : '¥') + fmt(cv, cv >= 100 ? 0 : dc) + cs
+      const isEn = DATA.locale === 'en-US'
+      if (k.unit === 'wan') { cv = val / 10000; cs = isEn ? 'W' : '万' }
+      else if (k.unit === 'yi') { cv = val / 100000000; cs = isEn ? 'Yi' : '亿' }
+      dv = (k.prefix || '') + (k.prefix ? '' : (isEn ? '$' : '¥')) + fmt(cv, cv >= 100 ? 0 : dc) + cs
     } else if (k.format === 'integer') dv = (k.prefix || '') + fmt(val, 0)
     else dv = (k.prefix || '') + fmt(val, dc)
 
@@ -506,7 +517,7 @@ function renderCharts(rows: Record<string, string | number>[]) {
       const cRows = ch.filter ? applyFilter(rows, undefined, ch.filter) : rows
       const isAn = ch.type === 'timeseries' || ch.type === 'decile' || ch.type === 'cluster'
       const card = document.createElement('div')
-      card.className = isAn ? 'chart-card chart-card-full' : 'chart-card'
+      card.className = (isAn ? 'chart-card chart-card-full' : 'chart-card') + ' chart-card-' + i
       card.setAttribute('data-chart-idx', String(i))
       card.ondblclick = (e) => { e.stopPropagation(); toggleFullscreen(card) }
 
@@ -644,6 +655,80 @@ function renderCharts(rows: Record<string, string | number>[]) {
       }
     } catch (e) { console.error(e) }
   })
+
+  // ====== Add resize handles to all chart cards ======
+  const allCards = grid.querySelectorAll('.chart-card')
+  allCards.forEach((card: Element) => {
+    const el = card as HTMLElement
+    // East handle
+    const he = document.createElement('span')
+    he.className = 'resize-handle resize-e'
+    he.title = 'Drag to resize width'
+    el.appendChild(he)
+    // South handle
+    const hs = document.createElement('span')
+    hs.className = 'resize-handle resize-s'
+    hs.title = 'Drag to resize height'
+    el.appendChild(hs)
+    // Southeast handle
+    const hse = document.createElement('span')
+    hse.className = 'resize-handle resize-se'
+    hse.title = 'Drag to resize'
+    el.appendChild(hse)
+  })
+
+  // Pointer-based resize logic (retained across re-renders)
+  if (!(window as any).__sbResizeInit) {
+    (window as any).__sbResizeInit = true
+    let rzDir = '', rzEl: HTMLElement | null = null, rzSX = 0, rzSY = 0, rzSW = 0, rzSH = 0
+
+    grid.addEventListener('pointerdown', (e: Event) => {
+      const pe = e as PointerEvent
+      const h = (pe.target as HTMLElement).closest('.resize-handle') as HTMLElement | null
+      if (!h) return
+      pe.preventDefault(); pe.stopPropagation()
+      rzDir = h.classList.contains('resize-e') ? 'e' : h.classList.contains('resize-s') ? 's' : 'se'
+      rzEl = h.closest('.chart-card') as HTMLElement | null
+      if (!rzEl) return
+      rzSX = pe.clientX; rzSY = pe.clientY
+      rzSW = rzEl.offsetWidth; rzSH = rzEl.offsetHeight
+      rzEl.setPointerCapture(pe.pointerId)
+    })
+
+    grid.addEventListener('pointermove', (e: Event) => {
+      if (!rzEl) return
+      const pe = e as PointerEvent
+      const dx = pe.clientX - rzSX, dy = pe.clientY - rzSY
+      if (rzDir === 'e' || rzDir === 'se') rzEl.style.width = Math.max(280, rzSW + dx) + 'px'
+      if (rzDir === 's' || rzDir === 'se') rzEl.style.height = Math.max(200, rzSH + dy) + 'px'
+    })
+
+    function resizeChartInCard(card: HTMLElement) {
+      // Find chart body divs and resize ECharts instances
+      const bodies = card.querySelectorAll('.chart-body, .chart-body-ts, .chart-body-cl')
+      bodies.forEach((body: Element) => {
+        const b = body as HTMLElement
+        // Calculate available height: card height minus header (~40px) and padding
+        const h3 = card.querySelector('h3') as HTMLElement | null
+        const headerH = h3 ? h3.offsetHeight + 12 : 40
+        const newH = card.offsetHeight - headerH - 32 // 32 = padding
+        if (newH > 100) b.style.height = newH + 'px'
+        // Resize ECharts instance if any
+        if (typeof echarts !== 'undefined') {
+          const inst = echarts.getInstanceByDom(b)
+          if (inst) inst.resize()
+        }
+      })
+    }
+
+    grid.addEventListener('pointerup', () => {
+      if (rzEl) {
+        resizeChartInCard(rzEl)
+        rzEl.releasePointerCapture(1); rzEl = null; rzDir = ''
+      }
+    })
+    grid.addEventListener('pointercancel', () => { rzEl = null; rzDir = '' })
+  }
 }
 
 // Fullscreen
@@ -774,11 +859,11 @@ function renderTable(rows: Record<string, string | number>[]) {
   const th3 = document.createElement('h3'); th3.style.cssText = 'margin:0;font-size:15px'; tb.appendChild(th3); el.appendChild(tb)
   // Search
   const tbs = document.createElement('input'); tbs.type = 'text'; tbs.placeholder = t('common.searchEllipsis')
-  tbs.style.cssText = 'padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:120px'
+  tbs.style.cssText = 'padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:120px;background:var(--bg-surface);color:var(--text-primary)'
   tbs.oninput = () => { tblSearch = tbs.value; renderTableContent(rows, el, tb) }; tb.appendChild(tbs)
   // Condition
   const tbc = document.createElement('input'); tbc.type = 'text'; tbc.placeholder = t('dashboard.conditionPlaceholderShort') || 'Amount > 100'
-  tbc.style.cssText = 'padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;width:160px'
+  tbc.style.cssText = 'padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:160px;background:var(--bg-surface);color:var(--text-primary)'
   tbc.oninput = () => { tblCond = tbc.value; renderTableContent(rows, el, tb) }; tb.appendChild(tbc)
   // Column picker
   const ccp = document.createElement('details'); ccp.style.cssText = 'font-size:12px'
@@ -786,7 +871,7 @@ function renderTable(rows: Record<string, string | number>[]) {
   const ccd = document.createElement('div'); ccd.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px'
   DATA.tableColumns.forEach(c => {
     const l = document.createElement('label')
-    l.style.cssText = 'padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #e2e8f0;cursor:pointer;user-select:none;' + (tblCols.includes(c) ? 'background:#3B82F6;color:white;border-color:#3B82F6' : '')
+    l.style.cssText = 'padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid var(--border);cursor:pointer;user-select:none;' + (tblCols.includes(c) ? 'background:#3B82F6;color:white;border-color:#3B82F6' : 'background:var(--bg-surface);color:var(--text-primary)')
     l.textContent = c
     l.onclick = () => {
       const idx = tblCols.indexOf(c)
@@ -858,6 +943,8 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
   const h3 = tb.querySelector('h3')!; h3.textContent = `${t('dashboard.dataTable')} · ${sorted.length} / ${filtered.length} ${t('common.rows')}`
 
   const tw = document.createElement('div'); tw.style.overflowX = 'auto'
+  const scrollWrap = document.createElement('div')
+  scrollWrap.className = 'table-scroll'
   let html = '<table><thead><tr><th class="rn">#</th>'
   tblCols.forEach(c => {
     const ind = sortCol === c ? (sortDir ? ' ↓' : ' ↑') : ''
@@ -927,7 +1014,10 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
     html += '</tr></tfoot>'
   }
 
-  html += '</table>'; tw.innerHTML = html; el.appendChild(tw)
+  html += '</table>'
+  scrollWrap.innerHTML = html
+  tw.appendChild(scrollWrap)
+  el.appendChild(tw)
 }
 
 // Sort callback for table (exposed to window for inline onclick)

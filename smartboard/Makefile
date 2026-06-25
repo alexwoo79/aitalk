@@ -58,7 +58,7 @@ help: ## 📖 显示此帮助信息
 	@awk '/^ios-rust:|^ios-device-deploy:|^ios-device-deploy-release:|^ios-ipa-install:/{printf "  $(GREEN)%-18s$(NC) %s\n", substr($$1,1,index($$1,":")-1), substr($$0,index($$0,"## ")+3)}' $(MAKEFILE_LIST)
 	@echo ""
 	@echo "$(BOLD)$(BLUE)── 发布 ────────────────────────────────────────────$(NC)"
-	@awk '/^release:/{printf "  $(GREEN)%-18s$(NC) %s\n", substr($$1,1,index($$1,":")-1), substr($$0,index($$0,"## ")+3)}' $(MAKEFILE_LIST)
+	@awk '/^release|^release-arm64|^release-all:/{printf "  $(GREEN)%-18s$(NC) %s\n", substr($$1,1,index($$1,":")-1), substr($$0,index($$0,"## ")+3)}' $(MAKEFILE_LIST)
 	@echo ""
 
 # ============================================================
@@ -271,12 +271,30 @@ ios-ipa-install: ## 📦 将指定 IPA 安装到真机 (用法: make ios-ipa-ins
 # ============================================================
 # 发布
 # ============================================================
-release: check build-save ## 🚀 一键发布 (check → 桌面 + iOS)
-	@echo "=== 构建桌面 Release ==="
+release: check build-save ## 🚀 一键发布 (check → 桌面 x86_64 + iOS)
+	@echo "=== 构建桌面 Release (x86_64) ==="
 	npm run tauri build
 	@echo "=== 构建 iOS Release ==="
 	npm run tauri ios build
 	@echo "=== 发布完成 ==="
+
+release-arm64: build-save ## 🍎 构建桌面 arm64 (Apple Silicon) 发布包
+	@echo "=== 构建桌面 Release (arm64) ==="
+	@rustup target list --installed | grep -q aarch64-apple-darwin || \
+		{ echo "$(YELLOW)⚠ 未安装 arm64 target，正在安装...$(NC)"; rustup target add aarch64-apple-darwin; }
+	npm run tauri build -- --target aarch64-apple-darwin
+	@echo "=== arm64 发布完成 ==="
+
+release-all: build-save ## 🚀 发布全部平台 (x86_64 + arm64 + iOS)
+	@echo "=== 构建桌面 Release (x86_64) ==="
+	npm run tauri build
+	@echo "=== 构建桌面 Release (arm64) ==="
+	@rustup target list --installed | grep -q aarch64-apple-darwin || \
+		{ echo "$(YELLOW)⚠ 未安装 arm64 target，正在安装...$(NC)"; rustup target add aarch64-apple-darwin; }
+	npm run tauri build -- --target aarch64-apple-darwin
+	@echo "=== 构建 iOS Release ==="
+	npm run tauri ios build
+	@echo "=== 全部发布完成 ==="
 
 # ============================================================
 # 质量检查
