@@ -16,7 +16,7 @@
             <span class="reset-wrap">
               <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">{{ t('config.resetAll')
               }}</button>
-              <button class="reset-info-btn" @click.stop="showResetHint = !showResetHint" :title="t('config.resetHint')">💡</button>
+              <button class="reset-info-btn" @click.stop="toggleResetHint" :title="t('config.resetHint')">💡</button>
               <div v-if="showResetHint" class="reset-popup">
                 {{ t('config.resetHint') }}
               </div>
@@ -866,8 +866,13 @@ const savedCount = computed(() => {
 })
 const totalSections = 7
 
-// Reset hint popup
-const showResetHint = ref(false)
+// Reset hint popup — shown on first visit, toggleable via icon
+const RESET_HINT_KEY = 'smartboard-reset-hint-dismissed'
+const showResetHint = ref(!localStorage.getItem(RESET_HINT_KEY))
+function toggleResetHint() {
+  showResetHint.value = !showResetHint.value
+  localStorage.setItem(RESET_HINT_KEY, '1')
+}
 
 // ====== Accordion state ======
 const expandedSections = ref(new Set<ConfigSection>(['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'metricDefaults']))
