@@ -1288,6 +1288,34 @@ var SmartboardRenderer = (function(exports) {
     }
     info.textContent = inRange + " / " + DATA.rows.length + " " + t("common.records");
   }
+  function computeAggValue(column, agg, rows) {
+    if (agg === "count") return rows.length;
+    if (agg === "unique_count") {
+      const raw = rows.map((r) => {
+        const v = r[column];
+        return v == null || v === "" ? "" : String(v).trim();
+      }).filter((s) => s !== "");
+      return new Set(raw).size;
+    }
+    const vals = rows.map((r) => {
+      const v = r[column];
+      if (v == null || v === "") return 0;
+      if (typeof v === "number") return v;
+      return getNumericVal$1(v) || 0;
+    });
+    switch (agg) {
+      case "sum":
+        return vals.reduce((a, b) => a + b, 0);
+      case "avg":
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+      case "min":
+        return vals.length ? Math.min(...vals) : 0;
+      case "max":
+        return vals.length ? Math.max(...vals) : 0;
+      default:
+        return vals.reduce((a, b) => a + b, 0);
+    }
+  }
   function renderKpiCards(rows) {
     const el = document.getElementById("kpiRow");
     el.innerHTML = "";
@@ -1296,17 +1324,62 @@ var SmartboardRenderer = (function(exports) {
     const tx = isDark ? ["#93c5fd", "#6ee7b7", "#fcd34d", "#fca5a5", "#c4b5fd", "#67e8f9"] : ["#1e40af", "#065f46", "#92400e", "#991b1b", "#5b21b6", "#155e75"];
     const ic = ["📊", "📈", "📋", "💰", "💵", "👥"];
     DATA.kpiSpecs.forEach((k, i) => {
+      let val = 0;
+      if (k.formula && k.formula.variables.length > 0) {
+        const varValues = k.formula.variables.map((v) => computeAggValue(v.column, v.agg, rows));
+        try {
+          let expr = k.formula.expression;
+          for (let vi = 0; vi < varValues.length; vi++) {
+            expr = expr.replace(new RegExp(`\\[${vi}\\]`, "g"), String(varValues[vi]));
+          }
+          const result = new Function(`"use strict"; return (${expr})`)();
+          val = typeof result === "number" && isFinite(result) && !isNaN(result) ? result : 0;
+        } catch (e) {
+          val = 0;
+        }
+        const dc2 = k.decimals != null ? k.decimals : 2;
+        let dv2 = "";
+        if (k.format === "percent") {
+          const v2 = val <= 1 && val >= -1 ? val * 100 : val;
+          dv2 = v2.toFixed(dc2) + "%";
+        } else if (k.format === "currency") {
+          let cv = val, cs = "";
+          const isEn = DATA.locale === "en-US";
+          if (k.unit === "wan") {
+            cv = val / 1e4;
+            cs = isEn ? "W" : "万";
+          } else if (k.unit === "yi") {
+            cv = val / 1e8;
+            cs = isEn ? "Yi" : "亿";
+          }
+          dv2 = (k.prefix || "") + (k.prefix ? "" : isEn ? "$" : "¥") + fmt(cv, cv >= 100 ? 0 : dc2) + cs;
+        } else if (k.format === "integer") dv2 = (k.prefix || "") + fmt(val, 0);
+        else dv2 = (k.prefix || "") + fmt(val, dc2);
+        const card2 = document.createElement("div");
+        card2.className = "kpi-card";
+        card2.style.cssText = `background:${bg[i % bg.length]};color:${tx[i % tx.length]}`;
+        card2.innerHTML = `<div class="kpi-icon"><span>${ic[i % ic.length]}</span></div><div class="kpi-content"><span class="kpi-value">${dv2}</span><span class="kpi-label">${k.label}</span></div>`;
+        el.appendChild(card2);
+        return;
+      }
       const vs = rows.map((r) => {
         const v = r[k.column];
         if (v == null || v === "") return 0;
         if (typeof v === "number") return v;
         return getNumericVal$1(v) || 0;
       });
-      let val = 0;
       switch (k.agg) {
         case "count":
           val = rows.length;
           break;
+        case "unique_count": {
+          const raw = rows.map((r) => {
+            const v = r[k.column];
+            return v === null || v === void 0 || v === "" ? "" : String(v).trim();
+          }).filter((s) => s !== "");
+          val = new Set(raw).size;
+          break;
+        }
         case "sum":
           val = vs.reduce((a, b) => a + b, 0);
           break;

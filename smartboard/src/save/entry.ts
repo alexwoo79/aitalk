@@ -22,7 +22,7 @@ interface ChartSpec {
   metricAggs?: Record<string, string>;
 }
 
-interface KpiSpec { column: string; label: string; agg: string; format: string; prefix?: string; unit?: string; decimals?: number; }
+interface KpiSpec { column: string; label: string; agg: string; format: string; prefix?: string; unit?: string; decimals?: number; formula?: { variables: { column: string; agg: string; filter?: string }[]; expression: string; filter?: string } }
 
 interface FilterSpec { column: string }
 
@@ -358,6 +358,23 @@ function updateDrInfo() {
 }
 
 // ====== KPI Cards ======
+/** Compute aggregation value for a single column (used by formula KPI) */
+function computeAggValue(column: string, agg: string, rows: Record<string, string | number>[]): number {
+  if (agg === 'count') return rows.length
+  if (agg === 'unique_count') {
+    const raw = rows.map(r => { const v = r[column]; return v == null || v === '' ? '' : String(v).trim() }).filter(s => s !== '')
+    return new Set(raw).size
+  }
+  const vals = rows.map(r => { const v = r[column]; if (v == null || v === '') return 0; if (typeof v === 'number') return v; return getNumericVal(v) || 0 })
+  switch (agg) {
+    case 'sum': return vals.reduce((a, b) => a + b, 0)
+    case 'avg': return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
+    case 'min': return vals.length ? Math.min(...vals) : 0
+    case 'max': return vals.length ? Math.max(...vals) : 0
+    default: return vals.reduce((a, b) => a + b, 0)
+  }
+}
+
 function renderKpiCards(rows: Record<string, string | number>[]) {
   const el = document.getElementById('kpiRow')!
   el.innerHTML = ''
@@ -371,15 +388,55 @@ function renderKpiCards(rows: Record<string, string | number>[]) {
   const ic = ['📊', '📈', '📋', '💰', '💵', '👥']
 
   DATA.kpiSpecs.forEach((k, i) => {
+    let val = 0
+
+    // Formula KPI
+    if (k.formula && k.formula.variables.length > 0) {
+      const varValues = k.formula.variables.map(v => computeAggValue(v.column, v.agg, rows))
+      try {
+        let expr = k.formula.expression
+        for (let vi = 0; vi < varValues.length; vi++) {
+          expr = expr.replace(new RegExp(`\\[${vi}\\]`, 'g'), String(varValues[vi]))
+        }
+        const result = new Function(`"use strict"; return (${expr})`)()
+        val = (typeof result === 'number' && isFinite(result) && !isNaN(result)) ? result : 0
+      } catch (e) { val = 0 }
+      const dc = k.decimals != null ? k.decimals : 2
+      let dv = ''
+      if (k.format === 'percent') { const v2 = val <= 1 && val >= -1 ? val * 100 : val; dv = v2.toFixed(dc) + '%' }
+      else if (k.format === 'currency') {
+        let cv = val, cs = ''
+        const isEn = DATA.locale === 'en-US'
+        if (k.unit === 'wan') { cv = val / 10000; cs = isEn ? 'W' : '万' }
+        else if (k.unit === 'yi') { cv = val / 100000000; cs = isEn ? 'Yi' : '亿' }
+        dv = (k.prefix || '') + (k.prefix ? '' : (isEn ? '$' : '¥')) + fmt(cv, cv >= 100 ? 0 : dc) + cs
+      } else if (k.format === 'integer') dv = (k.prefix || '') + fmt(val, 0)
+      else dv = (k.prefix || '') + fmt(val, dc)
+      const card = document.createElement('div')
+      card.className = 'kpi-card'
+      card.style.cssText = `background:${bg[i % bg.length]};color:${tx[i % tx.length]}`
+      card.innerHTML = `<div class="kpi-icon"><span>${ic[i % ic.length]}</span></div><div class="kpi-content"><span class="kpi-value">${dv}</span><span class="kpi-label">${k.label}</span></div>`
+      el.appendChild(card)
+      return
+    }
+
+    // Single-column KPI
     const vs = rows.map(r => {
       const v = r[k.column]
       if (v == null || v === '') return 0
       if (typeof v === 'number') return v
       return getNumericVal(v) || 0
     })
-    let val = 0
     switch (k.agg) {
       case 'count': val = rows.length; break
+      case 'unique_count': {
+        const raw = rows.map(r => {
+          const v = r[k.column]
+          return v === null || v === undefined || v === '' ? '' : String(v).trim()
+        }).filter(s => s !== '')
+        val = new Set(raw).size
+        break
+      }
       case 'sum': val = vs.reduce((a, b) => a + b, 0); break
       case 'avg': val = vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : 0; break
       case 'min': val = Math.min(...vs); break

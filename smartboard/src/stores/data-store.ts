@@ -11,6 +11,7 @@ export const useDataStore = defineStore('data', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const excludedColumns = ref<Set<string>>(new Set())
+  const roleOverrides = ref<Record<string, string>>({})
 
   async function loadFromDialog() {
     const selected = await open({
@@ -101,7 +102,12 @@ export const useDataStore = defineStore('data', () => {
     dataSet.value = null
     error.value = null
     clearExcluded()
+    roleOverrides.value = {}
   }
 
-  return { dataSet, loading, error, excludedColumns, loadFromDialog, loadFile, clearData, toggleExcludeColumn, clearExcluded }
+  function setRoleOverride(col: string, role: string) {
+    roleOverrides.value = { ...roleOverrides.value, [col]: role }
+  }
+
+  return { dataSet, loading, error, excludedColumns, roleOverrides, loadFromDialog, loadFile, clearData, toggleExcludeColumn, clearExcluded, setRoleOverride }
 })

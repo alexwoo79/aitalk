@@ -46,6 +46,27 @@ export function parseCSV(text: string): ParsedFile {
 /**
  * 解析 XLSX 二进制数据（SheetJS）
  */
+
+/** Convert Excel date serial number to YYYY-MM-DD (handles 1900 leap year bug) */
+function excelSerialToDate(serial: number): string {
+  const msPerDay = 86400000
+  const offset = serial >= 61 ? 1 : 0
+  const d = new Date((serial - offset) * msPerDay + new Date(1899, 11, 30).getTime())
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** Detect if a number is likely an Excel date serial (e.g. 43631 → 2019-06-15) */
+function isExcelDateSerial(n: number, colName: string): boolean {
+  if (!Number.isFinite(n) || n !== Math.floor(n)) return false
+  // Range 30000–80000 covers ~1982–2118
+  if (n < 30000 || n > 80000) return false
+  // Only convert if column name hints at date
+  return /date|日期|时间|time|day|month|year|年|月|日/.test(colName.toLowerCase())
+}
+
 export function parseXLSX(data: Uint8Array): ParsedFile {
   const workbook = read(data, { type: 'array' })
   const sheetName = workbook.SheetNames[0]
@@ -66,14 +87,28 @@ export function parseXLSX(data: Uint8Array): ParsedFile {
   })
 
   const rawRows = rawData.slice(1) as (string | number)[][]
-  const rows: Record<string, string | number>[] = rawRows.map((row) => {
+
+  // Filter out completely empty columns (no header + no data)
+  const validIndices: number[] = []
+  headers.forEach((h, i) => {
+    const hasHeader = h !== ''
+    const hasData = rawRows.some(row => {
+      const v = row[i]
+      return v !== undefined && v !== null && v !== ''
+    })
+    if (hasHeader || hasData) validIndices.push(i)
+  })
+
+  const filteredHeaders = validIndices.map(i => headers[i])
+  const filteredRawRows = rawRows.map(row => validIndices.map(i => row[i]))
+  const rows: Record<string, string | number>[] = filteredRawRows.map((row) => {
     const obj: Record<string, string | number> = {}
-    headers.forEach((h, i) => {
+    filteredHeaders.forEach((h, i) => {
       const val = row[i]
       if (val === undefined || val === null || val === '') {
         obj[h] = ''
       } else if (typeof val === 'number') {
-        obj[h] = val
+        obj[h] = isExcelDateSerial(val, h) ? excelSerialToDate(val) : val
       } else {
         obj[h] = String(val).trim()
       }
@@ -81,7 +116,7 @@ export function parseXLSX(data: Uint8Array): ParsedFile {
     return obj
   })
 
-  return { headers, rows, rawRows }
+  return { headers: filteredHeaders, rows, rawRows: filteredRawRows }
 }
 
 /**

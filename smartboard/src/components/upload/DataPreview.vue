@@ -28,12 +28,13 @@
           { excluded: dataStore.excludedColumns.has(col) }
         ]" @click="onToggleExclude(col)">
           <div class="col-icon">
-            <span>{{ roleIcon(dataSet.classifications[col]?.role) }}</span>
+            <span>{{ roleIcon(effectiveRole(col)) }}</span>
           </div>
           <div class="col-body">
             <div class="col-name">{{ col }}</div>
-            <div class="col-meta">
-              {{ typeLabel(dataSet.classifications[col]?.type) }} · {{ roleLabel(dataSet.classifications[col]?.role) }}
+            <div class="col-meta" @click.stop="cycleRole(col)">
+              {{ typeLabel(dataSet.classifications[col]?.type) }} · {{ roleLabel(effectiveRole(col)) }}
+              <span class="role-hint">🖉</span>
             </div>
           </div>
           <div class="col-exclude-mark" v-if="dataStore.excludedColumns.has(col)">✕</div>
@@ -127,6 +128,20 @@ function typeLabel(type?: string) {
 
 function roleLabel(role?: string) {
   return role ? (roleLabels[role] ?? role) : ''
+}
+
+function effectiveRole(col: string): string {
+  return dataStore.roleOverrides[col] || dataStore.dataSet?.classifications[col]?.role || 'ignore'
+}
+
+const ROLE_CYCLE = ['metric', 'dimension', 'time_axis', 'label', 'ignore']
+
+function cycleRole(col: string) {
+  const current = effectiveRole(col)
+  const idx = ROLE_CYCLE.indexOf(current)
+  const next = ROLE_CYCLE[(idx + 1) % ROLE_CYCLE.length]
+  dataStore.setRoleOverride(col, next)
+  emit('toggleExclude')
 }
 
 const roleIcons: Record<string, string> = {
@@ -351,6 +366,17 @@ function truncate(val: string | number | undefined): string {
 .col-meta {
   font-size: 11px;
   color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.col-meta:hover .role-hint {
+  opacity: 1;
+}
+
+.role-hint {
+  opacity: 0;
+  font-size: 10px;
+  transition: opacity 0.15s;
 }
 
 /* Exclude mark */

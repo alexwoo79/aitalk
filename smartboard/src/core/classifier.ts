@@ -196,6 +196,19 @@ export function classifyAllColumns(
     })
     result[h] = classifyColumn(values, h)
   }
+
+  // Ensure at least some dimensions exist — promote best label/ignore columns
+  const hasDimension = Object.values(result).some(c => c.role === 'dimension')
+  if (!hasDimension) {
+    const candidates = headers
+      .map(h => ({ col: h, cls: result[h] }))
+      .filter(({ cls }) => cls.role === 'label' || cls.role === 'ignore')
+      .sort((a, b) => a.cls.uniqueCount - b.cls.uniqueCount)
+    for (const { col, cls } of candidates.slice(0, 3)) {
+      result[col] = { ...cls, role: 'dimension', type: cls.type === 'numeric' ? 'numeric' : 'categorical' }
+    }
+  }
+
   return result
 }
 

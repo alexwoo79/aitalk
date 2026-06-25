@@ -502,6 +502,7 @@ async function saveDashboard() {
     column: k.column, label: k.label, agg: k.agg,
     format: k.format, prefix: k.prefix || '', unit: k.unit || 'yuan',
     decimals: k.decimals,
+    formula: k.formula || undefined,
   }))
   // 全部指标列（当 chart.metrics 为空时回退使用，排除已排除的列）
   const allMetricCols = headers.filter((h) => cls[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))

@@ -23,14 +23,17 @@ export const useConfigStore = defineStore('config', () => {
   const sectionSnapshots = ref<Partial<Record<ConfigSection, any>>>({})
 
   // ====== 自动配置的计算基础（供各区域复用） ======
+  function _effRole(col: string): string {
+    return dataStore.roleOverrides[col] || dataStore.dataSet?.classifications[col]?.role || 'ignore'
+  }
+
   function _autoBase() {
     const ds = dataStore.dataSet
     if (!ds) return null
     const excluded = dataStore.excludedColumns
-    const metricCols = ds.headers.filter(
-      (h) => ds.classifications[h]?.role === 'metric' && !excluded.has(h),
-    )
-    const dims = ds.chartDimensions.filter((d) => !excluded.has(d))
+    const metricCols = ds.headers.filter((h) => _effRole(h) === 'metric' && !excluded.has(h))
+    const dimCols = ds.headers.filter((h) => _effRole(h) === 'dimension' && !excluded.has(h))
+    const dims = dimCols.length > 0 ? dimCols : ds.chartDimensions.filter((d) => !excluded.has(d))
     const primaryMetric = ds.primaryMetric && !excluded.has(ds.primaryMetric)
       ? ds.primaryMetric
       : (metricCols.length > 0 ? metricCols[0] : null)
@@ -50,7 +53,7 @@ export const useConfigStore = defineStore('config', () => {
     const base = _autoBase()
     if (!base) return
     config.value.filters = base.ds.headers.filter(
-      (h) => base.ds.classifications[h]?.role === 'dimension' && base.ds.classifications[h]?.type === 'categorical' && !base.excluded.has(h),
+      (h) => _effRole(h) === 'dimension' && base.ds.classifications[h]?.type === 'categorical' && !base.excluded.has(h),
     )
   }
 

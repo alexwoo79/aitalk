@@ -11,6 +11,11 @@
           <button class="btn btn-sm btn-ghost" @click="$router.push('/')">← {{ t('config.backToUpload') }}</button>
           <h2>{{ t('config.title') }}</h2>
           <div class="header-actions">
+            <button class="btn btn-sm btn-export" @click="exportConfig">{{ t('config.exportConfig') }}</button>
+            <label class="btn btn-sm btn-import">
+              {{ t('config.importConfig') }}
+              <input type="file" accept=".json" style="display:none" @change="importConfig" />
+            </label>
             <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved
               ? t('config.saved') : t('config.saveAll') }}</button>
             <span class="reset-wrap">
@@ -24,6 +29,7 @@
           </div>
         </div>
         <p class="subtitle">{{ t('config.hint') }}</p>
+        <div v-if="configMsg" class="config-toast">{{ configMsg }}</div>
       </div>
 
       <div class="config-layout">
@@ -310,15 +316,17 @@
                 </div>
                 <template v-for="col in allHeaders" :key="col">
                   <div class="tct-row" :class="[
-                    'role-' + (dataStore.dataSet?.classifications[col]?.role || 'ignore'),
+                    'role-' + effRole(col),
                     { selected: configStore.config.table.columns.includes(col) }
                   ]" @click="configStore.toggleTableColumn(col)">
                     <span class="tct-col-name">
-                      <span class="tct-icon">{{ roleIcon(dataStore.dataSet?.classifications[col]?.role) }}</span>
+                      <span class="tct-icon">{{ roleIcon(effRole(col)) }}</span>
                       {{ col }}
                     </span>
                     <span class="tct-col-type">{{ typeLabel(dataStore.dataSet?.classifications[col]?.type) }}</span>
-                    <span class="tct-col-role">{{ roleLabel(dataStore.dataSet?.classifications[col]?.role) }}</span>
+                    <span class="tct-col-role" @click.stop="cycleRole(col)">{{ roleLabel(effRole(col)) }}
+                      <span class="role-edit-hint">🖉</span>
+                    </span>
                     <span class="tct-col-bgcolor" @click.stop>
                       <input type="color" class="color-picker-mini"
                         :value="configStore.config.table.columnColors?.[col] || '#ffffff'"
@@ -510,7 +518,7 @@
                 <label>{{ t('config.metricColumn') }}</label>
                 <select v-model="kpiForm.column" class="input select-sm">
                   <option value="">{{ t('config.selectMetricPlaceholder') }}</option>
-                  <option v-for="col in allNumericCols" :key="col" :value="col">{{ col }}</option>
+                  <option v-for="col in allDataCols" :key="col" :value="col">{{ col }}</option>
                 </select>
                 <label>{{ t('common.label') }}</label>
                 <input v-model="kpiForm.label" class="input" :placeholder="t('config.kpiLabelPlaceholder')" />
@@ -546,7 +554,7 @@
                   <span class="var-index">[{{ vi }}]</span>
                   <select v-model="v.column" class="input input-sm" style="flex:1">
                     <option value="">{{ t('config.selectColumnPlaceholder') }}</option>
-                    <option v-for="col in allNumericCols" :key="col" :value="col">{{ col }}</option>
+                    <option v-for="col in allDataCols" :key="col" :value="col">{{ col }}</option>
                   </select>
                   <select v-model="v.agg" class="input input-sm" style="width:72px">
                     <option value="sum">{{ t('config.aggSum') }}</option>
@@ -847,12 +855,19 @@ import { usePreviewStore } from '@/stores/preview-store'
 import type { ConfigSection } from '@/stores/config-store'
 import { CHART_TYPES, AGG_OPTIONS, KPI_FORMAT_OPTIONS } from '@/types/config'
 import type { ChartFormItem } from '@/types/config'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
 
 const router = useRouter()
+import { storeToRefs } from 'pinia'
+
 const { t } = useI18n()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
 const previewStore = usePreviewStore()
+
+// Extract reactive refs for role overrides
+const { roleOverrides } = storeToRefs(dataStore)
 
 // 全部区域是否都已保存（与快照一致）
 const allSaved = computed(() => {
@@ -872,6 +887,79 @@ const showResetHint = ref(!localStorage.getItem(RESET_HINT_KEY))
 function toggleResetHint() {
   showResetHint.value = !showResetHint.value
   localStorage.setItem(RESET_HINT_KEY, '1')
+}
+
+// Config export/import
+const configMsg = ref('')
+async function exportConfig() {
+  try {
+    const cfg = JSON.parse(JSON.stringify(configStore.config))
+    const json = JSON.stringify(cfg, null, 2)
+    // Tauri native save dialog
+    const filePath = await save({
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      defaultPath: (cfg.title || 'smartboard-config') + '.json',
+    })
+    if (!filePath) return // user cancelled
+    await writeTextFile(filePath, json)
+    configMsg.value = '✅ ' + t('config.saved')
+    setTimeout(() => { configMsg.value = '' }, 2000)
+  } catch {
+    // Fallback: browser download
+    const cfg = JSON.parse(JSON.stringify(configStore.config))
+    const json = JSON.stringify(cfg, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = (cfg.title || 'smartboard-config') + '.json'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+}
+
+async function importConfig(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  try {
+    const text = await file.text()
+    const cfg = JSON.parse(text)
+    if (!cfg || typeof cfg !== 'object') throw new Error('Invalid')
+
+    const headers = dataStore.dataSet?.headers ?? []
+    const headerSet = new Set(headers)
+    let skipped = 0
+
+    // Validate and filter KPIs — skip those referencing missing columns
+    if (Array.isArray(cfg.kpis)) {
+      const origLen = cfg.kpis.length
+      cfg.kpis = cfg.kpis.filter((k: any) => {
+        if (k.formula) {
+          const vars = k.formula.variables || []
+          return vars.every((v: any) => headerSet.has(v.column))
+        }
+        return headerSet.has(k.column)
+      })
+      skipped += origLen - cfg.kpis.length
+    }
+
+    // Validate table columns
+    if (Array.isArray(cfg.table?.columns)) {
+      cfg.table.columns = cfg.table.columns.filter((c: string) => headerSet.has(c))
+    }
+
+    configStore.config = cfg
+    configMsg.value = skipped > 0
+      ? t('config.importSkipped', { n: String(skipped) })
+      : t('config.importSuccess')
+    setTimeout(() => { configMsg.value = '' }, 3000)
+  } catch {
+    configMsg.value = t('config.importError')
+    setTimeout(() => { configMsg.value = '' }, 3000)
+  } finally {
+    input.value = ''
+  }
 }
 
 // ====== Accordion state ======
@@ -1011,14 +1099,14 @@ function onPointerUp(e: PointerEvent) {
 const numericCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric' && ds.classifications[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
+  return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric' && effRole(h) === 'metric' && !dataStore.excludedColumns.has(h))
 })
 
 const dimensionCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
   return ds.headers.filter(
-    (h) => ds.classifications[h]?.role === 'dimension' && ds.classifications[h]?.type === 'categorical' && !dataStore.excludedColumns.has(h),
+    (h) => effRole(h) === 'dimension' && ds.classifications[h]?.type === 'categorical' && !dataStore.excludedColumns.has(h),
   )
 })
 
@@ -1034,6 +1122,16 @@ const filterableColumns = computed(() =>
 /** 判断列是否为数值类型（数值列用 > < >= <=，非数值列用 in ~） */
 function isNumericCol(col: string): boolean {
   return dataStore.dataSet?.classifications[col]?.type === 'numeric'
+}
+
+// Role cycling (same as DataPreview)
+const ROLE_CYCLE = ['metric', 'dimension', 'time_axis', 'label', 'ignore']
+
+function cycleRole(col: string) {
+  const current = effRole(col)
+  const idx = ROLE_CYCLE.indexOf(current)
+  const next = ROLE_CYCLE[(idx + 1) % ROLE_CYCLE.length]
+  dataStore.setRoleOverride(col, next)
 }
 
 // ====== Column conditional text rules ======
@@ -1121,6 +1219,13 @@ const allNumericCols = computed(() => {
   return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric' && !dataStore.excludedColumns.has(h))
 })
 
+// All non-excluded columns (for KPI: count/unique_count works on any column)
+const allDataCols = computed(() => {
+  const ds = dataStore.dataSet
+  if (!ds) return []
+  return ds.headers.filter((h) => !dataStore.excludedColumns.has(h))
+})
+
 const canSaveKpi = computed(() => {
   if (!kpiForm.label.trim()) return false
   if (kpiForm.useFormula) {
@@ -1148,7 +1253,7 @@ function insertOp(op: string) {
 function openAddKpi() {
   editingKpiIdx.value = -1
   kpiForm.useFormula = false
-  kpiForm.column = allNumericCols.value[0] || ''
+  kpiForm.column = allDataCols.value[0] || ''
   kpiForm.label = ''
   kpiForm.agg = 'sum'
   kpiForm.format = 'global'
@@ -1246,10 +1351,16 @@ const chartForm = reactive({
   metricAggs: {} as Record<string, string>,
 })
 
+function effRole(col: string): string {
+  return roleOverrides.value[col] || dataStore.dataSet?.classifications[col]?.role || 'ignore'
+}
+
 const allMetricCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
+  // Touch roleOverrides.value to ensure computed re-runs on change
+  const ro = roleOverrides.value
+  return ds.headers.filter((h) => (ro[h] || ds.classifications[h]?.role) === 'metric' && !dataStore.excludedColumns.has(h))
 })
 
 const dateCols = computed(() => {
@@ -1631,13 +1742,40 @@ function cancelChartEdit() {
 }
 
 .header-actions .btn-save,
-.header-actions .btn-reset-sec {
+.header-actions .btn-reset-sec,
+.header-actions .btn-export,
+.header-actions .btn-import {
   width: auto;
   height: auto;
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 5px;
   white-space: nowrap;
+}
+
+.btn-export,
+.btn-import {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.btn-export:hover,
+.btn-import:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.config-toast {
+  text-align: center;
+  font-size: 12px;
+  padding: 6px 16px;
+  margin-top: 4px;
+  color: #065f46;
+  background: #ecfdf5;
+  border-radius: 8px;
+  display: inline-block;
 }
 
 .config-header h2 {
