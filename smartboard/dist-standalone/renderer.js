@@ -955,7 +955,7 @@ var SmartboardRenderer = (function(exports) {
   let condFilter = "", searchText = "";
   let sortCol = "", sortDir = false;
   let tblSearch = "", tblCond = "", tblSummaryAggs = {};
-  const AGGLABEL = {
+  const AGGLABEL_ZH = {
     sum: "求和",
     avg: "平均",
     count: "计数",
@@ -963,6 +963,18 @@ var SmartboardRenderer = (function(exports) {
     min: "最小",
     max: "最大"
   };
+  const AGGLABEL_EN = {
+    sum: "Sum",
+    avg: "Avg",
+    count: "Count",
+    unique_count: "Unique",
+    min: "Min",
+    max: "Max"
+  };
+  function getAggLabel(agg, locale) {
+    const map = locale === "en-US" ? AGGLABEL_EN : AGGLABEL_ZH;
+    return map[agg] || agg;
+  }
   let tblCols = [];
   let chartInstances = [];
   let dateStart = "", dateEnd = "";
@@ -2079,7 +2091,7 @@ var SmartboardRenderer = (function(exports) {
               else sv = fmt(val);
             } else sv = String(val);
           } else sv = String(val);
-          const aggLabel = AGGLABEL[agg] || "";
+          const aggLabel = getAggLabel(agg, DATA.locale) || "";
           html += `<td class="summary-cell"><span class="sc-val">${sv}</span><span class="sc-agg">${aggLabel}</span></td>`;
         } else {
           html += "<td></td>";

@@ -2,6 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { DashboardConfig, KpiFormItem, ChartFormItem } from '@/types/config'
 import { useDataStore } from './data-store'
+import i18n from '@/i18n'
+
+const t = i18n.global.t
 
 export type ConfigSection = 'title' | 'filters' | 'dateColumn' | 'kpis' | 'charts' | 'table' | 'metricDefaults'
 
@@ -40,7 +43,7 @@ export const useConfigStore = defineStore('config', () => {
   function generateAutoTitle() {
     const base = _autoBase()
     if (!base) return
-    config.value.title = base.ds.fileName.replace(/\.[^.]+$/, '') + ' 分析看板'
+    config.value.title = t('config.autoTitle', { name: base.ds.fileName.replace(/\.[^.]+$/, '') })
   }
 
   function generateAutoFilters() {
@@ -77,32 +80,32 @@ export const useConfigStore = defineStore('config', () => {
       const cls = ds.classifications[dim]
       const uniqueCount = cls?.uniqueCount ?? 0
       if (uniqueCount <= 8) {
-        charts.push({ id: crypto.randomUUID(), type: 'doughnut', title: `${dim} 占比`, dimension: dim, metric: 'count' })
+        charts.push({ id: crypto.randomUUID(), type: 'doughnut', title: t('config.autoChart.proportion', { dim }), dimension: dim, metric: 'count' })
         if (primaryMetric) {
-          charts.push({ id: crypto.randomUUID(), type: 'bar', title: `${dim} 对比`, dimension: dim, metrics: [primaryMetric] })
+          charts.push({ id: crypto.randomUUID(), type: 'bar', title: t('config.autoChart.comparison', { dim }), dimension: dim, metrics: [primaryMetric] })
         }
       } else if (uniqueCount <= 20) {
-        charts.push({ id: crypto.randomUUID(), type: 'horizontal_bar', title: `${dim} 排行`, dimension: dim, metric: primaryMetric || undefined, metrics: primaryMetric ? [primaryMetric] : undefined })
+        charts.push({ id: crypto.randomUUID(), type: 'horizontal_bar', title: t('config.autoChart.ranking', { dim }), dimension: dim, metric: primaryMetric || undefined, metrics: primaryMetric ? [primaryMetric] : undefined })
       }
     }
     if (primaryMetric) {
-      charts.push({ id: crypto.randomUUID(), type: 'histogram', title: '{metric} 分布', metric: primaryMetric })
+      charts.push({ id: crypto.randomUUID(), type: 'histogram', title: t('config.autoChart.distribution', { metric: primaryMetric }), metric: primaryMetric })
     }
     if (dateCol && primaryMetric) {
-      charts.push({ id: crypto.randomUUID(), type: 'line', title: '{metric} 月度趋势', dateColumn: dateCol, metric: primaryMetric })
+      charts.push({ id: crypto.randomUUID(), type: 'line', title: t('config.autoChart.monthlyTrend', { metric: primaryMetric }), dateColumn: dateCol, metric: primaryMetric })
     }
     // 基础图表最多 6 张
     const basic = charts.slice(0, 6)
 
     // 高级分析
     if (dateCol && primaryMetric) {
-      basic.push({ id: crypto.randomUUID(), type: 'timeseries', title: '{metric} 时序分析', dateColumn: dateCol, metric: primaryMetric })
+      basic.push({ id: crypto.randomUUID(), type: 'timeseries', title: t('config.autoChart.timeseries', { metric: primaryMetric }), dateColumn: dateCol, metric: primaryMetric })
     }
     if (primaryMetric) {
-      basic.push({ id: crypto.randomUUID(), type: 'decile', title: '{metric} 十分位分析', metric: primaryMetric })
+      basic.push({ id: crypto.randomUUID(), type: 'decile', title: t('config.autoChart.decile', { metric: primaryMetric }), metric: primaryMetric })
     }
     if (metricCols.length >= 2) {
-      basic.push({ id: crypto.randomUUID(), type: 'cluster', title: '聚类分析', metrics: metricCols.slice(0, 5), clusterMetrics: metricCols.slice(0, 5), k: 3 })
+      basic.push({ id: crypto.randomUUID(), type: 'cluster', title: t('config.autoChart.cluster'), metrics: metricCols.slice(0, 5), clusterMetrics: metricCols.slice(0, 5), k: 3 })
     }
     config.value.charts = basic.map((c) => ({ ...c, selected: true }))
   }

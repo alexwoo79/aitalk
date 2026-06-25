@@ -1,5 +1,8 @@
 <template>
-  <div class="file-uploader" :class="{ dragging }">
+  <div class="file-uploader" :class="{ dragging }"
+    @drop.prevent="onHtmlDrop"
+    @dragover.prevent="onHtmlDragOver"
+    @dragleave="onHtmlDragLeave">
     <div class="upload-icon">📁</div>
     <p class="upload-text">{{ t('upload.dropHint') }}</p>
     <p class="upload-sub">{{ t('upload.clickHint') }}</p>
@@ -87,6 +90,51 @@ async function loadFilePath(filePath: string) {
       chartDimensions,
       filePath,
       fileName,
+    }
+    emit('loaded')
+  } catch (err: any) {
+    dataStore.error = err.message || t('upload.parseError')
+  } finally {
+    dataStore.loading = false
+  }
+}
+
+// HTML5 drag-and-drop (for OS file drops into the webview)
+function onHtmlDragOver(e: DragEvent) {
+  const types = e.dataTransfer?.types || []
+  if (types.includes('Files')) {
+    dragging.value = true
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+function onHtmlDragLeave() {
+  dragging.value = false
+}
+
+async function onHtmlDrop(e: DragEvent) {
+  dragging.value = false
+  const file = e.dataTransfer?.files?.[0]
+  if (!file) return
+
+  dataStore.loading = true
+  dataStore.error = null
+  try {
+    const text = await file.text()
+    const parsed = parseFile(file.name, text)
+    const classifications = classifyAllColumns(parsed.headers, parsed.rows)
+    const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
+    const chartDimensions = selectChartDimensions(parsed.headers, classifications)
+
+    dataStore.dataSet = {
+      headers: parsed.headers,
+      rows: parsed.rows,
+      rawRows: parsed.rawRows,
+      classifications,
+      primaryMetric,
+      chartDimensions,
+      filePath: file.name,
+      fileName: file.name,
     }
     emit('loaded')
   } catch (err: any) {

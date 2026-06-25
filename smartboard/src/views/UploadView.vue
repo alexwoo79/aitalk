@@ -3,6 +3,40 @@
     <div class="upload-section">
       <h2>{{ t('upload.title') }}</h2>
       <p class="subtitle">{{ t('upload.subtitle') }}</p>
+      <div class="tips-actions">
+        <button class="tips-toggle" @click="showTips = !showTips">
+          {{ t('upload.dataTips.toggle') }}
+          <span class="tips-arrow">{{ showTips ? '▲' : '▼' }}</span>
+        </button>
+        <span class="sample-download" role="button" tabindex="0"
+          @click="downloadSample"
+          @keydown.enter="downloadSample"
+          @keydown.space.prevent="downloadSample"
+          @pointerdown.prevent="onSamplePointerDown">
+          {{ t('upload.sampleDownload') }}
+        </span>
+      </div>
+      <div v-if="showTips" class="tips-panel">
+        <p class="tips-title">{{ t('upload.dataTips.title') }}</p>
+        <ul class="tips-list">
+          <li>{{ t('upload.dataTips.format') }}</li>
+          <li>{{ t('upload.dataTips.header') }}</li>
+          <li>{{ t('upload.dataTips.uniqueNames') }}</li>
+          <li>{{ t('upload.dataTips.consistentType') }}</li>
+          <li>{{ t('upload.dataTips.noEmpty') }}</li>
+        </ul>
+        <p class="tips-subtitle">{{ t('upload.dataTips.cleanTips') }}</p>
+        <ul class="tips-list tips-list-secondary">
+          <li>{{ t('upload.dataTips.tip1') }}</li>
+          <li>{{ t('upload.dataTips.tip2') }}</li>
+          <li>{{ t('upload.dataTips.tip3') }}</li>
+          <li>{{ t('upload.dataTips.tip4') }}</li>
+          <li>{{ t('upload.dataTips.tip5') }}</li>
+        </ul>
+        <button class="btn btn-sm btn-primary tips-got-it" @click="showTips = false">
+          {{ t('upload.dataTips.gotIt') }}
+        </button>
+      </div>
       <FileUploader @loaded="onFileLoaded" />
     </div>
 
@@ -22,17 +56,33 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { parseFile } from '@/core/parser'
+import { classifyAllColumns, selectPrimaryMetric, selectChartDimensions } from '@/core/classifier'
 import FileUploader from '@/components/upload/FileUploader.vue'
 import DataPreview from '@/components/upload/DataPreview.vue'
 
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
+
+// Data quality tips: shown by default on first visit, toggleable
+const TIPS_STORAGE_KEY = 'smartboard-tips-dismissed'
+const showTips = ref(!localStorage.getItem(TIPS_STORAGE_KEY))
+
+// Persist dismissal to localStorage
+watch(showTips, (val) => {
+  if (!val) {
+    localStorage.setItem(TIPS_STORAGE_KEY, '1')
+  }
+})
 
 function onFileLoaded() {
   // Auto-generate config when data is loaded (only if nothing saved yet)
@@ -50,6 +100,231 @@ function onToggleExclude() {
 
 function goToConfig() {
   router.push('/config')
+}
+
+// Sample CSV data embedded for offline download (Tauri-compatible)
+const SAMPLE_CSV_ZH = `日期,区域,城市,产品类别,产品名称,销售额,销量,利润,客户数
+2024-01-05,华东,上海,电子产品,智能手机,158000,120,32000,85
+2024-01-05,华东,上海,电子产品,笔记本电脑,245000,45,51000,42
+2024-01-05,华东,杭州,电子产品,智能手机,132000,100,26500,72
+2024-01-05,华北,北京,电子产品,笔记本电脑,278000,52,58000,48
+2024-01-05,华北,北京,家居用品,办公椅,45000,150,9000,110
+2024-01-12,华东,上海,电子产品,平板电脑,98000,80,19500,65
+2024-01-12,华东,杭州,家居用品,办公桌,72000,60,15000,48
+2024-01-12,华北,北京,电子产品,智能手机,185000,140,37500,95
+2024-01-12,华南,深圳,电子产品,笔记本电脑,320000,58,67000,52
+2024-01-12,华南,广州,家居用品,办公椅,38000,125,7600,92
+2024-01-19,华东,上海,家居用品,书架,28000,90,5600,68
+2024-01-19,华东,南京,电子产品,平板电脑,76000,62,15200,55
+2024-01-19,华北,北京,家居用品,办公桌,85000,48,18000,42
+2024-01-19,华南,深圳,电子产品,智能手机,168000,128,34000,88
+2024-01-19,西南,成都,电子产品,笔记本电脑,195000,38,41000,35
+2024-01-26,华东,上海,电子产品,智能手机,172000,132,35000,90
+2024-01-26,华北,天津,家居用品,办公椅,42000,140,8400,105
+2024-01-26,华南,广州,电子产品,平板电脑,112000,90,22500,72
+2024-01-26,西南,重庆,电子产品,智能手机,145000,110,29000,78
+2024-02-02,华东,上海,家居用品,办公桌,68000,42,14000,38
+2024-02-02,华东,杭州,电子产品,笔记本电脑,230000,42,48000,40
+2024-02-02,华北,北京,电子产品,智能手机,195000,148,39500,102
+2024-02-02,华南,深圳,家居用品,书架,32000,85,6500,65
+2024-02-02,西南,成都,电子产品,平板电脑,85000,68,17000,56
+2024-02-09,华东,南京,电子产品,智能手机,138000,105,28000,74
+2024-02-09,华北,北京,家居用品,办公椅,48000,160,9600,118
+2024-02-09,华南,广州,电子产品,笔记本电脑,265000,48,55500,44
+2024-02-09,西南,重庆,家居用品,办公桌,55000,38,11500,32
+2024-02-16,华东,上海,电子产品,平板电脑,105000,85,21000,68
+2024-02-16,华北,天津,电子产品,智能手机,152000,118,30500,82
+2024-02-16,华南,深圳,电子产品,笔记本电脑,298000,55,62500,50
+2024-02-16,西南,成都,家居用品,书架,25000,78,5000,60
+2024-02-23,华东,杭州,家居用品,办公椅,39000,130,7800,98
+2024-02-23,华北,北京,电子产品,平板电脑,128000,102,25800,80
+2024-02-23,华南,广州,电子产品,智能手机,176000,135,35500,94
+2024-02-23,西南,重庆,电子产品,笔记本电脑,210000,40,44000,37
+2024-03-01,华东,上海,电子产品,智能手机,188000,142,38000,96
+2024-03-01,华东,南京,家居用品,办公桌,62000,40,13000,35
+2024-03-01,华北,北京,电子产品,笔记本电脑,310000,56,65000,51
+2024-03-01,华南,深圳,家居用品,办公椅,50000,168,10000,122
+2024-03-01,西南,成都,电子产品,平板电脑,92000,74,18500,60
+2024-03-08,华东,上海,家居用品,书架,30000,95,6000,72
+2024-03-08,华北,天津,电子产品,智能手机,165000,125,33000,86
+2024-03-08,华南,广州,电子产品,笔记本电脑,285000,52,60000,47
+2024-03-08,西南,重庆,家居用品,办公椅,36000,120,7200,90
+2024-03-15,华东,杭州,电子产品,平板电脑,88000,70,17600,58
+2024-03-15,华北,北京,家居用品,办公桌,78000,46,16500,40
+2024-03-15,华南,深圳,电子产品,智能手机,198000,150,40000,105
+2024-03-15,西南,成都,电子产品,笔记本电脑,225000,43,47000,39
+2024-03-22,华东,上海,电子产品,智能手机,205000,155,41500,108`
+
+const SAMPLE_CSV_EN = `Date,Region,City,Category,Product,Sales,Quantity,Profit,Customers
+2024-01-05,East,Shanghai,Electronics,Smartphone,158000,120,32000,85
+2024-01-05,East,Shanghai,Electronics,Laptop,245000,45,51000,42
+2024-01-05,East,Hangzhou,Electronics,Smartphone,132000,100,26500,72
+2024-01-05,North,Beijing,Electronics,Laptop,278000,52,58000,48
+2024-01-05,North,Beijing,Home Goods,Office Chair,45000,150,9000,110
+2024-01-12,East,Shanghai,Electronics,Tablet,98000,80,19500,65
+2024-01-12,East,Hangzhou,Home Goods,Office Desk,72000,60,15000,48
+2024-01-12,North,Beijing,Electronics,Smartphone,185000,140,37500,95
+2024-01-12,South,Shenzhen,Electronics,Laptop,320000,58,67000,52
+2024-01-12,South,Guangzhou,Home Goods,Office Chair,38000,125,7600,92
+2024-01-19,East,Shanghai,Home Goods,Bookshelf,28000,90,5600,68
+2024-01-19,East,Nanjing,Electronics,Tablet,76000,62,15200,55
+2024-01-19,North,Beijing,Home Goods,Office Desk,85000,48,18000,42
+2024-01-19,South,Shenzhen,Electronics,Smartphone,168000,128,34000,88
+2024-01-19,Southwest,Chengdu,Electronics,Laptop,195000,38,41000,35
+2024-01-26,East,Shanghai,Electronics,Smartphone,172000,132,35000,90
+2024-01-26,North,Tianjin,Home Goods,Office Chair,42000,140,8400,105
+2024-01-26,South,Guangzhou,Electronics,Tablet,112000,90,22500,72
+2024-01-26,Southwest,Chongqing,Electronics,Smartphone,145000,110,29000,78
+2024-02-02,East,Shanghai,Home Goods,Office Desk,68000,42,14000,38
+2024-02-02,East,Hangzhou,Electronics,Laptop,230000,42,48000,40
+2024-02-02,North,Beijing,Electronics,Smartphone,195000,148,39500,102
+2024-02-02,South,Shenzhen,Home Goods,Bookshelf,32000,85,6500,65
+2024-02-02,Southwest,Chengdu,Electronics,Tablet,85000,68,17000,56
+2024-02-09,East,Nanjing,Electronics,Smartphone,138000,105,28000,74
+2024-02-09,North,Beijing,Home Goods,Office Chair,48000,160,9600,118
+2024-02-09,South,Guangzhou,Electronics,Laptop,265000,48,55500,44
+2024-02-09,Southwest,Chongqing,Home Goods,Office Desk,55000,38,11500,32
+2024-02-16,East,Shanghai,Electronics,Tablet,105000,85,21000,68
+2024-02-16,North,Tianjin,Electronics,Smartphone,152000,118,30500,82
+2024-02-16,South,Shenzhen,Electronics,Laptop,298000,55,62500,50
+2024-02-16,Southwest,Chengdu,Home Goods,Bookshelf,25000,78,5000,60
+2024-02-23,East,Hangzhou,Home Goods,Office Chair,39000,130,7800,98
+2024-02-23,North,Beijing,Electronics,Tablet,128000,102,25800,80
+2024-02-23,South,Guangzhou,Electronics,Smartphone,176000,135,35500,94
+2024-02-23,Southwest,Chongqing,Electronics,Laptop,210000,40,44000,37
+2024-03-01,East,Shanghai,Electronics,Smartphone,188000,142,38000,96
+2024-03-01,East,Nanjing,Home Goods,Office Desk,62000,40,13000,35
+2024-03-01,North,Beijing,Electronics,Laptop,310000,56,65000,51
+2024-03-01,South,Shenzhen,Home Goods,Office Chair,50000,168,10000,122
+2024-03-01,Southwest,Chengdu,Electronics,Tablet,92000,74,18500,60
+2024-03-08,East,Shanghai,Home Goods,Bookshelf,30000,95,6000,72
+2024-03-08,North,Tianjin,Electronics,Smartphone,165000,125,33000,86
+2024-03-08,South,Guangzhou,Electronics,Laptop,285000,52,60000,47
+2024-03-08,Southwest,Chongqing,Home Goods,Office Chair,36000,120,7200,90
+2024-03-15,East,Hangzhou,Electronics,Tablet,88000,70,17600,58
+2024-03-15,North,Beijing,Home Goods,Office Desk,78000,46,16500,40
+2024-03-15,South,Shenzhen,Electronics,Smartphone,198000,150,40000,105
+2024-03-15,Southwest,Chengdu,Electronics,Laptop,225000,43,47000,39
+2024-03-22,East,Shanghai,Electronics,Smartphone,205000,155,41500,108`
+
+// Dynamic sample CSV based on current locale
+const sampleCsv = computed(() => {
+  return locale.value === 'en-US' ? SAMPLE_CSV_EN : SAMPLE_CSV_ZH
+})
+
+async function downloadSample() {
+  try {
+    // Use Tauri native save dialog (works in both dev & production)
+    const filePath = await save({
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+      defaultPath: 'smartboard-sample-data.csv',
+    })
+    if (!filePath) return // user cancelled
+    await writeTextFile(filePath, sampleCsv.value)
+  } catch {
+    // Fallback for browser: Blob download
+    const blob = new Blob([sampleCsv.value], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'smartboard-sample-data.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+}
+
+// Pointer-based drag: more reliable than HTML5 drag in Tauri webview
+let _sampleGhost: HTMLElement | null = null
+let _samplePointerId = -1
+
+function onSamplePointerDown(e: PointerEvent) {
+  const el = e.currentTarget as HTMLElement
+  el.setPointerCapture(e.pointerId)
+  _samplePointerId = e.pointerId
+
+  // Create ghost element
+  _sampleGhost = el.cloneNode(true) as HTMLElement
+  _sampleGhost.classList.add('sample-ghost')
+  _sampleGhost.style.position = 'fixed'
+  _sampleGhost.style.zIndex = '9999'
+  _sampleGhost.style.pointerEvents = 'none'
+  _sampleGhost.style.opacity = '0.85'
+  _sampleGhost.style.left = (e.clientX - el.offsetWidth / 2) + 'px'
+  _sampleGhost.style.top = (e.clientY - el.offsetHeight / 2) + 'px'
+  document.body.appendChild(_sampleGhost)
+
+  el.addEventListener('pointermove', onSamplePointerMove)
+  el.addEventListener('pointerup', onSamplePointerUp)
+  el.addEventListener('pointercancel', onSamplePointerUp)
+}
+
+function onSamplePointerMove(e: PointerEvent) {
+  if (!_sampleGhost) return
+  _sampleGhost.style.left = (e.clientX - _sampleGhost.offsetWidth / 2) + 'px'
+  _sampleGhost.style.top = (e.clientY - _sampleGhost.offsetHeight / 2) + 'px'
+
+  // Highlight upload area if dragging over it
+  const el = document.elementFromPoint(e.clientX, e.clientY)
+  const uploader = el?.closest('.file-uploader') as HTMLElement | null
+  // Toggle class on any .file-uploader in the document
+  document.querySelectorAll('.file-uploader').forEach((u) => {
+    if (u === uploader) {
+      u.classList.add('dragging')
+    } else {
+      u.classList.remove('dragging')
+    }
+  })
+}
+
+function onSamplePointerUp(e: PointerEvent) {
+  const el = e.currentTarget as HTMLElement
+  el.removeEventListener('pointermove', onSamplePointerMove)
+  el.removeEventListener('pointerup', onSamplePointerUp)
+  el.removeEventListener('pointercancel', onSamplePointerUp)
+  el.releasePointerCapture(_samplePointerId)
+
+  // Remove ghost
+  if (_sampleGhost) { _sampleGhost.remove(); _sampleGhost = null }
+  _samplePointerId = -1
+
+  // Remove dragging highlight
+  document.querySelectorAll('.file-uploader').forEach((u) => u.classList.remove('dragging'))
+
+  // Check if dropped on upload area
+  const target = document.elementFromPoint(e.clientX, e.clientY)
+  const uploader = target?.closest('.file-uploader')
+  if (!uploader) return // dropped outside upload area
+
+  // Load sample data directly
+  loadSampleData()
+}
+
+function loadSampleData() {
+  dataStore.loading = true
+  dataStore.error = null
+  try {
+    const parsed = parseFile('smartboard-sample-data.csv', sampleCsv.value)
+    const classifications = classifyAllColumns(parsed.headers, parsed.rows)
+    const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
+    const chartDimensions = selectChartDimensions(parsed.headers, classifications)
+
+    dataStore.dataSet = {
+      headers: parsed.headers,
+      rows: parsed.rows,
+      rawRows: parsed.rawRows,
+      classifications,
+      primaryMetric,
+      chartDimensions,
+      filePath: 'smartboard-sample-data.csv',
+      fileName: 'smartboard-sample-data.csv',
+    }
+  } catch (err: any) {
+    dataStore.error = err.message || t('upload.parseError')
+  } finally {
+    dataStore.loading = false
+  }
 }
 </script>
 
@@ -108,5 +383,150 @@ function goToConfig() {
   color: var(--text-error);
   border-radius: 8px;
   margin-bottom: 24px;
+}
+
+/* Data Quality Tips */
+.tips-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tips-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tips-toggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light, #eff6ff);
+}
+
+.tips-arrow {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.sample-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.sample-download:active {
+  cursor: grabbing;
+}
+
+.sample-ghost {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  border: 1px solid #16a34a !important;
+  color: #16a34a !important;
+  background: #f0fdf4 !important;
+}
+
+.sample-download:hover {
+  border-color: #16a34a;
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+.tips-panel {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fffbeb 100%);
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  text-align: left;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 2px 12px rgba(251, 191, 36, 0.12);
+}
+
+.tips-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  margin: 0 0 12px 0;
+}
+
+.tips-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px 0;
+}
+
+.tips-list li {
+  position: relative;
+  padding: 5px 0 5px 8px;
+  font-size: 13px;
+  color: #78350f;
+  line-height: 1.6;
+}
+
+.tips-list-secondary {
+  margin-top: 2px;
+}
+
+.tips-list-secondary li {
+  color: #a16207;
+  font-size: 12px;
+}
+
+.tips-subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #92400e;
+  margin: 14px 0 6px 0;
+}
+
+.tips-got-it {
+  margin-top: 12px;
+  width: 100%;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .tips-panel {
+    background: linear-gradient(135deg, #292524 0%, #1c1917 50%, #292524 100%);
+    border-color: #78350f;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .tips-title,
+  .tips-subtitle {
+    color: #fcd34d;
+  }
+
+  .tips-list li {
+    color: #fde68a;
+  }
+
+  .tips-list-secondary li {
+    color: #fbbf24;
+  }
 }
 </style>

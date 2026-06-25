@@ -72,9 +72,16 @@ let condFilter = '', searchText = ''
 let sortCol = '', sortDir = false
 let tblSearch = '', tblCond = '', tblSummaryAggs: Record<string, string> = {}
 
-// Aggregation label map (matches i18n keys)
-const AGGLABEL: Record<string, string> = {
+// Aggregation label maps (locale-aware)
+const AGGLABEL_ZH: Record<string, string> = {
   sum: '求和', avg: '平均', count: '计数', unique_count: '唯一计数', min: '最小', max: '最大',
+}
+const AGGLABEL_EN: Record<string, string> = {
+  sum: 'Sum', avg: 'Avg', count: 'Count', unique_count: 'Unique', min: 'Min', max: 'Max',
+}
+function getAggLabel(agg: string, locale?: string): string {
+  const map = locale === 'en-US' ? AGGLABEL_EN : AGGLABEL_ZH
+  return map[agg] || agg
 }
 let tblCols: string[] = []
 let chartInstances: any[] = []
@@ -415,7 +422,8 @@ function buildTsOption(td: TimeseriesData, chart: ChartSpec): any {
   const tD: (number | null)[] = [...td.trend, ...new Array(td.forecast.labels.length).fill(null)]
   const fD: (number | null)[] = [...new Array(td.labels.length - 1).fill(null), td.values[td.values.length - 1], ...td.forecast.values]
   const opt = {
-    tooltip: { trigger: 'axis', backgroundColor: 'rgba(60,60,75,0.85)', borderColor: '#555', textStyle: { color: '#eee' },
+    tooltip: {
+      trigger: 'axis', backgroundColor: 'rgba(60,60,75,0.85)', borderColor: '#555', textStyle: { color: '#eee' },
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
         return params.filter((x: any) => x.value != null).map((x: any) => `${x.seriesName}: ${fmtByChart(x.value, chart, x.seriesName)}`).join('<br/>')
@@ -439,7 +447,8 @@ function buildTsOption(td: TimeseriesData, chart: ChartSpec): any {
 
 function buildDecileOption(dd: DecileData, chart: ChartSpec): any {
   const opt = {
-    tooltip: { trigger: 'axis', backgroundColor: 'rgba(60,60,75,0.85)', borderColor: '#555', textStyle: { color: '#eee' },
+    tooltip: {
+      trigger: 'axis', backgroundColor: 'rgba(60,60,75,0.85)', borderColor: '#555', textStyle: { color: '#eee' },
       formatter: (params: any) => {
         if (!Array.isArray(params)) return ''
         return params.map((x: any) => `${x.seriesName}: ${fmtByChart(x.value, chart, x.seriesName)}`).join('<br/>')
@@ -909,7 +918,7 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
             else sv = fmt(val)
           } else sv = String(val)
         } else sv = String(val)
-        const aggLabel = AGGLABEL[agg] || ''
+        const aggLabel = getAggLabel(agg, DATA.locale) || ''
         html += `<td class="summary-cell"><span class="sc-val">${sv}</span><span class="sc-agg">${aggLabel}</span></td>`
       } else {
         html += '<td></td>'
@@ -922,7 +931,7 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
 }
 
 // Sort callback for table (exposed to window for inline onclick)
-;(window as any)._sortTable = (c: string) => {
+; (window as any)._sortTable = (c: string) => {
   if (sortCol === c) sortDir = !sortDir; else { sortCol = c; sortDir = false }
   refreshAll()
 }
@@ -954,4 +963,4 @@ export function initDashboard(data: DashboardData) {
 }
 
 // Expose for HTML to call
-;(window as any).initDashboard = initDashboard
+; (window as any).initDashboard = initDashboard

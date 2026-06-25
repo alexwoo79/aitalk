@@ -13,8 +13,14 @@
           <div class="header-actions">
             <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved
               ? t('config.saved') : t('config.saveAll') }}</button>
-            <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">{{ t('config.resetAll')
-            }}</button>
+            <span class="reset-wrap">
+              <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">{{ t('config.resetAll')
+              }}</button>
+              <button class="reset-info-btn" @click.stop="showResetHint = !showResetHint" :title="t('config.resetHint')">💡</button>
+              <div v-if="showResetHint" class="reset-popup">
+                {{ t('config.resetHint') }}
+              </div>
+            </span>
           </div>
         </div>
         <p class="subtitle">{{ t('config.hint') }}</p>
@@ -115,17 +121,17 @@
                   <span class="md-col-dec">{{ t('config.decimals') }}</span>
                   <span class="md-col-cb" @click.stop>
                     <input type="checkbox" :checked="isSectionAllSelected('kpi')" @change="toggleSectionAll('kpi')" />
-                    <label>KPI</label>
+                    <label>&nbsp;KPI </label>
                   </span>
                   <span class="md-col-cb" @click.stop>
                     <input type="checkbox" :checked="isSectionAllSelected('chart')"
                       @change="toggleSectionAll('chart')" />
-                    <label>{{ t('config.sections.chart') }}</label>
+                    <label>&nbsp;{{ t('config.sections.chart') }}</label>
                   </span>
                   <span class="md-col-cb" @click.stop>
                     <input type="checkbox" :checked="isSectionAllSelected('table')"
                       @change="toggleSectionAll('table')" />
-                    <label>{{ t('config.sections.table') }}</label>
+                    <label>&nbsp;{{ t('config.sections.table') }}</label>
                   </span>
                 </div>
                 <div v-for="col in allMetricCols" :key="col" class="md-row">
@@ -197,7 +203,7 @@
                   <div class="kpi-item-main">
                     <div class="kpi-item-row">
                       <span class="kpi-item-label">{{ kpi.label }}</span>
-                      <span v-if="kpi.formula" class="kpi-formula-tag">公式</span>
+                      <span v-if="kpi.formula" class="kpi-formula-tag">{{ t('config.formula') }}</span>
                       <span v-else class="kpi-col-tag">{{ kpi.column }}</span>
                       <span class="kpi-agg-tag">{{ aggLabel(kpi.agg) }}</span>
                       <span v-if="kpi.filter" class="kpi-filter-tag" :title="kpi.filter">{{ t('common.filter') }}</span>
@@ -859,6 +865,9 @@ const savedCount = computed(() => {
   return sections.filter((s) => configStore.isSectionSaved(s)).length
 })
 const totalSections = 7
+
+// Reset hint popup
+const showResetHint = ref(false)
 
 // ====== Accordion state ======
 const expandedSections = ref(new Set<ConfigSection>(['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'metricDefaults']))
@@ -1637,6 +1646,75 @@ function cancelChartEdit() {
   color: var(--text-secondary);
   font-size: 14px;
   text-align: center;
+}
+
+/* Reset hint popup */
+.reset-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.reset-info-btn {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.reset-info-btn:hover {
+  opacity: 1;
+}
+
+.reset-popup {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 320px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.6;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  z-index: 100;
+  text-align: left;
+}
+
+.reset-popup::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 18px;
+  width: 10px;
+  height: 10px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-right: none;
+  border-bottom: none;
+  transform: rotate(45deg);
+}
+
+@media (prefers-color-scheme: dark) {
+  .reset-popup {
+    background: #292524;
+    border-color: #78350f;
+    color: #fde68a;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  }
+
+  .reset-popup::before {
+    background: #292524;
+    border-color: #78350f;
+  }
 }
 
 .config-layout {
