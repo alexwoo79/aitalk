@@ -46,7 +46,7 @@ import type { SheetInfo } from '@/types/data'
 
 const { t } = useI18n()
 
-defineProps<{
+const props = defineProps<{
   visible: boolean
   fileName: string
   sheets: SheetInfo[]
@@ -67,7 +67,7 @@ function toggle(index: number) {
 }
 
 function selectAll() {
-  selected.value = new Set(sheets.map(s => s.index))
+  selected.value = new Set(props.sheets.map(s => s.index))
 }
 
 function deselectAll() {
