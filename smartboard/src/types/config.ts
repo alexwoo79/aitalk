@@ -85,15 +85,11 @@ export interface KpiFormItem {
   decimals?: number
   /** 行筛选（单列 + 公式均可用） */
   filter?: string
-  /** 多列公式 KPI */
+  /** 多列公式 KPI（A/B/C 别名 + 表达式内嵌聚合） */
   formula?: {
-    variables: { column: string; agg: string; filter?: string }[]
+    variables: { alias: string; column: string; filter?: string }[]
     expression: string
     filter?: string
-    /** 行内计算表达式：先行内逐行计算再聚合（如 [0]*[1] 对每行计算单价×数量再SUM） */
-    rowExpression?: string
-    /** 行内计算后的聚合方式，默认 sum */
-    rowAgg?: 'sum' | 'avg' | 'min' | 'max' | 'count'
   }
   /** 是否选中（用于预览渲染过滤，默认 true） */
   selected?: boolean

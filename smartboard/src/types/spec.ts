@@ -42,15 +42,11 @@ export interface KpiSpec {
   unit?: 'yuan' | 'wan' | 'yi'
   /** 小数位数 */
   decimals?: number
-  /** 多列公式 KPI */
+  /** 多列公式 KPI（A/B/C 别名 + 表达式内嵌聚合） */
   formula?: {
-    variables: { column: string; agg: string; filter?: string }[]
+    variables: { alias: string; column: string; filter?: string }[]
     expression: string
     filter?: string
-    /** 行内计算表达式 */
-    rowExpression?: string
-    /** 行内计算后的聚合方式，默认 sum */
-    rowAgg?: 'sum' | 'avg' | 'min' | 'max' | 'count'
   }
 }
 

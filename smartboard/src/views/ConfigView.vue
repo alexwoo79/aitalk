@@ -551,36 +551,27 @@
               <div class="formula-section">
                 <div class="formula-label">{{ t('config.variables') }}</div>
                 <div v-for="(v, vi) in kpiForm.variables" :key="vi" class="formula-var-row">
-                  <span class="var-index">[{{ vi }}]</span>
+                  <span class="var-alias">{{ v.alias }}</span>
                   <select v-model="v.column" class="input input-sm" style="flex:1">
                     <option value="">{{ t('config.selectColumnPlaceholder') }}</option>
+                    <option v-if="calculatedParams.length > 0" disabled>── {{ t('config.savedParams') }} ──</option>
+                    <option v-for="p in calculatedParams" :key="'🔢'+p.label" :value="'🔢'+p.label">🔢 {{ p.label }}</option>
+                    <option disabled>── {{ t('config.dataColumns') }} ──</option>
                     <option v-for="col in allDataCols" :key="col" :value="col">{{ col }}</option>
-                  </select>
-                  <select v-model="v.agg" class="input input-sm" style="width:72px">
-                    <option value="sum">{{ t('config.aggSum') }}</option>
-                    <option value="avg">{{ t('config.aggAvg') }}</option>
-                    <option value="count">{{ t('config.aggCount') }}</option>
-                    <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
-                    <option value="min">{{ t('config.aggMin') }}</option>
-                    <option value="max">{{ t('config.aggMax') }}</option>
                   </select>
                   <input v-model="v.filter" class="input input-sm formula-filter"
                     :placeholder="t('config.columnFilter')" list="filter-cols-formula" />
                   <button v-if="kpiForm.variables.length > 1" class="btn-icon" @click="kpiForm.variables.splice(vi, 1)"
                     :title="t('config.remove')">✕</button>
                 </div>
-                <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">{{ t('config.addVariable')
-                  }}</button>
+                <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">{{ t('config.addVariable') }}</button>
 
-                <div class="formula-label">{{ t('config.sharedFilter') }} <span class="formula-hint">{{
-                  t('config.sharedFilterHint') }}</span></div>
+                <div class="formula-label">{{ t('config.sharedFilter') }} <span class="formula-hint">{{ t('config.sharedFilterHint') }}</span></div>
                 <div class="filter-wrap">
-                  <input v-model="kpiForm.filter" class="input" :placeholder="t('config.leaveEmptyAll')"
-                    list="filter-cols-formula" />
+                  <input v-model="kpiForm.filter" class="input" :placeholder="t('config.leaveEmptyAll')" list="filter-cols-formula" />
                   <datalist id="filter-cols-formula">
                     <template v-for="col in filterableColumns" :key="col">
-                      <option :value="col + ' = '" />
-                      <option :value="col + ' != '" />
+                      <option :value="col + ' = '" /><option :value="col + ' != '" />
                       <option v-if="isNumericCol(col)" :value="col + ' > '" />
                       <option v-if="isNumericCol(col)" :value="col + ' < '" />
                       <option v-if="!isNumericCol(col)" :value="col + ' in '" />
@@ -590,11 +581,16 @@
                   <span class="filter-hint">{{ t('config.expressionHint') }}</span>
                 </div>
 
-                <div class="formula-label">{{ t('config.expression') }} <span class="formula-hint"></span></div>
+                <div class="formula-label">{{ t('config.expression') }}</div>
                 <div class="formula-btns">
-                  <button v-for="vi in kpiForm.variables.length" :key="vi" class="period-btn"
-                    @click="insertVar(vi - 1)">[{{ vi - 1
-                    }}]</button>
+                  <button v-for="v in kpiForm.variables" :key="v.alias" class="period-btn" @click="insertAlias(v.alias)">{{ v.alias }}</button>
+                  <span class="toggle-sep" style="margin:0 4px"></span>
+                  <button class="period-btn func-btn" @click="insertFunc('SUM')">SUM</button>
+                  <button class="period-btn func-btn" @click="insertFunc('AVG')">AVG</button>
+                  <button class="period-btn func-btn" @click="insertFunc('COUNT')">CNT</button>
+                  <button class="period-btn func-btn" @click="insertFunc('UNIQUE_COUNT')">UNIQ</button>
+                  <button class="period-btn func-btn" @click="insertFunc('MIN')">MIN</button>
+                  <button class="period-btn func-btn" @click="insertFunc('MAX')">MAX</button>
                   <span class="toggle-sep" style="margin:0 4px"></span>
                   <button class="period-btn" @click="insertOp('+')">+</button>
                   <button class="period-btn" @click="insertOp('-')">−</button>
@@ -604,32 +600,8 @@
                   <button class="period-btn" @click="insertOp(')')">)</button>
                 </div>
                 <input v-model="kpiForm.expression" class="input formula-input"
-                  placeholder="如: [0] + [1]  或  ([0] - [1]) / [0] * 100" />
-
-                <!-- 行内计算模式 -->
-                <div class="formula-label" style="margin-top:14px">{{ t('config.calcMode') }}</div>
-                <div class="calc-mode-toggle">
-                  <button class="period-btn" :class="{ active: !kpiForm.useRowExpr }"
-                    @click="kpiForm.useRowExpr = false">{{ t('config.calcModePost') }}</button>
-                  <button class="period-btn" :class="{ active: kpiForm.useRowExpr }"
-                    @click="kpiForm.useRowExpr = true">{{ t('config.calcModeRow') }}</button>
-                </div>
-                <div class="calc-mode-hint">{{ kpiForm.useRowExpr ? t('config.calcModeRowHint') :
-                  t('config.calcModePostHint') }}</div>
-
-                <template v-if="kpiForm.useRowExpr">
-                  <div class="formula-label">{{ t('config.rowExpression') }}</div>
-                  <input v-model="kpiForm.rowExpression" class="input formula-input"
-                    :placeholder="t('config.rowExpressionPlaceholder')" />
-                  <div class="formula-label">{{ t('config.rowAgg') }}</div>
-                  <select v-model="kpiForm.rowAgg" class="input select-sm" style="width:120px">
-                    <option value="sum">{{ t('config.aggSum') }}</option>
-                    <option value="avg">{{ t('config.aggAvg') }}</option>
-                    <option value="min">{{ t('config.aggMin') }}</option>
-                    <option value="max">{{ t('config.aggMax') }}</option>
-                    <option value="count">{{ t('config.aggCount') }}</option>
-                  </select>
-                </template>
+                  :placeholder="t('config.formulaPlaceholder')" />
+                <div class="formula-mode-hint">{{ t('config.formulaModeHint') }}</div>
               </div>
               <div class="editor-grid" style="margin-top:12px">
                 <label>{{ t('common.label') }}</label>
@@ -962,7 +934,11 @@ async function importConfig(e: Event) {
       cfg.kpis = cfg.kpis.filter((k: any) => {
         if (k.formula) {
           const vars = k.formula.variables || []
-          return vars.every((v: any) => headerSet.has(v.column))
+          return vars.every((v: any) => {
+            // 🔢 保存参数引用不算真实列，跳过列名校验
+            if (v.column && v.column.startsWith('🔢')) return true
+            return headerSet.has(v.column)
+          })
         }
         return headerSet.has(k.column)
       })
@@ -1212,6 +1188,7 @@ function chartTypeLabel(type: string): string {
 }
 
 // ====== KPI editor ======
+
 const KPI_AGG_OPTIONS = [
   { value: 'sum', labelKey: 'config.aggSum' },
   { value: 'avg', labelKey: 'config.aggAvg' },
@@ -1221,10 +1198,9 @@ const KPI_AGG_OPTIONS = [
   { value: 'max', labelKey: 'config.aggMax' },
 ]
 
+interface KpiVariable { alias: string; column: string; filter: string }
 const showKpiEditor = ref(false)
 const editingKpiIdx = ref(-1)
-
-interface KpiVariable { column: string; agg: string; filter: string }
 const kpiForm = reactive({
   useFormula: false,
   column: '',
@@ -1236,9 +1212,15 @@ const kpiForm = reactive({
   filter: '',
   variables: [] as KpiVariable[],
   expression: '',
-  useRowExpr: false,
-  rowExpression: '',
-  rowAgg: 'sum' as string,
+})
+
+const ALIAS_POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+// 已保存的 KPI 标签（可复用参数：含公式和单列计算）
+const calculatedParams = computed(() => {
+  return configStore.config.kpis
+    .filter(k => k.label && (k.formula || k.column))
+    .map(k => ({ label: k.label, formula: k.formula, column: k.column }))
 })
 
 const allNumericCols = computed(() => {
@@ -1247,7 +1229,6 @@ const allNumericCols = computed(() => {
   return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric' && !dataStore.excludedColumns.has(h))
 })
 
-// All non-excluded columns (for KPI: count/unique_count works on any column)
 const allDataCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
@@ -1267,11 +1248,16 @@ function aggLabel(agg: string): string {
 }
 
 function addVariable() {
-  kpiForm.variables.push({ column: '', agg: 'sum', filter: '' })
+  const idx = kpiForm.variables.length
+  kpiForm.variables.push({ alias: idx < 26 ? ALIAS_POOL[idx] : 'V' + idx, column: '', filter: '' })
 }
 
-function insertVar(idx: number) {
-  kpiForm.expression += `[${idx}]`
+function insertAlias(alias: string) {
+  kpiForm.expression += alias
+}
+
+function insertFunc(func: string) {
+  kpiForm.expression += func + '()'
 }
 
 function insertOp(op: string) {
@@ -1287,11 +1273,8 @@ function openAddKpi() {
   kpiForm.format = 'global'
   kpiForm.prefix = ''
   kpiForm.filter = ''
-  kpiForm.variables = [{ column: '', agg: 'sum', filter: '' }, { column: '', agg: 'sum', filter: '' }]
-  kpiForm.expression = '[0] + [1]'
-  kpiForm.useRowExpr = false
-  kpiForm.rowExpression = ''
-  kpiForm.rowAgg = 'sum'
+  kpiForm.variables = [{ alias: 'A', column: '', filter: '' }, { alias: 'B', column: '', filter: '' }]
+  kpiForm.expression = 'SUM(A*B)'
   showKpiEditor.value = true
 }
 
@@ -1300,24 +1283,29 @@ function openEditKpi(idx: number) {
   const kpi = configStore.config.kpis[idx]
   if (kpi.formula) {
     kpiForm.useFormula = true
-    kpiForm.variables = kpi.formula.variables.map(v => ({ column: v.column, agg: v.agg, filter: v.filter || '' }))
-    kpiForm.expression = kpi.formula.expression
+    // 兼容旧格式（无 alias 字段）→ 自动转换
+    if (kpi.formula.variables.length > 0 && (kpi.formula.variables[0] as any).alias === undefined) {
+      const ALIAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+      kpiForm.variables = (kpi.formula.variables as any[]).map((v: any, i: number) => ({
+        alias: ALIAS[i] || 'V' + i,
+        column: v.column || '',
+        filter: v.filter || '',
+      }))
+      kpiForm.expression = (kpi.formula.expression || '').replace(/\[(\d+)\]/g, (_, idx: string) => ALIAS[Number(idx)] || 'V' + idx)
+    } else {
+      kpiForm.variables = kpi.formula.variables.map(v => ({ alias: v.alias, column: v.column, filter: v.filter || '' }))
+      kpiForm.expression = kpi.formula.expression
+    }
     kpiForm.filter = kpi.formula.filter || ''
     kpiForm.column = ''
     kpiForm.agg = 'sum'
-    kpiForm.useRowExpr = !!kpi.formula.rowExpression
-    kpiForm.rowExpression = kpi.formula.rowExpression || ''
-    kpiForm.rowAgg = kpi.formula.rowAgg || 'sum'
   } else {
     kpiForm.useFormula = false
     kpiForm.column = kpi.column
     kpiForm.agg = kpi.agg
     kpiForm.filter = kpi.filter || ''
-    kpiForm.variables = [{ column: '', agg: 'sum', filter: '' }, { column: '', agg: 'sum', filter: '' }]
-    kpiForm.expression = '[0] + [1]'
-    kpiForm.useRowExpr = false
-    kpiForm.rowExpression = ''
-    kpiForm.rowAgg = 'sum'
+    kpiForm.variables = [{ alias: 'A', column: '', filter: '' }, { alias: 'B', column: '', filter: '' }]
+    kpiForm.expression = 'SUM(A*B)'
   }
   kpiForm.label = kpi.label
   kpiForm.format = kpi.format
@@ -1340,17 +1328,14 @@ function saveKpi() {
   if (kpiForm.useFormula) {
     data.formula = {
       variables: kpiForm.variables.filter(v => v.column).map(v => ({
+        alias: v.alias,
         column: v.column,
-        agg: v.agg,
         filter: v.filter.trim() || undefined,
       })),
       expression: kpiForm.expression.trim(),
       filter: kpiForm.filter.trim() || undefined,
-      rowExpression: kpiForm.useRowExpr ? kpiForm.rowExpression.trim() || undefined : undefined,
-      rowAgg: kpiForm.useRowExpr ? (kpiForm.rowAgg || 'sum') : undefined,
     }
   } else {
-    // 从公式切换为单列时，清除旧的 formula
     data.formula = undefined
   }
   if (editingKpiIdx.value >= 0) {
@@ -2200,12 +2185,18 @@ function cancelChartEdit() {
   min-width: 130px;
 }
 
-.var-index {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--primary);
-  min-width: 24px;
-  font-family: monospace;
+.var-alias {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
 .formula-btns {
@@ -2218,6 +2209,23 @@ function cancelChartEdit() {
 .formula-input {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 13px;
+}
+
+.func-btn {
+  background: #e8f0fe;
+  color: #1a73e8;
+  border-color: #c4d7f2;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.formula-mode-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-top: 6px;
+  line-height: 1.4;
 }
 
 .filter-wrap {

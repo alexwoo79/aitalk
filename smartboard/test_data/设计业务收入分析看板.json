@@ -35,7 +35,7 @@
     },
     {
       "column": "",
-      "label": "合同额平均值",
+      "label": "平均客户合同金额",
       "agg": "sum",
       "format": "currency",
       "prefix": "",
@@ -43,15 +43,15 @@
       "formula": {
         "variables": [
           {
-            "column": "合同总金额",
-            "agg": "sum"
+            "alias": "A",
+            "column": "🔢合同总金额"
           },
           {
-            "column": "合同名称",
-            "agg": "unique_count"
+            "alias": "B",
+            "column": "🔢客户数量"
           }
         ],
-        "expression": "[0] / [1]"
+        "expression": "A / B"
       },
       "selected": true
     }

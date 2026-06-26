@@ -5,6 +5,7 @@ import { useDataStore } from './data-store'
 import { useConfigStore } from './config-store'
 import { aggregate } from '@/core/aggregator'
 import { applyFilter } from '@/core/filter'
+import { computeFormula } from '@/core/formula-engine'
 
 export const usePreviewStore = defineStore('preview', () => {
   const filteredRows = ref<Record<string, string | number>[]>([])
@@ -16,6 +17,23 @@ export const usePreviewStore = defineStore('preview', () => {
 
   const dataStore = useDataStore()
   const configStore = useConfigStore()
+
+  // 安全转换旧格式 formula（兼容 [0]/[1] 语法）
+  function safeFormula(f: any): any {
+    if (!f || !f.variables) return f
+    // 新格式：已有 alias 字段 → 直接返回
+    if (f.variables.length > 0 && f.variables[0].alias !== undefined) return f
+    // 旧格式 → 转换为新格式（用默认别名 A, B, C...）
+    const ALIAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    return {
+      variables: f.variables.map((v: any, i: number) => ({
+        alias: ALIAS[i] || 'V' + i,
+        column: v.column || '',
+      })),
+      expression: (f.rowExpression || f.expression || '').replace(/\[(\d+)\]/g, (_, idx: string) => ALIAS[Number(idx)] || 'V' + idx),
+      filter: f.filter,
+    }
+  }
 
   // 从 config 构建 spec
   function buildSpec(): DashboardSpec | null {
@@ -41,7 +59,7 @@ export const usePreviewStore = defineStore('preview', () => {
             unit: def.unit,
             decimals: def.decimals,
             filter: k.filter,
-            formula: k.formula,
+            formula: safeFormula(k.formula),
           }
         }
         return {
@@ -49,7 +67,7 @@ export const usePreviewStore = defineStore('preview', () => {
           format: k.format, prefix: k.prefix, unit: k.unit,
           decimals: k.decimals,
           filter: k.filter,
-          formula: k.formula,
+          formula: safeFormula(k.formula),
         }
       })
 
@@ -216,86 +234,68 @@ export const usePreviewStore = defineStore('preview', () => {
   function computeKpiValue(kpi: KpiSpec): number {
     const rows = filteredRows.value.length > 0 ? filteredRows.value : (dataStore.dataSet?.rows ?? [])
 
-    // 公式 KPI
+    // 公式 KPI（新引擎：A/B/C 别名 + 聚合函数内嵌）
     if (kpi.formula && kpi.formula.variables.length > 0) {
-      const sharedFilter = kpi.formula.filter || kpi.filter
-
-      // ====== 行内计算模式：先行内逐行计算再聚合 ======
-      if (kpi.formula.rowExpression) {
-        const rowExpr = kpi.formula.rowExpression
-        const rowAgg = kpi.formula.rowAgg || 'sum'
-
-        // 行筛选
-        let filtered = rows
-        if (sharedFilter) {
-          filtered = applyFilter(rows, sharedFilter)
-        }
-
-        // 为每行构建 [0], [1], ... 的原始值
-        const rowResults: number[] = []
-        for (const row of filtered) {
-          // 提取各变量的行内原始值
-          const rawValues = kpi.formula.variables.map((v) => {
-            const val = row[v.column]
-            if (val === undefined || val === null || val === '') return 0
-            if (typeof val === 'number') return val
-            const s = String(val).replace(/,/g, '').replace(/%/g, '').trim()
-            const n = Number(s)
-            return isNaN(n) ? 0 : n
-          })
-
-          // 替换表达式中的 [i] 为原始值
-          let expr = rowExpr
-          for (let i = 0; i < rawValues.length; i++) {
-            expr = expr.replace(new RegExp(`\\[${i}\\]`, 'g'), String(rawValues[i]))
-          }
-
-          try {
-            const result = new Function(`"use strict"; return (${expr})`)()
-            if (typeof result === 'number' && isFinite(result) && !isNaN(result)) {
-              rowResults.push(result)
-            }
-          } catch {
-            // 跳过计算失败的行
+      // 解析保存参数引用（以 🔢 开头的列名 → 递归计算对应 KPI）
+      const resolvedVars = kpi.formula.variables.map(v => {
+        if (v.column.startsWith('🔢')) {
+          const refLabel = v.column.slice(2) // 去掉 🔢 前缀
+          const spec = buildSpec()
+          const refKpi = spec?.kpis.find(rk => rk.label === refLabel)
+          if (refKpi) {
+            // 递归计算引用的 KPI 值（避免循环引用，最大深度 5）
+            return { alias: v.alias, value: computeKpiValueSafe(refKpi, 0) }
           }
         }
-
-        // 聚合行内计算结果
-        if (rowResults.length === 0) return 0
-        switch (rowAgg) {
-          case 'sum': return rowResults.reduce((a, b) => a + b, 0)
-          case 'avg': return rowResults.reduce((a, b) => a + b, 0) / rowResults.length
-          case 'min': return Math.min(...rowResults)
-          case 'max': return Math.max(...rowResults)
-          case 'count': return rowResults.length
-          default: return rowResults.reduce((a, b) => a + b, 0)
-        }
-      }
-
-      // ====== 聚合后计算模式（原有逻辑） ======
-      const varValues = kpi.formula.variables.map((v) => {
-        const combined = [v.filter, sharedFilter].filter(Boolean).join(' & ')
-        return computeColumnValue(v.column, v.agg, rows, combined || undefined)
+        return { alias: v.alias, column: v.column }
       })
-      try {
-        let expr = kpi.formula.expression
-        for (let i = 0; i < varValues.length; i++) {
-          expr = expr.replace(new RegExp(`\\[${i}\\]`, 'g'), String(varValues[i]))
+
+      // 如果有解析后的固定值，在行内计算前替换
+      // 将固定值变量从 variables 中移除，在 expression 中替换为数字
+      let expr = kpi.formula.expression
+      const activeVars: { alias: string; column: string }[] = []
+      for (const rv of resolvedVars) {
+        if ('value' in rv) {
+          // 固定值：在表达式中替换别名
+          expr = expr.replace(new RegExp(`\\b${rv.alias}\\b`, 'g'), String(rv.value))
+        } else {
+          activeVars.push(rv)
         }
-        const result = new Function(`"use strict"; return (${expr})`)()
-        if (typeof result === 'number' && isFinite(result) && !isNaN(result)) {
-          return result
-        }
-        console.warn('[KPI Formula] 计算结果无效:', kpi.label, expr, '→', result)
-        return 0
-      } catch (e) {
-        console.warn('[KPI Formula] 表达式错误:', kpi.label, kpi.formula.expression, e)
+      }
+
+      // 全部变量都解析为固定值（纯 🔢 引用）→ 直接计算表达式
+      if (activeVars.length === 0) {
+        try {
+          const result = new Function(`"use strict"; return (${expr})`)()
+          if (typeof result === 'number' && isFinite(result) && !isNaN(result)) {
+            return result
+          }
+        } catch { /* 计算失败返回 0 */ }
         return 0
       }
+
+      const result = computeFormula(
+        {
+          variables: activeVars,
+          expression: expr,
+          filter: kpi.formula.filter || kpi.filter,
+        },
+        rows,
+      )
+      if (result.error) {
+        console.warn('[KPI Formula]', kpi.label, ':', result.error)
+      }
+      return result.value
     }
 
     // 单列 KPI
     return computeColumnValue(kpi.column, kpi.agg, rows, kpi.filter)
+  }
+
+  // 安全计算 KPI（防止循环引用栈溢出）
+  function computeKpiValueSafe(kpi: KpiSpec, depth: number): number {
+    if (depth > 5) return 0 // 防止循环引用
+    return computeKpiValue(kpi)
   }
 
   // 获取筛选选项
