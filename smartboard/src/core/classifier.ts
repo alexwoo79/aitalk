@@ -259,3 +259,97 @@ export function selectChartDimensions(
     })
     .slice(0, 3)
 }
+
+// ====== 智能关联建议（Phase 3） ======
+
+export interface JoinSuggestion {
+  leftTableId: string
+  leftTableName: string
+  leftColumn: string
+  rightTableId: string
+  rightTableName: string
+  rightColumn: string
+  score: number
+  reason: string
+}
+
+/**
+ * 基于字段名相似度和类型匹配，推荐表间关联候选。
+ */
+export function suggestJoins(
+  tables: Map<string, { name: string; headers: string[] }>,
+): JoinSuggestion[] {
+  const suggestions: JoinSuggestion[] = []
+  const entries = Array.from(tables.entries())
+
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      const [leftId, leftTable] = entries[i]
+      const [rightId, rightTable] = entries[j]
+
+      for (const leftCol of leftTable.headers) {
+        for (const rightCol of rightTable.headers) {
+          const score = columnSimilarity(leftCol, rightCol)
+          if (score > 0.5) {
+            suggestions.push({
+              leftTableId: leftId,
+              leftTableName: leftTable.name,
+              leftColumn: leftCol,
+              rightTableId: rightId,
+              rightTableName: rightTable.name,
+              rightColumn: rightCol,
+              score,
+              reason: score > 0.9 ? '字段名高度匹配' : score > 0.7 ? '字段名相似' : '可能相关',
+            })
+          }
+        }
+      }
+    }
+  }
+
+  // 按分数降序排列
+  suggestions.sort((a, b) => b.score - a.score)
+  return suggestions.slice(0, 10)
+}
+
+/** 计算两个列名的相似度（0-1） */
+function columnSimilarity(a: string, b: string): number {
+  const la = a.toLowerCase().trim()
+  const lb = b.toLowerCase().trim()
+
+  // 完全相同
+  if (la === lb) return 1.0
+
+  // 一个包含另一个
+  if (la.includes(lb) || lb.includes(la)) return 0.85
+
+  // 去掉常见后缀后比较（如 _id, _no, _code, 编号, ID）
+  const stripSuffix = (s: string) => s.replace(/[ _-]?(id|no|code|编号|号|ID|key)$/i, '')
+  const sa = stripSuffix(la)
+  const sb = stripSuffix(lb)
+  if (sa === sb) return 0.9
+  if (sa.includes(sb) || sb.includes(sa)) return 0.75
+
+  // 编辑距离相似度
+  const dist = levenshteinDistance(sa, sb)
+  const maxLen = Math.max(sa.length, sb.length)
+  if (maxLen === 0) return 0
+  const sim = 1 - dist / maxLen
+  return sim > 0.5 ? sim * 0.8 : 0 // 降权
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length
+  const n = b.length
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+  for (let i = 0; i <= m; i++) dp[i][0] = i
+  for (let j = 0; j <= n; j++) dp[0][j] = j
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+    }
+  }
+  return dp[m][n]
+}

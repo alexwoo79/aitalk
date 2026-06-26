@@ -890,26 +890,23 @@ function toggleResetHint() {
 const configMsg = ref('')
 async function exportConfig() {
   try {
-    const cfg = JSON.parse(JSON.stringify(configStore.config))
-    const json = JSON.stringify(cfg, null, 2)
+    const json = configStore.exportFullConfig()
     // Tauri native save dialog
     const filePath = await save({
       filters: [{ name: 'JSON', extensions: ['json'] }],
-      defaultPath: (cfg.title || 'smartboard-config') + '.json',
+      defaultPath: (configStore.config.title || 'smartboard-config') + '.json',
     })
-    if (!filePath) return // user cancelled
+    if (!filePath) return
     await writeTextFile(filePath, json)
     configMsg.value = t('config.exportSuccess')
     setTimeout(() => { configMsg.value = '' }, 2000)
   } catch {
-    // Fallback: browser download
-    const cfg = JSON.parse(JSON.stringify(configStore.config))
-    const json = JSON.stringify(cfg, null, 2)
+    const json = configStore.exportFullConfig()
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = (cfg.title || 'smartboard-config') + '.json'
+    a.download = (configStore.config.title || 'smartboard-config') + '.json'
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -921,39 +918,10 @@ async function importConfig(e: Event) {
   if (!file) return
   try {
     const text = await file.text()
-    const cfg = JSON.parse(text)
-    if (!cfg || typeof cfg !== 'object') throw new Error('Invalid')
-
-    const headers = dataStore.dataSet?.headers ?? []
-    const headerSet = new Set(headers)
-    let skipped = 0
-
-    // Validate and filter KPIs — skip those referencing missing columns
-    if (Array.isArray(cfg.kpis)) {
-      const origLen = cfg.kpis.length
-      cfg.kpis = cfg.kpis.filter((k: any) => {
-        if (k.formula) {
-          const vars = k.formula.variables || []
-          return vars.every((v: any) => {
-            // 🔢 保存参数引用不算真实列，跳过列名校验
-            if (v.column && v.column.startsWith('🔢')) return true
-            return headerSet.has(v.column)
-          })
-        }
-        return headerSet.has(k.column)
-      })
-      skipped += origLen - cfg.kpis.length
-    }
-
-    // Validate table columns
-    if (Array.isArray(cfg.table?.columns)) {
-      cfg.table.columns = cfg.table.columns.filter((c: string) => headerSet.has(c))
-    }
-
-    configStore.config = cfg
-    configMsg.value = skipped > 0
-      ? t('config.importSkipped', { n: String(skipped) })
-      : t('config.importSuccess')
+    const result = configStore.importFullConfig(text)
+    configMsg.value = result.ok
+      ? result.message
+      : t('config.importError')
     setTimeout(() => { configMsg.value = '' }, 3000)
   } catch {
     configMsg.value = t('config.importError')
@@ -1112,6 +1080,8 @@ const dimensionCols = computed(() => {
 })
 
 const allHeaders = computed(() => {
+  // Phase 4: 多表时使用跨表字段列表
+  if (dataStore.hasRelations) return dataStore.allFieldOptions
   return dataStore.dataSet?.headers ?? []
 })
 

@@ -426,6 +426,60 @@ export const useConfigStore = defineStore('config', () => {
     generateAutoConfig()
   }
 
+  // ====== Phase 5: 完整配置导出/导入（含多表关系） ======
+
+  /** 导出完整配置（DashboardConfig + 多表关系 + 表元数据） */
+  function exportFullConfig(): string {
+    const ds = dataStore
+    const tableMeta = Array.from(ds.tables.entries()).map(([id, t]) => ({
+      id,
+      name: t.fileName || t.sheetName || '未命名',
+      filePath: t.filePath,
+      sheetName: t.sheetName,
+      sheetIndex: t.sheetIndex,
+      headers: t.headers,
+      rows: t.rows.length,
+    }))
+
+    const full = {
+      version: 2,
+      config: JSON.parse(JSON.stringify(config.value)),
+      relations: ds.relations.map(r => ({
+        leftTableId: r.leftTableId,
+        leftColumn: r.leftColumn,
+        rightTableId: r.rightTableId,
+        rightColumn: r.rightColumn,
+        joinType: r.joinType,
+      })),
+      mainTableId: ds.mainTableId,
+      tableMeta,
+      exportedAt: new Date().toISOString(),
+    }
+    return JSON.stringify(full, null, 2)
+  }
+
+  /** 导入完整配置，恢复多表关系和 Dashboard 设置 */
+  function importFullConfig(json: string): { ok: boolean; message: string } {
+    try {
+      const full = JSON.parse(json)
+      if (!full.version || full.version < 2) {
+        config.value = full
+        return { ok: true, message: '已导入配置（旧版格式，不含多表关系）' }
+      }
+      if (full.relations && Array.isArray(full.relations)) {
+        dataStore.relations = full.relations.map((r: any) => ({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          ...r,
+        }))
+      }
+      if (full.mainTableId) dataStore.mainTableId = full.mainTableId
+      if (full.config) config.value = full.config
+      return { ok: true, message: `已导入配置（${full.tableMeta?.length || 0} 张表，${full.relations?.length || 0} 个关联）` }
+    } catch (e: any) {
+      return { ok: false, message: `导入失败: ${e.message}` }
+    }
+  }
+
   const hasData = computed(() => dataStore.dataSet !== null)
   const hasConfig = computed(() => config.value.charts.length > 0)
   const hasSnapshot = computed(() => sectionSnapshots.value !== null)
@@ -442,6 +496,8 @@ export const useConfigStore = defineStore('config', () => {
     isSectionSaved,
     saveAll,
     resetAllToAuto,
+    exportFullConfig,
+    importFullConfig,
     editTitle,
     addKpi,
     removeKpi,

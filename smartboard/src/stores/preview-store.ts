@@ -35,11 +35,69 @@ export const usePreviewStore = defineStore('preview', () => {
     }
   }
 
+  // Phase 4: 跨表 in-memory join
+  function buildEffectiveDS(ds: import('@/types/data').DataSet): import('@/types/data').DataSet {
+    const rels = dataStore.relations
+    if (rels.length === 0) return ds
+
+    let mergedRows = [...ds.rows]
+    const mergedHeaders = [...ds.headers]
+    const mergedClass: Record<string, any> = { ...ds.classifications }
+
+    for (const rel of rels) {
+      const rightDs = dataStore.tables.get(rel.rightTableId)
+      if (!rightDs) continue
+
+      const rightIndex = new Map<string, Record<string, string | number>>()
+      for (const row of rightDs.rows) {
+        const key = String(row[rel.rightColumn] ?? '')
+        if (key) rightIndex.set(key, row)
+      }
+
+      const newRows: Record<string, string | number>[] = []
+      for (const leftRow of mergedRows) {
+        const key = String(leftRow[rel.leftColumn] ?? '')
+        const rightRow = rightIndex.get(key)
+        if (rightRow) {
+          const merged = { ...leftRow }
+          for (const rh of rightDs.headers) {
+            if (rh === rel.rightColumn && mergedHeaders.includes(rh)) continue
+            const prefixedKey = mergedHeaders.includes(rh)
+              ? (rightDs.fileName || rightDs.sheetName || 'right') + '.' + rh
+              : rh
+            merged[prefixedKey] = rightRow[rh]
+            if (!mergedHeaders.includes(prefixedKey)) {
+              mergedHeaders.push(prefixedKey)
+              if (rightDs.classifications[rh]) {
+                mergedClass[prefixedKey] = rightDs.classifications[rh]
+              }
+            }
+          }
+          newRows.push(merged)
+        } else if (rel.joinType !== 'inner') {
+          newRows.push({ ...leftRow })
+        }
+      }
+      mergedRows = newRows
+    }
+
+    return {
+      ...ds,
+      headers: mergedHeaders,
+      rows: mergedRows,
+      rawRows: mergedRows.map(r => mergedHeaders.map(h => r[h] ?? '')),
+      classifications: mergedClass,
+    }
+  }
+
   // 从 config 构建 spec
   function buildSpec(): DashboardSpec | null {
     const ds = dataStore.dataSet
     const cfg = configStore.config
     if (!ds || !cfg) return null
+
+    // Phase 4: 跨表 join
+    const effectiveDS = dataStore.hasRelations ? buildEffectiveDS(ds) : ds
 
     const excluded = dataStore.excludedColumns
 
@@ -107,7 +165,7 @@ export const usePreviewStore = defineStore('preview', () => {
     const filters: FilterSpec[] = cfg.filters.map((f) => ({ column: f }))
 
     const table: TableSpec = {
-      columns: cfg.table.columns.length > 0 ? cfg.table.columns : ds.headers.filter((h) => !excluded.has(h)),
+      columns: cfg.table.columns.length > 0 ? cfg.table.columns : effectiveDS.headers.filter((h) => !excluded.has(h)),
       sortBy: cfg.table.sortBy || '',
       summaryAggs: cfg.table.summaryAggs,
       columnColors: cfg.table.columnColors,
@@ -118,11 +176,11 @@ export const usePreviewStore = defineStore('preview', () => {
 
     // Date range detection（使用配置的时间列或自动检测）
     let dateRangeSpec: DashboardSpec['dateRange'] | undefined
-    const allDateCols = ds.headers.filter((h) => ds.classifications[h]?.type === 'date' && !excluded.has(h))
+    const allDateCols = effectiveDS.headers.filter((h) => effectiveDS.classifications[h]?.type === 'date' && !excluded.has(h))
     const configuredDates = cfg.dateColumns && cfg.dateColumns.length > 0 ? cfg.dateColumns : allDateCols
     const dateCol = configuredDates.length > 0 ? configuredDates[0] : undefined
     if (dateCol) {
-      const dates = ds.rows
+      const dates = effectiveDS.rows
         .map((r) => String(r[dateCol] ?? ''))
         .filter((v) => v !== '')
         .sort()
@@ -133,9 +191,9 @@ export const usePreviewStore = defineStore('preview', () => {
 
     return {
       title: cfg.title || 'Dashboard',
-      primaryMetric: ds.primaryMetric && !excluded.has(ds.primaryMetric) ? ds.primaryMetric : null,
-      chartDimensions: ds.chartDimensions.filter((d) => !excluded.has(d)),
-      columns: ds.classifications,
+      primaryMetric: effectiveDS.primaryMetric && !excluded.has(effectiveDS.primaryMetric) ? effectiveDS.primaryMetric : null,
+      chartDimensions: effectiveDS.chartDimensions.filter((d) => !excluded.has(d)),
+      columns: effectiveDS.classifications,
       kpis,
       charts,
       filters,
@@ -156,7 +214,8 @@ export const usePreviewStore = defineStore('preview', () => {
       return
     }
 
-    let rows = [...ds.rows]
+    const effectiveDS = dataStore.hasRelations ? buildEffectiveDS(ds) : ds
+    let rows = [...effectiveDS.rows]
 
     // Apply dimension filters
     for (const [col, val] of Object.entries(filterValues.value)) {
@@ -167,7 +226,7 @@ export const usePreviewStore = defineStore('preview', () => {
 
     // Apply date range（使用当前活跃的时间列）
     if (dateRange.value.start && dateRange.value.end) {
-      const dateCol = activeDateColumn.value || ds.headers.find((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
+      const dateCol = activeDateColumn.value || effectiveDS.headers.find((h: string) => effectiveDS.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
       if (dateCol) {
         const start = dateRange.value.start
         const end = dateRange.value.end
@@ -232,7 +291,10 @@ export const usePreviewStore = defineStore('preview', () => {
 
   // 计算 KPI 值
   function computeKpiValue(kpi: KpiSpec): number {
-    const rows = filteredRows.value.length > 0 ? filteredRows.value : (dataStore.dataSet?.rows ?? [])
+    const ds = dataStore.dataSet
+    const rows = filteredRows.value.length > 0
+      ? filteredRows.value
+      : (ds ? (dataStore.hasRelations ? buildEffectiveDS(ds).rows : ds.rows) : [])
 
     // 公式 KPI（新引擎：A/B/C 别名 + 聚合函数内嵌）
     if (kpi.formula && kpi.formula.variables.length > 0) {

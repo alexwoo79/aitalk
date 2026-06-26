@@ -1,5 +1,51 @@
 <template>
-  <div class="upload-view">
+  <!-- 多表模式：左侧表列表 + 右侧工作区 -->
+  <div v-if="dataStore.tableCount > 0" class="upload-view multi-table">
+    <TableListPanel />
+    <div class="workspace">
+      <!-- Tab 切换 -->
+      <div class="workspace-tabs">
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'preview' }"
+          @click="activeTab = 'preview'"
+        >{{ t('upload.tabPreview') }}</button>
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'relation' }"
+          @click="activeTab = 'relation'"
+        >{{ t('upload.tabRelation') }}</button>
+      </div>
+
+      <!-- 预览 Tab -->
+      <div v-if="activeTab === 'preview'" class="tab-content">
+        <div class="upload-inline">
+          <FileUploader @loaded="onFileLoaded" />
+        </div>
+
+        <div v-if="dataStore.loading" class="loading">
+          <div class="spinner"></div>
+          <span>{{ t('upload.parsing') }}</span>
+        </div>
+
+        <div v-if="dataStore.error" class="error-banner">
+          <span>{{ dataStore.error }}</span>
+          <button class="btn" @click="dataStore.clearData()">{{ t('common.close') }}</button>
+        </div>
+
+        <DataPreview v-if="dataStore.dataSet" :data-set="dataStore.dataSet"
+          @next="goToConfig" @toggleExclude="onToggleExclude" />
+      </div>
+
+      <!-- 关联 Tab -->
+      <div v-if="activeTab === 'relation'" class="tab-content">
+        <RelationConfig />
+      </div>
+    </div>
+  </div>
+
+  <!-- 单表模式：经典上传界面 -->
+  <div v-else class="upload-view">
     <div class="upload-section">
       <h2>{{ t('upload.title') }}</h2>
       <p class="subtitle">{{ t('upload.subtitle') }}</p>
@@ -64,11 +110,16 @@ import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import FileUploader from '@/components/upload/FileUploader.vue'
 import DataPreview from '@/components/upload/DataPreview.vue'
+import TableListPanel from '@/components/upload/TableListPanel.vue'
+import RelationConfig from '@/components/upload/RelationConfig.vue'
 
 const router = useRouter()
 const { t, locale } = useI18n()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
+
+// Tab state for multi-table mode
+const activeTab = ref<'preview' | 'relation'>('preview')
 
 // Data quality tips: shown by default on first visit, toggleable
 const TIPS_STORAGE_KEY = 'smartboard-tips-dismissed'
@@ -239,6 +290,69 @@ async function downloadSample() {
   max-width: 1200px;
   margin: 0 auto;
 }
+
+/* ── 多表模式布局 ── */
+.upload-view.multi-table {
+  display: flex;
+  max-width: none;
+  height: calc(100vh - 56px); /* 减去顶部导航高度 */
+  margin: 0;
+}
+
+.workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workspace-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 500;
+}
+
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.upload-inline {
+  margin-bottom: 16px;
+}
+
+.upload-inline .file-uploader {
+  padding: 16px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+}
+
+/* ── 单表模式（保持不变） ── */
 
 .upload-section {
   text-align: center;

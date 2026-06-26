@@ -15,9 +15,6 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useDataStore } from '@/stores/data-store'
-import { parseFile } from '@/core/parser'
-import { classifyAllColumns, selectPrimaryMetric, selectChartDimensions } from '@/core/classifier'
-import { parseNumeric } from '@/core/numeric'
 
 const emit = defineEmits<{ loaded: [] }>()
 const { t } = useI18n()
@@ -44,7 +41,11 @@ onMounted(async () => {
     dragging.value = false
     const paths = event.payload.paths
     if (paths.length === 0) return
-    await loadFilePath(paths[0])
+    // 支持多文件拖放
+    for (const filePath of paths) {
+      await dataStore.loadFile(filePath)
+    }
+    if (!dataStore.error) emit('loaded')
   })
 })
 
@@ -56,17 +57,11 @@ onUnmounted(() => {
 })
 
 async function openDialog() {
-  const success = await dataStore.loadFromDialog()
-  if (success) emit('loaded')
+  const count = await dataStore.loadFromDialog()
+  if (count > 0) emit('loaded')
 }
 
-async function loadFilePath(filePath: string) {
-  // 复用 dataStore.loadFile 完整流程（含数据质量检测）
-  await dataStore.loadFile(filePath)
-  if (!dataStore.error) emit('loaded')
-}
-
-// HTML5 drag-and-drop (for OS file drops into the webview)
+// HTML5 drag-and-drop (for browser fallback)
 function onHtmlDragOver(e: DragEvent) {
   const types = e.dataTransfer?.types || []
   if (types.includes('Files')) {
@@ -81,53 +76,18 @@ function onHtmlDragLeave() {
 
 async function onHtmlDrop(e: DragEvent) {
   dragging.value = false
-  const file = e.dataTransfer?.files?.[0]
-  if (!file) return
+  const files = e.dataTransfer?.files
+  if (!files || files.length === 0) return
 
-  dataStore.loading = true
-  dataStore.error = null
-  try {
+  // 支持多文件拖放
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
     const text = await file.text()
-    const parsed = parseFile(file.name, text)
-    const classifications = classifyAllColumns(parsed.headers, parsed.rows)
-    const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
-    const chartDimensions = selectChartDimensions(parsed.headers, classifications)
-
-    // 构建数据质量摘要
-    const dirtyColumns: { column: string; dirtyCount: number; totalCount: number; samples: string[] }[] = []
-    for (const col of parsed.headers) {
-      const cls = classifications[col]
-      if (!cls || cls.type !== 'numeric' || !cls.dirtyCount || cls.dirtyCount === 0) continue
-      const samples: string[] = []
-      let dirtyTotal = 0
-      for (const row of parsed.rows) {
-        const v = row[col]
-        if (v === undefined || v === null || v === '') continue
-        const { clean, value } = parseNumeric(v)
-        if (!isNaN(value) && !clean) {
-          dirtyTotal++
-          if (samples.length < 3) samples.push(typeof v === 'number' ? String(v) : String(v))
-        }
-      }
-      if (dirtyTotal > 0) dirtyColumns.push({ column: col, dirtyCount: dirtyTotal, totalCount: parsed.rows.length, samples })
-    }
-
-    dataStore.dataSet = {
-      headers: parsed.headers,
-      rows: parsed.rows,
-      rawRows: parsed.rawRows,
-      classifications,
-      primaryMetric,
-      chartDimensions,
-      filePath: file.name,
-      fileName: file.name,
-      dataQuality: { dirtyColumns, hasIssues: dirtyColumns.length > 0 },
-    }
-    emit('loaded')
-  } catch (err: any) {
-    dataStore.error = err.message || t('upload.parseError')
-  } finally {
-    dataStore.loading = false
+    await dataStore.loadFileContent(file.name, text)
+  }
+  if (!dataStore.error) emit('loaded')
+}
+</script>
   }
 }
 </script>
