@@ -110,8 +110,13 @@ export default {
     selectColumn: 'Select column...',
     previewJoin: 'Preview Join',
     confirmRelation: 'Confirm Relation',
+    editRelation: 'Edit Relation',
+    updateRelation: 'Update Relation',
     previewing: 'Previewing...',
     previewResult: 'Preview Result',
+    // Excel sheet selection
+    selectSheets: 'Select Sheets',
+    selectSheetsHint: 'File "{name}" has multiple sheets. Choose which to import:',
   },
 
   classification: {

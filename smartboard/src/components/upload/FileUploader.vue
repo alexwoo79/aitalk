@@ -28,25 +28,34 @@ let unlistenDrop: UnlistenFn | null = null
 
 onMounted(async () => {
   // Tauri 2 drag-drop events — provide file paths from OS
-  unlistenEnter = await listen<{ paths: string[] }>('tauri://drag-enter', () => {
-    dragging.value = true
-  })
-  unlistenOver = await listen<{ paths: string[] }>('tauri://drag-over', () => {
-    dragging.value = true
-  })
-  unlistenLeave = await listen<{ paths: string[] }>('tauri://drag-leave', () => {
-    dragging.value = false
-  })
-  unlistenDrop = await listen<{ paths: string[] }>('tauri://drag-drop', async (event) => {
-    dragging.value = false
-    const paths = event.payload.paths
-    if (paths.length === 0) return
-    // 支持多文件拖放
-    for (const filePath of paths) {
-      await dataStore.loadFile(filePath)
-    }
-    if (!dataStore.error) emit('loaded')
-  })
+  // 仅在 Tauri 环境下注册（浏览器环境会抛出异常）
+  try {
+    if (!('__TAURI_INTERNALS__' in window)) return
+  } catch { return }
+
+  try {
+    unlistenEnter = await listen<{ paths: string[] }>('tauri://drag-enter', () => {
+      dragging.value = true
+    })
+    unlistenOver = await listen<{ paths: string[] }>('tauri://drag-over', () => {
+      dragging.value = true
+    })
+    unlistenLeave = await listen<{ paths: string[] }>('tauri://drag-leave', () => {
+      dragging.value = false
+    })
+    unlistenDrop = await listen<{ paths: string[] }>('tauri://drag-drop', async (event) => {
+      dragging.value = false
+      const paths = event.payload.paths
+      if (paths.length === 0) return
+      // 支持多文件拖放
+      for (const filePath of paths) {
+        await dataStore.loadFile(filePath)
+      }
+      if (!dataStore.error) emit('loaded')
+    })
+  } catch {
+    // 非 Tauri 环境（浏览器），使用 HTML5 drag-drop
+  }
 })
 
 onUnmounted(() => {
@@ -86,9 +95,6 @@ async function onHtmlDrop(e: DragEvent) {
     await dataStore.loadFileContent(file.name, text)
   }
   if (!dataStore.error) emit('loaded')
-}
-</script>
-  }
 }
 </script>
 

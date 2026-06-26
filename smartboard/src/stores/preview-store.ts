@@ -30,7 +30,7 @@ export const usePreviewStore = defineStore('preview', () => {
         alias: ALIAS[i] || 'V' + i,
         column: v.column || '',
       })),
-      expression: (f.rowExpression || f.expression || '').replace(/\[(\d+)\]/g, (_, idx: string) => ALIAS[Number(idx)] || 'V' + idx),
+      expression: (f.rowExpression || f.expression || '').replace(/\[(\d+)\]/g, (_match: string, idx: string) => ALIAS[Number(idx)] || 'V' + idx),
       filter: f.filter,
     }
   }
@@ -45,7 +45,7 @@ export const usePreviewStore = defineStore('preview', () => {
     const mergedClass: Record<string, any> = { ...ds.classifications }
 
     for (const rel of rels) {
-      const rightDs = dataStore.tables.get(rel.rightTableId)
+      const rightDs = dataStore.tables[rel.rightTableId]
       if (!rightDs) continue
 
       const rightIndex = new Map<string, Record<string, string | number>>()
@@ -380,6 +380,11 @@ export const usePreviewStore = defineStore('preview', () => {
 
   const rowCount = computed(() => filteredRows.value.length || (dataStore.dataSet?.rows.length ?? 0))
 
+  /** 有效数据集（含跨表合并）的列头列表，供 ConfigView / DashboardView 统一使用 */
+  const effectiveHeaders = computed<string[]>(() => {
+    return dataStore.effectiveHeaders
+  })
+
   return {
     filteredRows,
     filterValues,
@@ -388,6 +393,7 @@ export const usePreviewStore = defineStore('preview', () => {
     searchText,
     conditionFilter,
     rowCount,
+    effectiveHeaders,
     buildSpec,
     applyFilters,
     computeKpiValue,

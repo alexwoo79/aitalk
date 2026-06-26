@@ -113,8 +113,13 @@ export default {
     selectColumn: '选择字段...',
     previewJoin: '预览关联',
     confirmRelation: '确认关联',
+    editRelation: '编辑关联',
+    updateRelation: '更新关联',
     previewing: '正在预览...',
     previewResult: '预览结果',
+    // Excel 工作表选择
+    selectSheets: '选择工作表',
+    selectSheetsHint: '文件 "{name}" 包含多个工作表，请选择要导入的表：',
   },
 
   // Classification labels

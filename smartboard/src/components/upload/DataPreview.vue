@@ -2,36 +2,33 @@
   <div class="data-preview">
     <!-- 文件信息 -->
     <div class="preview-header">
-      <div class="file-info">
-        <h3>{{ dataSet.fileName }}</h3>
-        <select v-if="dataStore.xlsxSheetNames.length > 1" :value="dataStore.activeSheetIndex"
-          @change="onSheetChange(($event.target as HTMLSelectElement).value)" class="sheet-sel">
-          <option v-for="(name, i) in dataStore.xlsxSheetNames" :key="i" :value="i">{{ name }}</option>
-        </select>
-        <span class="badge">{{ dataSet.rows.length }} {{ t('common.rows') }}</span>
-        <span class="badge">{{ dataSet.headers.length }} {{ t('common.columns') }}</span>
-      </div>
+      <h3>
+        {{ dataSet.fileName }}
+        <span class="file-meta">（{{ dataSet.rows.length }}{{ t('common.rows') }} × {{ dataSet.headers.length }}{{ t('common.columns') }}）</span>
+        <button
+          v-if="dataStore.tableCount > 1"
+          class="main-table-btn"
+          @click.stop="dataStore.setMainTable(dataStore.mainTableId === dataSet.id ? null : dataSet.id)"
+        >⭐{{ dataStore.mainTableId === dataSet.id ? t('upload.mainTable') : t('upload.setMainTable') }}</button>
+      </h3>
       <button class="btn-next" @click="$emit('next')">{{ t('upload.nextStep') }}</button>
     </div>
 
     <!-- 列分类结果 -->
     <div class="section">
-      <div class="section-header">
+      <div class="section-head">
         <h4>{{ t('upload.columnClassification') }}</h4>
-        <div class="exclude-controls">
-          <span class="exclude-hint click-hint">{{ t('upload.clickToExclude') }}</span>
-          <span v-if="excludedCount > 0" class="exclude-hint">
-            {{ t('upload.excluded', { n: excludedCount }) }}
-            <button class="btn-link" @click="resetExcluded">{{ t('common.reset') }}</button>
-          </span>
-        </div>
+        <span class="section-hint">{{ t('upload.clickToExclude') }}</span>
+        <span v-if="excludedCount > 0" class="section-hint">
+          {{ t('upload.excluded', { n: excludedCount }) }}
+          <button class="btn-link" @click="resetExcluded">{{ t('common.reset') }}</button>
+        </span>
       </div>
 
       <!-- 数据质量警告 -->
       <div v-if="dirtyColumns.length > 0" class="quality-warning">
-        <span class="quality-icon">⚠️</span>
         <span>{{ t('upload.dirtyDataWarning', { count: dirtyColumns.length }) }}</span>
-        <button class="btn-link btn-detail" @click="showQualityDetail = !showQualityDetail">
+        <button class="btn-link" @click="showQualityDetail = !showQualityDetail">
           {{ showQualityDetail ? t('common.collapse') : t('common.detail') }}
         </button>
         <div v-if="showQualityDetail" class="quality-detail">
@@ -41,25 +38,23 @@
           </div>
         </div>
       </div>
+
       <div class="col-grid">
         <div v-for="col in dataSet.headers" :key="col" class="col-card" :class="[
           'role-' + dataSet.classifications[col]?.role,
           { excluded: dataStore.excludedColumns.has(col), dirty: isDirty(col) }
         ]" @click="onToggleExclude(col)">
-          <div class="col-icon">
-            <span>{{ roleIcon(effectiveRole(col)) }}</span>
-          </div>
-          <div class="col-body">
-            <div class="col-name">
+          <span class="col-icon">{{ roleIcon(effectiveRole(col)) }}</span>
+          <div class="col-text">
+            <span class="col-name">
               {{ col }}
               <span v-if="isDirty(col)" class="dirty-badge" :title="dirtyTitle(col)">⚠️{{ getDirtyCount(col) }}</span>
-            </div>
-            <div class="col-meta" @click.stop="cycleRole(col)">
-              {{ typeLabel(dataSet.classifications[col]?.type) }} · {{ roleLabel(effectiveRole(col)) }}
-              <span class="role-hint">🖉</span>
-            </div>
+            </span>
+            <span class="col-meta" @click.stop="cycleRole(col)">
+              {{ typeLabel(dataSet.classifications[col]?.type) }} · {{ roleLabel(effectiveRole(col)) }} 🖉
+            </span>
           </div>
-          <div class="col-exclude-mark" v-if="dataStore.excludedColumns.has(col)">✕</div>
+          <span v-if="dataStore.excludedColumns.has(col)" class="col-exclude-mark">✕</span>
         </div>
       </div>
     </div>
@@ -67,34 +62,29 @@
     <!-- 指标摘要 -->
     <div v-if="dataSet.primaryMetric" class="section">
       <h4>{{ t('upload.autoDetect') }}</h4>
-      <div class="detection-info">
-        <span>{{ t('upload.primaryMetric') }}：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ?
-          t('upload.excludedHint') : dataSet.primaryMetric
-            }}</strong></span>
-        <span>{{ t('upload.chartDimensions') }}：<strong>{{dataSet.chartDimensions.filter(d =>
-          !dataStore.excludedColumns.has(d)).join(', ') || t('upload.noDimensions')
-            }}</strong></span>
-      </div>
+      <p class="detect-text">
+        {{ t('upload.primaryMetric') }}：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ? t('upload.excludedHint') : dataSet.primaryMetric }}</strong>
+        &nbsp;|&nbsp;
+        {{ t('upload.chartDimensions') }}：<strong>{{ dataSet.chartDimensions.filter(d => !dataStore.excludedColumns.has(d)).join(', ') || t('upload.noDimensions') }}</strong>
+      </p>
     </div>
 
     <!-- 样本数据 -->
     <div class="section">
       <h4>{{ t('upload.sampleData', { cols: visibleHeaders.length }) }}</h4>
-      <div class="table-wrapper">
-        <table class="sample-table">
-          <thead>
-            <tr>
-              <th v-for="col in visibleHeaders" :key="col"
-                :class="{ 'col-excluded-th': dataStore.excludedColumns.has(col) }">{{ col }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, i) in dataSet.rows.slice(0, 5)" :key="i">
-              <td v-for="col in visibleHeaders" :key="col">{{ truncate(row[col]) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <table class="sample-table">
+        <thead>
+          <tr>
+            <th v-for="col in visibleHeaders" :key="col"
+              :class="{ 'col-excluded-th': dataStore.excludedColumns.has(col) }">{{ col }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, i) in dataSet.rows.slice(0, 5)" :key="i">
+            <td v-for="col in visibleHeaders" :key="col">{{ truncate(row[col]) }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
@@ -146,11 +136,6 @@ function onToggleExclude(col: string) {
 
 function resetExcluded() {
   dataStore.clearExcluded()
-  emit('toggleExclude')
-}
-
-async function onSheetChange(val: string) {
-  await dataStore.selectSheet(Number(val))
   emit('toggleExclude')
 }
 
@@ -221,47 +206,43 @@ function truncate(val: string | number | undefined): string {
   margin-top: 24px;
 }
 
+/* ── 文件信息栏 ── */
 .preview-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-}
-
-.file-info {
-  display: flex;
-  align-items: center;
   gap: 10px;
+  margin-bottom: 16px;
 }
 
-.file-info h3 {
+.preview-header h3 {
   font-size: 14px;
   font-weight: 600;
   max-width: 340px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin: 0;
+  flex: 1;
 }
 
-.sheet-sel {
-  padding: 3px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 12px;
-  background: var(--bg-surface);
-  color: var(--text-primary);
+.file-meta {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.main-table-btn {
+  background: none;
+  border: none;
   cursor: pointer;
+  font-size: 12px;
+  padding: 1px 4px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  vertical-align: middle;
 }
 
-.badge {
-  display: inline-flex;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  background: var(--primary-light);
-  color: var(--primary);
-}
+.main-table-btn:hover { opacity: 1; }
 
 .btn-next {
   padding: 0 24px;
@@ -274,54 +255,39 @@ function truncate(val: string | number | undefined): string {
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s;
-  display: inline-flex;
-  align-items: center;
+  margin-left: auto;
 }
 
-.btn-next:hover {
-  opacity: 0.9;
-}
+.btn-next:hover { opacity: 0.9; }
 
+/* ── 分区卡片 ── */
 .section {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 16px;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
 }
 
 .section h4 {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 14px;
+  margin: 0 0 10px;
   color: var(--text-primary);
 }
 
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.section-header h4 {
-  margin-bottom: 0;
-}
-
-.exclude-controls {
+.section-head {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 10px;
 }
 
-.exclude-hint {
-  font-size: 12px;
+.section-head h4 { margin: 0; }
+
+.section-hint {
+  font-size: 11px;
   color: var(--text-secondary);
-}
-
-.exclude-hint.click-hint {
-  font-style: italic;
-  opacity: 0.7;
 }
 
 .btn-link {
@@ -334,209 +300,126 @@ function truncate(val: string | number | undefined): string {
   padding: 0;
 }
 
-.btn-link:hover {
-  color: var(--primary-hover);
-}
-
-.btn-detail {
-  margin-left: 4px;
-  font-weight: 500;
-}
-
-/* Data quality warning */
+/* ── 数据质量警告 ── */
 .quality-warning {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 10px 14px;
-  margin-bottom: 14px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
   background: #fff8e1;
   border: 1px solid #ffc107;
-  font-size: 13px;
+  font-size: 12px;
   color: #795548;
-}
-
-.quality-icon {
-  font-size: 16px;
-  flex-shrink: 0;
 }
 
 .quality-detail {
   width: 100%;
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px dashed #e0c88e;
 }
 
-.quality-item {
-  font-size: 12px;
-  padding: 3px 0;
-  color: #8d6e63;
-}
+.quality-item { font-size: 11px; padding: 2px 0; color: #8d6e63; }
+.dirty-samples { color: #bcaaa4; font-style: italic; }
 
-.dirty-samples {
-  color: #bcaaa4;
-  font-style: italic;
-}
-
-/* Dirty badge on column card */
 .dirty-badge {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 10px;
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 8px;
   background: #fff3cd;
   color: #856404;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   cursor: help;
 }
 
-.col-card.dirty {
-  border-color: #ffc107;
-}
-
-/* Column grid */
+/* ── 列卡片网格 ── */
 .col-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
 }
 
 .col-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 18px;
-  border-radius: 12px;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
   border: 1px solid var(--border-light);
   cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
+  transition: all 0.15s;
 }
 
 .col-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .col-card.excluded {
-  opacity: 0.45;
+  opacity: 0.4;
   filter: grayscale(0.6);
   border-style: dashed;
-  border-color: var(--role-ignore-text, #999);
 }
 
-.col-card.excluded:hover {
-  opacity: 0.65;
-  filter: grayscale(0.3);
-}
-
-.col-card.role-metric {
-  background: var(--role-metric-bg);
-  color: var(--role-metric-text);
-}
-
-.col-card.role-dimension {
-  background: var(--role-dimension-bg);
-  color: var(--role-dimension-text);
-}
-
-.col-card.role-time_axis {
-  background: var(--role-time-bg);
-  color: var(--role-time-text);
-}
-
-.col-card.role-label {
-  background: var(--role-label-bg);
-  color: var(--role-label-text);
-}
-
-.col-card.role-ignore {
-  background: var(--role-ignore-bg);
-  color: var(--role-ignore-text);
-  opacity: 0.7;
-}
+.col-card.role-metric    { background: var(--role-metric-bg);    color: var(--role-metric-text); }
+.col-card.role-dimension { background: var(--role-dimension-bg); color: var(--role-dimension-text); }
+.col-card.role-time_axis { background: var(--role-time-bg);     color: var(--role-time-text); }
+.col-card.role-label     { background: var(--role-label-bg);     color: var(--role-label-text); }
+.col-card.role-ignore    { background: var(--role-ignore-bg);    color: var(--role-ignore-text); opacity: 0.7; }
 
 .col-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: rgba(128, 128, 128, .12);
-  font-size: 20px;
+  font-size: 16px;
   flex-shrink: 0;
+  width: 28px;
+  text-align: center;
 }
 
-.col-body {
-  flex: 1;
-  min-width: 0;
-}
+.col-text { flex: 1; min-width: 0; }
 
 .col-name {
   font-weight: 600;
-  font-size: 13px;
-  margin-bottom: 2px;
+  font-size: 12px;
+  display: block;
 }
 
 .col-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
   cursor: pointer;
+  display: block;
+  margin-top: 1px;
 }
 
-.col-meta:hover .role-hint {
-  opacity: 1;
-}
-
-.role-hint {
-  opacity: 0;
-  font-size: 10px;
-  transition: opacity 0.15s;
-}
-
-/* Exclude mark */
 .col-exclude-mark {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--error);
   color: white;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
+  flex-shrink: 0;
 }
 
-/* Detection info */
-.detection-info {
-  display: flex;
-  gap: 24px;
-  font-size: 14px;
+/* ── 自动检测 ── */
+.detect-text {
+  font-size: 13px;
   color: var(--text-secondary);
+  margin: 0;
 }
+.detect-text strong { color: var(--text-primary); }
 
-.detection-info strong {
-  color: var(--text-primary);
-}
-
-/* Sample table */
-.table-wrapper {
-  overflow-x: auto;
-}
-
+/* ── 样本表格 ── */
 .sample-table {
   width: 100%;
   border-collapse: collapse;
@@ -545,23 +428,22 @@ function truncate(val: string | number | undefined): string {
 
 .sample-table th {
   text-align: left;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-bottom: 2px solid var(--border);
   font-weight: 600;
   white-space: nowrap;
   color: var(--text-secondary);
+  font-size: 11px;
 }
 
 .sample-table td {
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-bottom: 1px solid var(--border-light);
-  max-width: 200px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sample-table tbody tr:hover {
-  background: var(--bg-hover);
-}
+.sample-table tbody tr:hover { background: var(--bg-hover); }
 </style>

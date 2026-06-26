@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { DataSet, DataQualitySummary, Relation, ExcelWorkbookMeta, SheetInfo, ColumnClassification } from '@/types/data'
+import { ref, computed, watch } from 'vue'
+import type { DataSet, DataQualitySummary, Relation, ExcelWorkbookMeta, SheetInfo, ColumnClassification, ChartPayload, ParsedFile } from '@/types/data'
 import { parseFile } from '@/core/parser'
 import { getXLSXSheetNames, parseXLSXSheet } from '@/core/parser'
 import { classifyAllColumns, selectPrimaryMetric, selectChartDimensions } from '@/core/classifier'
@@ -8,7 +8,7 @@ import { parseNumeric } from '@/core/numeric'
 import { readTextFile, readFile, stat } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-dialog'
 // Rust bridge — 在 Tauri 环境下优先使用 Rust 后端
-import { isTauri, listExcelSheets, loadExcelSheet } from '@/composables/use-rust-bridge'
+import { isTauri, listExcelSheets, loadExcelSheet, loadFile as rustLoadFile } from '@/composables/use-rust-bridge'
 
 /** 生成唯一 ID */
 function uid(): string {
@@ -19,31 +19,37 @@ export const useDataStore = defineStore('data', () => {
   // ─────────────────────────────────────────────────────────────────────────
   // 多表状态（Phase 1）
   // ─────────────────────────────────────────────────────────────────────────
-  const tables = ref<Map<string, DataSet>>(new Map())
+  const tables = ref<Record<string, DataSet>>({})
   const activeTableId = ref<string | null>(null)
   const relations = ref<Relation[]>([])
   const mainTableId = ref<string | null>(null)
-  const excelWorkbooks = ref<Map<string, ExcelWorkbookMeta>>(new Map())
+  const excelWorkbooks = ref<Record<string, ExcelWorkbookMeta>>({})
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 向后兼容：activeDataSet 计算属性
+  // 向后兼容：dataSet 始终指向当前活跃表
   // ─────────────────────────────────────────────────────────────────────────
-  const dataSet = computed<DataSet | null>(() => {
-    if (!activeTableId.value) return null
-    return tables.value.get(activeTableId.value) ?? null
-  })
+  const dataSet = ref<DataSet | null>(null)
 
-  /** @deprecated 使用 dataSet (computed) */
-  const _dataSet = ref<DataSet | null>(null)
+  // 自动同步：activeTableId 或 tables 变化时更新 dataSet
+  watch([activeTableId, () => Object.keys(tables.value).length], () => {
+    if (activeTableId.value) {
+      dataSet.value = tables.value[activeTableId.value] ?? null
+    } else {
+      dataSet.value = null
+    }
+  }, { immediate: true })
 
   const loading = ref(false)
   const error = ref<string | null>(null)
   const excludedColumns = ref<Set<string>>(new Set())
   const roleOverrides = ref<Record<string, string>>({})
-  const xlsxSheetNames = ref<string[]>([])
+  const xlsxSheetNames = ref<SheetInfo[]>([])
   const activeSheetIndex = ref(0)
   let _xlsxRawData: Uint8Array | null = null
   let _xlsxFilePath: string | null = null
+
+  // Excel 多 sheet 选择弹窗
+  const pendingSheetSelection = ref<{ filePath: string; sheets: SheetInfo[] } | null>(null)
 
   async function loadFromDialog() {
     const selected = await open({
@@ -71,41 +77,96 @@ export const useDataStore = defineStore('data', () => {
       const fileName = filePath.replace(/^.*[/\\]/, '') || filePath
       const ext = fileName.toLowerCase().split('.').pop()!
 
-      let parsed
-      if (ext === 'xlsx' || ext === 'xls') {
-        const data = await readFile(filePath)
-        _xlsxRawData = data
-        _xlsxFilePath = filePath
+      let parsed: ParsedFile
 
-        // ⭐ 优先用 Rust 后端列出 sheet
-        let sheetNames: string[]
-        if (isTauri()) {
-          const result = await listExcelSheets(filePath)
-          if (result.ok && result.data) {
-            sheetNames = result.data.map((s: SheetInfo) => s.name)
-            // 存储工作簿元数据
-            const wbMeta: ExcelWorkbookMeta = {
-              path: filePath,
-              sheets: result.data,
+      // ═══════════════════════════════════════════════════════════════════
+      // Tauri 环境：Rust/Polars 后端解析（CSV + Excel 统一处理）
+      // ═══════════════════════════════════════════════════════════════════
+      if (isTauri()) {
+        // Excel：先列出 sheet，多 sheet 时弹窗选择
+        if (ext === 'xlsx' || ext === 'xls') {
+          const sheetsResult = await listExcelSheets(filePath)
+          if (sheetsResult.ok && sheetsResult.data && sheetsResult.data.length > 0) {
+            const sheets = sheetsResult.data
+            xlsxSheetNames.value = sheets
+            _xlsxFilePath = filePath
+
+            if (sheets.length > 1) {
+              // 多 sheet → 弹窗选择，暂不加载
+              pendingSheetSelection.value = { filePath, sheets }
+              loading.value = false
+              return
             }
-            excelWorkbooks.value.set(filePath, wbMeta)
+            // 单 sheet → 直接加载
+            const result = await loadExcelSheet(filePath, sheets[0].index)
+            if (!result.ok || !result.data) {
+              throw new Error(result.error || 'Rust 加载失败')
+            }
+            const payload: ChartPayload = result.data
+            const headers = payload.columns.map(c => c.name)
+            const toVal = (v: unknown): string | number => {
+              if (typeof v === 'string' || typeof v === 'number') return v
+              return v != null ? String(v) : ''
+            }
+            const rows: Record<string, string | number>[] = payload.rows.map(row => {
+              const obj: Record<string, string | number> = {}
+              for (const h of headers) obj[h] = toVal(row[h])
+              return obj
+            })
+            const rawRows: (string | number)[][] = payload.rows.map(row =>
+              headers.map(h => toVal(row[h]))
+            )
+            parsed = { headers, rows, rawRows }
           } else {
-            // Fallback 到 SheetJS
-            sheetNames = getXLSXSheetNames(data)
+            throw new Error('Excel 文件没有可读取的工作表')
           }
         } else {
-          sheetNames = getXLSXSheetNames(data)
-        }
+          // CSV：直接加载
+          const result = await rustLoadFile(filePath, 0, 0, -1, false)
+          if (!result.ok || !result.data) {
+            throw new Error(result.error || 'Rust 加载失败')
+          }
+          const payload: ChartPayload = result.data
+          xlsxSheetNames.value = []
+          _xlsxRawData = null
+          _xlsxFilePath = null
 
-        xlsxSheetNames.value = sheetNames
-        activeSheetIndex.value = 0
-        parsed = parseXLSXSheet(data, 0)
+          const headers = payload.columns.map(c => c.name)
+          const toVal = (v: unknown): string | number => {
+            if (typeof v === 'string' || typeof v === 'number') return v
+            return v != null ? String(v) : ''
+          }
+          const rows: Record<string, string | number>[] = payload.rows.map(row => {
+            const obj: Record<string, string | number> = {}
+            for (const h of headers) obj[h] = toVal(row[h])
+            return obj
+          })
+          const rawRows: (string | number)[][] = payload.rows.map(row =>
+            headers.map(h => toVal(row[h]))
+          )
+          parsed = { headers, rows, rawRows }
+        }
       } else {
-        xlsxSheetNames.value = []
-        _xlsxRawData = null
-        _xlsxFilePath = null
-        const text = await readTextFile(filePath)
-        parsed = parseFile(fileName, text)
+        // ═══════════════════════════════════════════════════════════════
+        // 浏览器 fallback：JS 解析器
+        // ═══════════════════════════════════════════════════════════════
+        if (ext === 'xlsx' || ext === 'xls') {
+          const data = await readFile(filePath)
+          _xlsxRawData = data
+          _xlsxFilePath = filePath
+
+          let sheetNames: string[]
+          sheetNames = getXLSXSheetNames(data)
+          xlsxSheetNames.value = sheetNames.map((n, i) => ({ name: n, index: i, rows: 0, cols: 0 }))
+          activeSheetIndex.value = 0
+          parsed = parseXLSXSheet(data, 0)
+        } else {
+          xlsxSheetNames.value = []
+          _xlsxRawData = null
+          _xlsxFilePath = null
+          const text = await readTextFile(filePath)
+          parsed = parseFile(fileName, text)
+        }
       }
 
       const classifications = classifyAllColumns(parsed.headers, parsed.rows)
@@ -144,11 +205,10 @@ export const useDataStore = defineStore('data', () => {
       }
 
       // 注册到多表 Map
-      tables.value.set(dsId, ds)
+      tables.value[dsId] = ds
       activeTableId.value = dsId
-
       // 向后兼容
-      _dataSet.value = ds
+      dataSet.value = ds
     } catch (e: any) {
       error.value = e.message || '文件加载失败'
       console.error('loadFile error:', e)
@@ -182,9 +242,9 @@ export const useDataStore = defineStore('data', () => {
         dataQuality,
       }
 
-      tables.value.set(dsId, ds)
+      tables.value[dsId] = ds
       activeTableId.value = dsId
-      _dataSet.value = ds
+      dataSet.value = ds
     } catch (e: any) {
       error.value = e.message || '文件加载失败'
     } finally {
@@ -207,15 +267,15 @@ export const useDataStore = defineStore('data', () => {
   }
 
   function clearData() {
-    tables.value.clear()
+    Object.keys(tables.value).forEach(k => delete tables.value[k])
     activeTableId.value = null
-    _dataSet.value = null
+    dataSet.value = null
     error.value = null
     clearExcluded()
     roleOverrides.value = {}
     relations.value = []
     mainTableId.value = null
-    excelWorkbooks.value.clear()
+    Object.keys(excelWorkbooks.value).forEach(k => delete excelWorkbooks.value[k])
   }
 
   function setRoleOverride(col: string, role: string) {
@@ -258,14 +318,15 @@ export const useDataStore = defineStore('data', () => {
   }
 
   async function selectSheet(index: number) {
-    if (!_xlsxRawData || index >= xlsxSheetNames.value.length) return
+    const info = xlsxSheetNames.value[index]
+    if ((!_xlsxRawData && !_xlsxFilePath) || !info) return
     loading.value = true
     activeSheetIndex.value = index
     try {
-      // ⭐ 如果 Tauri 环境，尝试用 Rust 加载指定 sheet
+      // ⭐ 如果 Tauri 环境，尝试用 Rust 加载指定 sheet（使用原始 calamine 索引）
       let parsed
       if (isTauri() && _xlsxFilePath) {
-        const result = await loadExcelSheet(_xlsxFilePath, index)
+        const result = await loadExcelSheet(_xlsxFilePath, info.index)
         if (result.ok && result.data) {
           const payload = result.data
           // 将 ChartPayload 转为 ParsedFile 格式
@@ -279,9 +340,11 @@ export const useDataStore = defineStore('data', () => {
           parsed = { headers, rows, rawRows }
         } else {
           // Fallback to SheetJS
+          if (!_xlsxRawData) throw new Error('Sheet 数据不可用')
           parsed = parseXLSXSheet(_xlsxRawData, index)
         }
       } else {
+        if (!_xlsxRawData) throw new Error('Sheet 数据不可用')
         parsed = parseXLSXSheet(_xlsxRawData, index)
       }
 
@@ -290,7 +353,7 @@ export const useDataStore = defineStore('data', () => {
       const chartDimensions = selectChartDimensions(parsed.headers, classifications)
       const dataQuality = buildDataQuality(parsed.headers, parsed.rows, classifications)
 
-      const sheetName = xlsxSheetNames.value[index]
+      const sheetName = info.name
       const dsId = uid()
       const ds: DataSet = {
         id: dsId,
@@ -307,9 +370,9 @@ export const useDataStore = defineStore('data', () => {
         sheetIndex: index,
       }
 
-      tables.value.set(dsId, ds)
+      tables.value[dsId] = ds
       activeTableId.value = dsId
-      _dataSet.value = ds
+      dataSet.value = ds
     } catch (e: any) {
       error.value = e.message || 'Sheet 加载失败'
     } finally {
@@ -323,24 +386,24 @@ export const useDataStore = defineStore('data', () => {
 
   /** 切换到指定表 */
   function switchTable(id: string) {
-    if (tables.value.has(id)) {
+    if (id in tables.value) {
       activeTableId.value = id
-      _dataSet.value = tables.value.get(id) ?? null
+      dataSet.value = tables.value[id] ?? null
     }
   }
 
   /** 删除指定表 */
   function removeTable(id: string) {
-    tables.value.delete(id)
+    delete tables.value[id]
     // 清理关联
     relations.value = relations.value.filter(
       r => r.leftTableId !== id && r.rightTableId !== id,
     )
     if (mainTableId.value === id) mainTableId.value = null
     if (activeTableId.value === id) {
-      const remaining = Array.from(tables.value.keys())
+      const remaining = Array.from(Object.keys(tables.value))
       activeTableId.value = remaining.length > 0 ? remaining[0] : null
-      _dataSet.value = activeTableId.value ? tables.value.get(activeTableId.value) ?? null : null
+      dataSet.value = activeTableId.value ? tables.value[activeTableId.value] ?? null : null
     }
   }
 
@@ -355,6 +418,18 @@ export const useDataStore = defineStore('data', () => {
     relations.value = relations.value.filter(r => r.id !== id)
   }
 
+  /** 编辑关联关系 */
+  function updateRelation(id: string, patch: Partial<Omit<Relation, 'id'>>) {
+    const idx = relations.value.findIndex(r => r.id === id)
+    if (idx !== -1) {
+      relations.value = [
+        ...relations.value.slice(0, idx),
+        { ...relations.value[idx], ...patch },
+        ...relations.value.slice(idx + 1),
+      ]
+    }
+  }
+
   /** 设定主表 */
   function setMainTable(id: string | null) {
     mainTableId.value = id
@@ -362,7 +437,7 @@ export const useDataStore = defineStore('data', () => {
 
   /** 获取活跃表列表 */
   const tableList = computed(() => {
-    return Array.from(tables.value.entries()).map(([id, ds]) => ({
+    return Array.from(Object.entries(tables.value)).map(([id, ds]) => ({
       id,
       name: ds.fileName || ds.sheetName || '未命名',
       rows: ds.rows.length,
@@ -372,7 +447,7 @@ export const useDataStore = defineStore('data', () => {
     }))
   })
 
-  const tableCount = computed(() => tables.value.size)
+  const tableCount = computed(() => Object.keys(tables.value).length)
 
   // ── Phase 4: 跨表字段支持 ──
   const hasRelations = computed(() => relations.value.length > 0)
@@ -381,7 +456,7 @@ export const useDataStore = defineStore('data', () => {
   const allFieldOptions = computed<string[]>(() => {
     const fields: string[] = []
     if (hasRelations.value) {
-      for (const [id, ds] of tables.value) {
+      for (const [id, ds] of Object.entries(tables.value)) {
         const prefix = (ds.fileName || ds.sheetName || '未命名') + '.'
         for (const h of ds.headers) {
           fields.push(prefix + h)
@@ -391,6 +466,31 @@ export const useDataStore = defineStore('data', () => {
       fields.push(...dataSet.value.headers)
     }
     return fields
+  })
+
+  /** 跨表合并后的有效列头（与 buildEffectiveDS 合并逻辑一致：
+   *  右表列仅在名称冲突时添加 "表名." 前缀） */
+  const effectiveHeaders = computed<string[]>(() => {
+    const ds = dataSet.value
+    if (!ds) return []
+    if (relations.value.length === 0) return [...ds.headers]
+
+    const headers = [...ds.headers]
+    for (const rel of relations.value) {
+      const rightDs = tables.value[rel.rightTableId]
+      if (!rightDs) continue
+      for (const rh of rightDs.headers) {
+        // 跳过连接键列（与左表列名相同）
+        if (rh === rel.rightColumn && headers.includes(rh)) continue
+        const prefixedKey = headers.includes(rh)
+          ? (rightDs.fileName || rightDs.sheetName || 'right') + '.' + rh
+          : rh
+        if (!headers.includes(prefixedKey)) {
+          headers.push(prefixedKey)
+        }
+      }
+    }
+    return headers
   })
 
   /** 解析 "表名.字段名" → { tableId, column } */
@@ -403,7 +503,7 @@ export const useDataStore = defineStore('data', () => {
     }
     const prefix = ref.substring(0, dotIdx)
     const column = ref.substring(dotIdx + 1)
-    for (const [id, ds] of tables.value) {
+    for (const [id, ds] of Object.entries(tables.value)) {
       if ((ds.fileName || ds.sheetName) === prefix) {
         return { tableId: id, column }
       }
@@ -411,12 +511,95 @@ export const useDataStore = defineStore('data', () => {
     return null
   }
 
-  /** 获取字段的分类信息（支持跨表引用） */
+  /** 获取字段的分类信息（支持跨表引用，含非前缀列名） */
   function getFieldClassification(fieldRef: string): ColumnClassification | null {
+    // 先尝试带前缀解析（如 "表B.金额"）
     const parsed = parseFieldRef(fieldRef)
-    if (!parsed) return null
-    const ds = tables.value.get(parsed.tableId)
-    return ds?.classifications[parsed.column] ?? null
+    if (parsed) {
+      const ds = tables.value[parsed.tableId]
+      return ds?.classifications[parsed.column] ?? null
+    }
+    return null
+  }
+
+  /** 获取任意列的分类信息（遍历所有表查找，支持无前缀的跨表列） */
+  function getEffectiveClassification(col: string): ColumnClassification | null {
+    // 先查活跃表
+    const cls = dataSet.value?.classifications[col]
+    if (cls) return cls
+    // 再查带前缀的引用
+    const prefixed = getFieldClassification(col)
+    if (prefixed) return prefixed
+    // 最后遍历所有表查找（适用于无前缀的同名列）
+    for (const ds of Object.values(tables.value)) {
+      const found = ds.classifications[col]
+      if (found) return found
+    }
+    return null
+  }
+
+  /** 批量加载选中的 Excel 工作表（多 sheet 弹窗确认后调用） */
+  async function loadSelectedSheets(indices: number[]) {
+    const p = pendingSheetSelection.value
+    if (!p || !_xlsxFilePath) return
+    loading.value = true
+    error.value = null
+    try {
+      for (const calamineIdx of indices) {
+        const result = await loadExcelSheet(p.filePath, calamineIdx)
+        if (!result.ok || !result.data) continue
+        const payload: ChartPayload = result.data
+
+        const headers = payload.columns.map(c => c.name)
+        const toVal = (v: unknown): string | number => {
+          if (typeof v === 'string' || typeof v === 'number') return v
+          return v != null ? String(v) : ''
+        }
+        const rows: Record<string, string | number>[] = payload.rows.map(row => {
+          const obj: Record<string, string | number> = {}
+          for (const h of headers) obj[h] = toVal(row[h])
+          return obj
+        })
+        const rawRows: (string | number)[][] = payload.rows.map(row =>
+          headers.map(h => toVal(row[h]))
+        )
+
+        const classifications = classifyAllColumns(headers, rows)
+        const primaryMetric = selectPrimaryMetric(headers, classifications)
+        const chartDimensions = selectChartDimensions(headers, classifications)
+        const dataQuality = buildDataQuality(headers, rows, classifications)
+
+        const info = p.sheets.find(s => s.index === calamineIdx)
+        const dsId = uid()
+        const ds: DataSet = {
+          id: dsId,
+          headers,
+          rows,
+          rawRows,
+          classifications,
+          primaryMetric,
+          chartDimensions,
+          filePath: p.filePath,
+          fileName: info?.name ?? `Sheet_${calamineIdx + 1}`,
+          dataQuality,
+          sheetName: info?.name,
+          sheetIndex: calamineIdx,
+        }
+
+        tables.value[dsId] = ds
+        if (!activeTableId.value) activeTableId.value = dsId
+        dataSet.value = ds
+      }
+    } catch (e: any) {
+      error.value = e.message || '工作表加载失败'
+    } finally {
+      loading.value = false
+      pendingSheetSelection.value = null
+    }
+  }
+
+  function cancelSheetSelection() {
+    pendingSheetSelection.value = null
   }
 
   return {
@@ -430,8 +613,10 @@ export const useDataStore = defineStore('data', () => {
     tableCount,
     hasRelations,
     allFieldOptions,
+    effectiveHeaders,
     parseFieldRef,
     getFieldClassification,
+    getEffectiveClassification,
     // 向后兼容
     dataSet,
     // 传统状态
@@ -441,10 +626,13 @@ export const useDataStore = defineStore('data', () => {
     roleOverrides,
     xlsxSheetNames,
     activeSheetIndex,
+    pendingSheetSelection,
     // 操作
     loadFromDialog,
     loadFile,
     loadFileContent,
+    loadSelectedSheets,
+    cancelSheetSelection,
     clearData,
     toggleExcludeColumn,
     clearExcluded,
@@ -455,6 +643,7 @@ export const useDataStore = defineStore('data', () => {
     removeTable,
     addRelation,
     removeRelation,
+    updateRelation,
     setMainTable,
   }
 })

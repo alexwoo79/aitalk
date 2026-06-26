@@ -277,10 +277,10 @@ export interface JoinSuggestion {
  * 基于字段名相似度和类型匹配，推荐表间关联候选。
  */
 export function suggestJoins(
-  tables: Map<string, { name: string; headers: string[] }>,
+  tables: Record<string, { name: string; headers: string[] }>,
 ): JoinSuggestion[] {
   const suggestions: JoinSuggestion[] = []
-  const entries = Array.from(tables.entries())
+  const entries = Object.entries(tables)
 
   for (let i = 0; i < entries.length; i++) {
     for (let j = i + 1; j < entries.length; j++) {

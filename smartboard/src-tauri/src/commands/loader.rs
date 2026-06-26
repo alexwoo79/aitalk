@@ -161,6 +161,88 @@ pub fn load_file_impl(
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Excel date serial number conversion
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Convert an Excel date serial number to YYYY-MM-DD string.
+/// Handles the Excel 1900 leap-year bug: serial >= 61 needs 1-day offset.
+pub fn excel_serial_to_date(serial: f64) -> String {
+    if !serial.is_finite() || serial < 1.0 {
+        return serial.to_string();
+    }
+    // Excel epoch: 1899-12-30 (day 0 = 1900-01-00 in Excel's world)
+    let days = serial.floor() as i64;
+    // Excel incorrectly treats 1900 as a leap year; serial >= 61 means we are past
+    // the fictional Feb 29, 1900 and must subtract 1 day.
+    let adjusted = if days >= 61 { days - 1 } else { days };
+    if let Some(base) = chrono::NaiveDate::from_ymd_opt(1899, 12, 30) {
+        let d = base + chrono::Duration::days(adjusted);
+        return d.format("%Y-%m-%d").to_string();
+    }
+    serial.to_string()
+}
+
+/// Heuristic: detect if a column name suggests it holds date values.
+pub fn is_date_column_name(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    lower.contains("date")
+        || lower.contains("日期")
+        || lower.contains("时间")
+        || lower.contains("time")
+        || lower.contains("day")
+        || lower.contains("month")
+        || lower.contains("year")
+        || lower.contains("年")
+        || lower.contains("月")
+        || lower.contains("日")
+        || lower.contains("出生")
+        || lower.contains("birth")
+        || lower.contains("成立")
+        || lower.contains("创建")
+        || lower.contains("到期")
+}
+
+/// Convert a calamine cell value to string, applying date conversion when appropriate.
+pub fn cell_to_string(cell: &XlDataType, is_date_col: bool) -> String {
+    // Helper: if a float looks like a date serial number, convert it
+    let try_date = |f: &f64| -> Option<String> {
+        let n = *f;
+        if is_date_col && n.is_finite() && n >= 30000.0 && n <= 80000.0 && n == n.trunc() {
+            return Some(excel_serial_to_date(n));
+        }
+        None
+    };
+
+    match cell {
+        XlDataType::String(s) => s.clone(),
+        XlDataType::Float(f) => {
+            if let Some(date_str) = try_date(f) {
+                return date_str;
+            }
+            if *f == f.trunc() && f.abs() < 1e15 {
+                format!("{}", *f as i64)
+            } else {
+                format!("{}", f)
+            }
+        }
+        XlDataType::Int(i) => format!("{}", i),
+        XlDataType::Bool(b) => format!("{}", b),
+        XlDataType::DateTime(dt) => {
+            // Use calamine's built-in as_datetime() which handles 1900/1904 date systems
+            if let Some(d) = dt.as_datetime() {
+                d.format("%Y-%m-%d").to_string()
+            } else {
+                excel_serial_to_date(dt.as_f64())
+            }
+        }
+        XlDataType::DateTimeIso(d) => d.clone(),
+        XlDataType::DurationIso(d) => d.clone(),
+        XlDataType::Empty => String::new(),
+        XlDataType::Error(_) => String::new(),
+    }
+}
+
 fn load_csv(path: &Path, skip_head: usize, skip_tail: usize) -> Result<DataFrame> {
     let df = CsvReadOptions::default()
         .with_has_header(true)
@@ -214,6 +296,12 @@ fn load_excel_first_sheet(path: &Path, skip_head: usize, skip_tail: usize) -> Re
         })
         .collect();
 
+    // Pre-compute which columns are date columns by name heuristic
+    let date_col_mask: Vec<bool> = headers
+        .iter()
+        .map(|h| is_date_column_name(h))
+        .collect();
+
     // Build columns
     let mut columns: Vec<Vec<String>> = headers.iter().map(|_| Vec::new()).collect();
     let mut row_count = 0;
@@ -227,23 +315,8 @@ fn load_excel_first_sheet(path: &Path, skip_head: usize, skip_tail: usize) -> Re
             if col_idx >= columns.len() {
                 break;
             }
-            let val = match cell {
-                XlDataType::String(s) => s.clone(),
-                XlDataType::Float(f) => {
-                    if *f == f.trunc() && f.abs() < 1e15 {
-                        format!("{}", *f as i64)
-                    } else {
-                        format!("{}", f)
-                    }
-                }
-                XlDataType::Int(i) => format!("{}", i),
-                XlDataType::Bool(b) => format!("{}", b),
-                XlDataType::DateTime(d) => d.to_string(),
-                XlDataType::DateTimeIso(d) => d.to_string(),
-                XlDataType::DurationIso(d) => d.to_string(),
-                XlDataType::Empty => String::new(),
-                XlDataType::Error(_) => String::new(),
-            };
+            let is_date_col = date_col_mask.get(col_idx).copied().unwrap_or(false);
+            let val = cell_to_string(cell, is_date_col);
             columns[col_idx].push(val);
         }
         // Fill missing columns with empty string
@@ -296,21 +369,21 @@ pub fn auto_cast_numeric(df: DataFrame) -> DataFrame {
             // Try to cast to Float64
             let str_series = s.cast(&DataType::String).ok();
             if let Some(str_s) = str_series {
-                let numeric_count: usize = str_s
-                    .str()
-                    .unwrap()
-                    .iter()
-                    .filter(|opt| {
-                        opt.map_or(false, |v| {
-                            let trimmed = v.trim();
-                            !trimmed.is_empty()
-                                && !trimmed.starts_with('-')
-                                && trimmed.parse::<f64>().is_ok()
-                        })
-                    })
-                    .count();
-                let total = str_s.len() - str_s.null_count();
-                if total > 0 && numeric_count as f64 / total as f64 > 0.8 {
+                let mut numeric_count: usize = 0;
+                let mut non_empty_count: usize = 0;
+                for opt in str_s.str().unwrap().iter() {
+                    if let Some(v) = opt {
+                        let trimmed = v.trim();
+                        if !trimmed.is_empty() {
+                            non_empty_count += 1;
+                            if trimmed.parse::<f64>().is_ok() {
+                                numeric_count += 1;
+                            }
+                        }
+                    }
+                }
+                // 仅当所有非空值都能解析为数值时才转换，避免脏数据被静默置为 null
+                if non_empty_count > 0 && numeric_count == non_empty_count {
                     if let Ok(casted) = str_s.cast(&DataType::Float64) {
                         let _ = df.replace(&name, casted);
                     }

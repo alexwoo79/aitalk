@@ -67,7 +67,7 @@ const tableCount = dataStore.tableCount
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  background: var(--bg-secondary, #f9fafb);
+  background: var(--bg-surface);
   height: 100%;
 }
 
@@ -88,7 +88,7 @@ const tableCount = dataStore.tableCount
 .panel-count {
   font-size: 11px;
   color: var(--text-secondary);
-  background: var(--bg-tertiary, #e5e7eb);
+  background: var(--bg-hover);
   padding: 1px 8px;
   border-radius: 10px;
 }
@@ -96,7 +96,7 @@ const tableCount = dataStore.tableCount
 .panel-empty {
   padding: 24px 16px;
   text-align: center;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -113,23 +113,23 @@ const tableCount = dataStore.tableCount
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
   transition: background 0.15s;
   margin-bottom: 2px;
 }
 
 .table-item:hover {
-  background: var(--bg-hover, #f3f4f6);
+  background: var(--bg-hover);
 }
 
 .table-item.active {
-  background: var(--primary-light, #eff6ff);
-  border: 1px solid var(--primary, #3b82f6);
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
 }
 
 .table-item.main {
-  border-left: 3px solid #f59e0b;
+  border-left: 3px solid var(--warning);
 }
 
 .table-info {
@@ -143,10 +143,7 @@ const tableCount = dataStore.tableCount
 .table-status {
   font-size: 8px;
   flex-shrink: 0;
-}
-
-.table-status.loaded {
-  color: #22c55e;
+  color: var(--success);
 }
 
 .table-details {
@@ -166,7 +163,7 @@ const tableCount = dataStore.tableCount
 
 .table-meta {
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
 }
 
 .table-actions {
@@ -193,29 +190,16 @@ const tableCount = dataStore.tableCount
 }
 
 .btn-icon:hover {
-  background: var(--bg-tertiary, #e5e7eb);
+  background: var(--bg-hover);
 }
 
 .active-star {
-  color: #f59e0b !important;
+  color: var(--warning) !important;
   opacity: 1 !important;
 }
 
 .btn-delete:hover {
-  color: #ef4444;
-  background: #fef2f2;
-}
-
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  .table-list-panel {
-    background: #1c1c1e;
-  }
-  .table-item:hover {
-    background: #2c2c2e;
-  }
-  .table-item.active {
-    background: #1e3a5f;
-  }
+  color: var(--error);
+  background: var(--bg-error);
 }
 </style>

@@ -2,6 +2,8 @@
 //
 // 注册所有 Tauri 命令，启动应用。
 
+#![allow(dead_code)] // 预置模块（clean/undo/chart-store 等）Phase 5+ 逐步启用
+
 mod commands;
 mod df_util;
 mod state;

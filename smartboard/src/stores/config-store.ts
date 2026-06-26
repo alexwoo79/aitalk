@@ -24,20 +24,32 @@ export const useConfigStore = defineStore('config', () => {
 
   // ====== 自动配置的计算基础（供各区域复用） ======
   function _effRole(col: string): string {
-    return dataStore.roleOverrides[col] || dataStore.dataSet?.classifications[col]?.role || 'ignore'
+    const override = dataStore.roleOverrides[col]
+    if (override) return override
+    // 跨表列：优先用 getEffectiveClassification 查找所有表的分类
+    const cls = dataStore.getEffectiveClassification(col)
+    if (cls?.role) return cls.role
+    return dataStore.dataSet?.classifications[col]?.role || 'ignore'
   }
 
   function _autoBase() {
     const ds = dataStore.dataSet
     if (!ds) return null
     const excluded = dataStore.excludedColumns
-    const metricCols = ds.headers.filter((h) => _effRole(h) === 'metric' && !excluded.has(h))
-    const dimCols = ds.headers.filter((h) => _effRole(h) === 'dimension' && !excluded.has(h))
+    // Phase 4: 有关联表时使用跨表合并后的有效列头
+    const headers = dataStore.hasRelations
+      ? dataStore.effectiveHeaders
+      : ds.headers
+    const metricCols = headers.filter((h) => _effRole(h) === 'metric' && !excluded.has(h))
+    const dimCols = headers.filter((h) => _effRole(h) === 'dimension' && !excluded.has(h))
     const dims = dimCols.length > 0 ? dimCols : ds.chartDimensions.filter((d) => !excluded.has(d))
     const primaryMetric = ds.primaryMetric && !excluded.has(ds.primaryMetric)
       ? ds.primaryMetric
       : (metricCols.length > 0 ? metricCols[0] : null)
-    const dateCol = ds.headers.find((h) => ds.classifications[h]?.type === 'date' && !excluded.has(h))
+    const dateCol = headers.find((h) => {
+      const cls = dataStore.getEffectiveClassification(h) || ds.classifications[h]
+      return cls?.type === 'date' && !excluded.has(h)
+    })
     return { ds, excluded, metricCols, dims, primaryMetric, dateCol }
   }
 
@@ -62,13 +74,13 @@ export const useConfigStore = defineStore('config', () => {
     const base = _autoBase()
     if (!base) return
     config.value.kpis = base.metricCols.slice(0, 6).map((col) => {
-      const cls = base.ds.classifications[col]
+      const cls = dataStore.getEffectiveClassification(col) || base.ds.classifications[col]
       return {
         column: col,
         label: col,
-        agg: (cls.format === 'percent' ? 'avg' : 'sum') as 'sum' | 'avg',
+        agg: (cls?.format === 'percent' ? 'avg' : 'sum') as 'sum' | 'avg',
         format: 'global',
-        prefix: cls.prefix,
+        prefix: cls?.prefix,
         selected: true,
       }
     })
@@ -81,7 +93,7 @@ export const useConfigStore = defineStore('config', () => {
     const charts: ChartFormItem[] = []
 
     for (const dim of dims.slice(0, 3)) {
-      const cls = ds.classifications[dim]
+      const cls = dataStore.getEffectiveClassification(dim) || ds.classifications[dim]
       const uniqueCount = cls?.uniqueCount ?? 0
       if (uniqueCount <= 8) {
         charts.push({ id: crypto.randomUUID(), type: 'doughnut', title: t('config.autoChart.proportion', { dim }), dimension: dim, metric: 'count' })
@@ -118,11 +130,15 @@ export const useConfigStore = defineStore('config', () => {
     const base = _autoBase()
     if (!base) return
     const { ds, metricCols, excluded } = base
-    const cols = ds.headers.filter((h) => !excluded.has(h))
+    // Phase 4: 有关联表时使用跨表合并后的列头，确保与 Dashboard 显示一致
+    const effectiveHeaders = dataStore.hasRelations
+      ? dataStore.effectiveHeaders.filter((h) => !excluded.has(h))
+      : ds.headers.filter((h) => !excluded.has(h))
+    const cols = effectiveHeaders
     // 预设合计：数值列默认求和，维度/日期列默认唯一计数
     const summaryAggs: Record<string, string> = {}
     for (const h of cols) {
-      const cls = ds.classifications[h]
+      const cls = dataStore.getEffectiveClassification(h) || ds.classifications[h]
       if (cls?.type === 'numeric') summaryAggs[h] = 'sum'
       else if (cls?.role === 'dimension' || cls?.type === 'date') summaryAggs[h] = 'unique_count'
     }
@@ -431,7 +447,7 @@ export const useConfigStore = defineStore('config', () => {
   /** 导出完整配置（DashboardConfig + 多表关系 + 表元数据） */
   function exportFullConfig(): string {
     const ds = dataStore
-    const tableMeta = Array.from(ds.tables.entries()).map(([id, t]) => ({
+    const tableMeta = Object.entries(ds.tables).map(([id, t]) => ({
       id,
       name: t.fileName || t.sheetName || '未命名',
       filePath: t.filePath,

@@ -25,14 +25,16 @@
       <!-- 智能推荐 -->
       <div v-if="suggestions.length > 0" class="suggestions-bar">
         <span class="suggest-label">💡 {{ t('upload.suggestedJoins') }}:</span>
-        <button
-          v-for="(s, i) in suggestions.slice(0, 3)"
-          :key="i"
-          class="suggest-chip"
-          @click="applySuggestion(s)"
-        >
-          {{ s.leftTableName }}.{{ s.leftColumn }} ↔ {{ s.rightTableName }}.{{ s.rightColumn }}
-        </button>
+        <div class="suggest-chips">
+          <button
+            v-for="(s, i) in suggestions.slice(0, 3)"
+            :key="i"
+            class="suggest-chip"
+            @click="applySuggestion(s)"
+          >
+            {{ s.leftTableName }}.{{ s.leftColumn }} ↔ {{ s.rightTableName }}.{{ s.rightColumn }}
+          </button>
+        </div>
       </div>
 
       <!-- 已有关联列表 -->
@@ -41,6 +43,7 @@
           v-for="rel in dataStore.relations"
           :key="rel.id"
           class="relation-card"
+          :class="{ editing: editingId === rel.id }"
         >
           <div class="rel-info">
             <span class="rel-table">{{ getTableName(rel.leftTableId) }}</span>
@@ -51,16 +54,19 @@
             <span class="rel-table">{{ getTableName(rel.rightTableId) }}</span>
             <span class="rel-col">.{{ rel.rightColumn }}</span>
           </div>
-          <button class="btn-icon btn-delete" @click="dataStore.removeRelation(rel.id)">✕</button>
+          <div class="rel-actions">
+            <button class="btn-icon btn-edit" @click="startEdit(rel)" :title="t('config.edit')">✎</button>
+            <button class="btn-icon btn-delete" @click="dataStore.removeRelation(rel.id)">✕</button>
+          </div>
         </div>
         <div v-if="dataStore.relations.length === 0" class="relation-empty">
           <p>{{ t('upload.noRelations') }}</p>
         </div>
       </div>
 
-      <!-- 新建关联表单 -->
+      <!-- 新建/编辑关联表单 -->
       <div class="relation-form">
-        <h4>{{ showForm ? t('upload.newRelation') : '' }}</h4>
+        <h4>{{ showForm ? (editingId ? t('upload.editRelation') : t('upload.newRelation')) : '' }}</h4>
         <button v-if="!showForm" class="btn btn-primary" @click="showForm = true">
           + {{ t('upload.addRelation') }}
         </button>
@@ -126,7 +132,7 @@
               {{ t('upload.previewJoin') }}
             </button>
             <button class="btn btn-primary" @click="submitRelation" :disabled="!canSubmit">
-              {{ t('upload.confirmRelation') }}
+              {{ editingId ? t('upload.updateRelation') : t('upload.confirmRelation') }}
             </button>
           </div>
 
@@ -173,6 +179,7 @@ const dataStore = useDataStore()
 
 // ── 表单状态 ──
 const showForm = ref(false)
+const editingId = ref<string | null>(null)
 
 interface RelationForm {
   leftTableId: string
@@ -204,9 +211,9 @@ const cardinalityWarning = ref('')
 // ── 智能推荐 ──
 const suggestions = computed<JoinSuggestion[]>(() => {
   if (dataStore.tableCount < 2) return []
-  const tables = new Map<string, { name: string; headers: string[] }>()
-  for (const [id, ds] of dataStore.tables) {
-    tables.set(id, { name: ds.fileName || ds.sheetName || '未命名', headers: ds.headers })
+  const tables: Record<string, { name: string; headers: string[] }> = {}
+  for (const [id, ds] of Object.entries(dataStore.tables)) {
+    tables[id] = { name: ds.fileName || ds.sheetName || '未命名', headers: ds.headers }
   }
   return suggestJoins(tables)
 })
@@ -214,12 +221,12 @@ const suggestions = computed<JoinSuggestion[]>(() => {
 // ── 列下拉选项 ──
 const leftColumns = computed(() => {
   if (!form.value.leftTableId) return []
-  const ds = dataStore.tables.get(form.value.leftTableId)
+  const ds = dataStore.tables[form.value.leftTableId]
   return ds?.headers ?? []
 })
 const rightColumns = computed(() => {
   if (!form.value.rightTableId) return []
-  const ds = dataStore.tables.get(form.value.rightTableId)
+  const ds = dataStore.tables[form.value.rightTableId]
   return ds?.headers ?? []
 })
 
@@ -243,7 +250,22 @@ function onRightTableChange() {
 
 function resetForm() {
   showForm.value = false
+  editingId.value = null
   form.value = { leftTableId: '', leftColumn: '', rightTableId: '', rightColumn: '', joinType: 'left' }
+  previewData.value = null
+  cardinalityWarning.value = ''
+}
+
+function startEdit(rel: { id: string; leftTableId: string; leftColumn: string; rightTableId: string; rightColumn: string; joinType: string }) {
+  editingId.value = rel.id
+  form.value = {
+    leftTableId: rel.leftTableId,
+    leftColumn: rel.leftColumn,
+    rightTableId: rel.rightTableId,
+    rightColumn: rel.rightColumn,
+    joinType: rel.joinType as 'left' | 'inner' | 'right' | 'outer',
+  }
+  showForm.value = true
   previewData.value = null
   cardinalityWarning.value = ''
 }
@@ -258,8 +280,8 @@ function applySuggestion(s: JoinSuggestion) {
 
 // ── 基数检测 ──
 function detectCardinality(): string {
-  const leftDs = dataStore.tables.get(form.value.leftTableId)
-  const rightDs = dataStore.tables.get(form.value.rightTableId)
+  const leftDs = dataStore.tables[form.value.leftTableId]
+  const rightDs = dataStore.tables[form.value.rightTableId]
   if (!leftDs || !rightDs) return ''
 
   const leftVals = new Set(leftDs.rows.map(r => String(r[form.value.leftColumn] ?? '')))
@@ -298,8 +320,8 @@ async function previewJoin() {
       }
     } else {
       // 浏览器环境：简单模拟（只显示两表字段列表）
-      const leftDs = dataStore.tables.get(form.value.leftTableId)
-      const rightDs = dataStore.tables.get(form.value.rightTableId)
+      const leftDs = dataStore.tables[form.value.leftTableId]
+      const rightDs = dataStore.tables[form.value.rightTableId]
       if (leftDs && rightDs) {
         previewData.value = {
           columns: [
@@ -322,19 +344,24 @@ async function previewJoin() {
 // ── 提交关联 ──
 function submitRelation() {
   if (!canSubmit.value) return
-  dataStore.addRelation({
+  const relData = {
     leftTableId: form.value.leftTableId,
     leftColumn: form.value.leftColumn,
     rightTableId: form.value.rightTableId,
     rightColumn: form.value.rightColumn,
     joinType: form.value.joinType,
-  })
+  }
+  if (editingId.value) {
+    dataStore.updateRelation(editingId.value, relData)
+  } else {
+    dataStore.addRelation(relData)
+  }
   resetForm()
 }
 
 // 工具函数
 function getTableName(id: string): string {
-  const ds = dataStore.tables.get(id)
+  const ds = dataStore.tables[id]
   return ds?.fileName || ds?.sheetName || '未命名'
 }
 </script>
@@ -363,7 +390,7 @@ function getTableName(id: string): string {
   align-items: center;
   gap: 12px;
   padding: 24px;
-  background: var(--bg-secondary, #f9fafb);
+  background: var(--bg-hover);
   border-radius: 12px;
   justify-content: center;
   color: var(--text-tertiary);
@@ -383,7 +410,7 @@ function getTableName(id: string): string {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: var(--bg-secondary, #f9fafb);
+  background: var(--bg-hover);
   border-radius: 8px;
   font-size: 13px;
 }
@@ -394,16 +421,20 @@ function getTableName(id: string): string {
 /* ── 智能推荐 ── */
 .suggestions-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 12px;
   background: #fefce8;
   border: 1px solid #fde68a;
   border-radius: 8px;
   font-size: 12px;
 }
-.suggest-label { font-weight: 500; color: #92400e; white-space: nowrap; }
+.suggest-label { font-weight: 500; color: #92400e; }
+.suggest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .suggest-chip {
   background: #fef3c7;
   border: 1px solid #fcd34d;
@@ -438,6 +469,10 @@ function getTableName(id: string): string {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+.relation-card.editing {
+  border-color: var(--primary);
+  background: #f0f7ff;
+}
 .rel-info {
   display: flex;
   align-items: center;
@@ -460,6 +495,17 @@ function getTableName(id: string): string {
 .rel-type.inner { background: #d1fae5; color: #065f46; }
 .rel-type.right { background: #fef3c7; color: #92400e; }
 .rel-type.outer { background: #ede9fe; color: #5b21b6; }
+.rel-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-edit {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-tertiary); padding: 2px 6px;
+  border-radius: 4px; font-size: 12px;
+}
+.btn-edit:hover { color: var(--primary); background: #eff6ff; }
 .btn-delete {
   background: none; border: none; cursor: pointer;
   color: var(--text-tertiary); padding: 2px 6px;
@@ -475,7 +521,7 @@ function getTableName(id: string): string {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background: var(--bg-secondary, #f9fafb);
+  background: var(--bg-hover);
   border-radius: 10px;
   border: 1px solid var(--border);
 }
@@ -590,7 +636,7 @@ function getTableName(id: string): string {
   white-space: nowrap;
 }
 .preview-table th {
-  background: var(--bg-secondary, #f9fafb);
+  background: var(--bg-hover);
   font-weight: 500;
 }
 </style>

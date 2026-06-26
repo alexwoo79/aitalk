@@ -340,12 +340,15 @@ const showColPicker = ref(false)
 const tableSearch = ref('')
 const tableCondition = ref('')
 
-// Available columns from the dataset
-const allColumns = computed(() => dataStore.dataSet?.headers ?? [])
+// Available columns from the dataset (includes merged cross-table columns when relations exist)
+const allColumns = computed(() => {
+  if (dataStore.hasRelations) return previewStore.effectiveHeaders
+  return dataStore.dataSet?.headers ?? []
+})
 
 /** 判断列是否为数值类型（数值列用 > <，非数值列用 in ~） */
 function isNumericCol(col: string): boolean {
-  return dataStore.dataSet?.classifications[col]?.type === 'numeric'
+  return (dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col])?.type === 'numeric'
 }
 
 // Initialize table state from spec
@@ -878,7 +881,7 @@ function formatKpiValue(value: number, format: string, prefix: string, unit?: st
 // ====== Table cell formatting ======
 function formatCellValue(val: string | number | undefined, col: string): string {
   if (val === undefined || val === null || val === '') return '—'
-  const cls = dataStore.dataSet?.classifications[col]
+  const cls = dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col]
   if (cls?.type === 'numeric' && cls.role === 'metric') {
     const n = getNumericVal(val)
     if (!isNaN(n)) {
@@ -1055,7 +1058,7 @@ const summaryValues = computed(() => {
 function formatSummaryValue(col: string): string {
   const val = summaryValues.value[col]
   if (val === undefined) return '—'
-  const cls = dataStore.dataSet?.classifications[col]
+  const cls = dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col]
   const agg = spec.value?.table?.summaryAggs?.[col]
   if (agg === 'count' || agg === 'unique_count') return String(val)
   if (cls?.type === 'numeric') {
@@ -1128,6 +1131,7 @@ function filteredChartRows(chart: { filter?: string }): Record<string, string | 
 }
 
 const allHeaders = computed(() => {
+  if (dataStore.hasRelations) return previewStore.effectiveHeaders.filter((h) => !dataStore.excludedColumns.has(h))
   const ds = dataStore.dataSet
   if (!ds) return []
   return ds.headers.filter((h) => !dataStore.excludedColumns.has(h))
@@ -1136,7 +1140,11 @@ const allHeaders = computed(() => {
 const allMetricCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
+  const headers = dataStore.hasRelations ? allHeaders.value : ds.headers
+  return headers.filter((h) => {
+    const cls = dataStore.getEffectiveClassification(h) || ds.classifications[h]
+    return cls?.role === 'metric' && !dataStore.excludedColumns.has(h)
+  })
 })
 
 function isAnalysisChart(chart: ChartSpec): boolean {

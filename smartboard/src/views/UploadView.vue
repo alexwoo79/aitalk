@@ -1,51 +1,6 @@
 <template>
-  <!-- 多表模式：左侧表列表 + 右侧工作区 -->
-  <div v-if="dataStore.tableCount > 0" class="upload-view multi-table">
-    <TableListPanel />
-    <div class="workspace">
-      <!-- Tab 切换 -->
-      <div class="workspace-tabs">
-        <button
-          class="tab-btn"
-          :class="{ active: activeTab === 'preview' }"
-          @click="activeTab = 'preview'"
-        >{{ t('upload.tabPreview') }}</button>
-        <button
-          class="tab-btn"
-          :class="{ active: activeTab === 'relation' }"
-          @click="activeTab = 'relation'"
-        >{{ t('upload.tabRelation') }}</button>
-      </div>
-
-      <!-- 预览 Tab -->
-      <div v-if="activeTab === 'preview'" class="tab-content">
-        <div class="upload-inline">
-          <FileUploader @loaded="onFileLoaded" />
-        </div>
-
-        <div v-if="dataStore.loading" class="loading">
-          <div class="spinner"></div>
-          <span>{{ t('upload.parsing') }}</span>
-        </div>
-
-        <div v-if="dataStore.error" class="error-banner">
-          <span>{{ dataStore.error }}</span>
-          <button class="btn" @click="dataStore.clearData()">{{ t('common.close') }}</button>
-        </div>
-
-        <DataPreview v-if="dataStore.dataSet" :data-set="dataStore.dataSet"
-          @next="goToConfig" @toggleExclude="onToggleExclude" />
-      </div>
-
-      <!-- 关联 Tab -->
-      <div v-if="activeTab === 'relation'" class="tab-content">
-        <RelationConfig />
-      </div>
-    </div>
-  </div>
-
-  <!-- 单表模式：经典上传界面 -->
-  <div v-else class="upload-view">
+  <div class="upload-view">
+    <!-- 上传区域（始终可见） -->
     <div class="upload-section">
       <h2>{{ t('upload.title') }}</h2>
       <p class="subtitle">{{ t('upload.subtitle') }}</p>
@@ -85,18 +40,61 @@
       <FileUploader @loaded="onFileLoaded" />
     </div>
 
+    <!-- 加载 / 错误状态 -->
     <div v-if="dataStore.loading" class="loading">
       <div class="spinner"></div>
       <span>{{ t('upload.parsing') }}</span>
     </div>
-
     <div v-if="dataStore.error" class="error-banner">
       <span>{{ dataStore.error }}</span>
       <button class="btn" @click="dataStore.clearData()">{{ t('common.close') }}</button>
     </div>
 
-    <DataPreview v-if="dataStore.dataSet" :data-set="dataStore.dataSet" @next="goToConfig"
-      @toggleExclude="onToggleExclude" />
+    <!-- 数据预览区（有数据时显示） -->
+    <template v-if="dataStore.dataSet">
+      <!-- Tab 栏：表名 + 关联 -->
+      <div class="table-tabs">
+        <button
+          v-for="table in dataStore.tableList"
+          :key="table.id"
+          class="table-tab"
+          :class="{ active: table.isActive }"
+          @click="switchTable(table.id)"
+        >
+          <span class="tab-table-name">{{ table.name }}</span>
+          <button
+            class="tab-remove"
+            :title="t('upload.removeTable')"
+            @click.stop="dataStore.removeTable(table.id)"
+          >✕</button>
+        </button>
+        <button
+          v-if="dataStore.tableCount > 1"
+          class="table-tab"
+          :class="{ active: activeTab === 'relation' }"
+          @click="activeTab = 'relation'"
+        >{{ t('upload.tabRelation') }}</button>
+      </div>
+
+      <!-- 关联 Tab 内容 -->
+      <div v-if="activeTab === 'relation' && dataStore.tableCount > 1" class="tab-body">
+        <RelationConfig />
+      </div>
+
+      <!-- 数据预览 Tab 内容 -->
+      <div v-else class="tab-body">
+        <DataPreview :data-set="dataStore.dataSet!" @next="goToConfig" @toggleExclude="onToggleExclude" />
+      </div>
+    </template>
+
+    <!-- Excel 多 Sheet 选择弹窗 -->
+    <SheetSelector
+      :visible="!!dataStore.pendingSheetSelection"
+      :file-name="dataStore.pendingSheetSelection?.filePath?.replace(/^.*[/\\]/, '') ?? ''"
+      :sheets="dataStore.pendingSheetSelection?.sheets ?? []"
+      @confirm="onSheetsConfirmed"
+      @cancel="dataStore.cancelSheetSelection()"
+    />
   </div>
 </template>
 
@@ -110,16 +108,22 @@ import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import FileUploader from '@/components/upload/FileUploader.vue'
 import DataPreview from '@/components/upload/DataPreview.vue'
-import TableListPanel from '@/components/upload/TableListPanel.vue'
 import RelationConfig from '@/components/upload/RelationConfig.vue'
+import SheetSelector from '@/components/upload/SheetSelector.vue'
 
 const router = useRouter()
 const { t, locale } = useI18n()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
 
-// Tab state for multi-table mode
-const activeTab = ref<'preview' | 'relation'>('preview')
+// Tab state: 默认预览，多表时可切换到「关联」
+const activeTab = ref<'data' | 'relation'>('data')
+
+// 切换表时回到数据预览
+function switchTable(id: string) {
+  dataStore.switchTable(id)
+  activeTab.value = 'data'
+}
 
 // Data quality tips: shown by default on first visit, toggleable
 const TIPS_STORAGE_KEY = 'smartboard-tips-dismissed'
@@ -148,6 +152,10 @@ function onToggleExclude() {
 
 function goToConfig() {
   router.push('/config')
+}
+
+function onSheetsConfirmed(indices: number[]) {
+  dataStore.loadSelectedSheets(indices)
 }
 
 // Sample CSV data embedded for offline download (Tauri-compatible)
@@ -287,76 +295,14 @@ async function downloadSample() {
 
 <style scoped>
 .upload-view {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
-/* ── 多表模式布局 ── */
-.upload-view.multi-table {
-  display: flex;
-  max-width: none;
-  height: calc(100vh - 56px); /* 减去顶部导航高度 */
-  margin: 0;
-}
-
-.workspace {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.workspace-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  padding: 0 16px;
-  gap: 0;
-  flex-shrink: 0;
-}
-
-.tab-btn {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 10px 20px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.tab-btn:hover {
-  color: var(--text-primary);
-}
-
-.tab-btn.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-  font-weight: 500;
-}
-
-.tab-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-}
-
-.upload-inline {
-  margin-bottom: 16px;
-}
-
-.upload-inline .file-uploader {
-  padding: 16px;
-  border: 2px dashed var(--border);
-  border-radius: 8px;
-}
-
-/* ── 单表模式（保持不变） ── */
-
+/* ── 上传区域 ── */
 .upload-section {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .upload-section h2 {
@@ -370,6 +316,7 @@ async function downloadSample() {
   font-size: 14px;
 }
 
+/* ── 加载 / 错误 ── */
 .loading {
   display: flex;
   align-items: center;
@@ -377,6 +324,184 @@ async function downloadSample() {
   gap: 12px;
   padding: 48px;
   color: var(--text-secondary);
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--error);
+  border-radius: var(--radius);
+  background: var(--bg-error);
+  color: var(--error);
+  font-size: 13px;
+}
+
+
+/* ── Tab 栏 ── */
+.table-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 16px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.table-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.table-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.table-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 500;
+}
+
+.tab-table-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-table-meta {
+  font-size: 11px;
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.tab-remove {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.table-tab:hover .tab-remove {
+  opacity: 0.6;
+}
+
+.tab-remove:hover {
+  opacity: 1 !important;
+  color: var(--error);
+  background: var(--bg-error);
+}
+
+/* ── Tab 内容 ── */
+.tab-body {
+  min-height: 200px;
+}
+
+/* ── 提示面板 ── */
+.tips-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tips-toggle {
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.tips-arrow {
+  font-size: 10px;
+}
+
+.sample-download {
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sample-download:hover {
+  color: var(--primary);
+}
+
+.tips-panel {
+  max-width: 560px;
+  margin: 0 auto 16px;
+  padding: 14px 18px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #92400e;
+  text-align: left;
+}
+
+:root[data-theme="dark"] .tips-panel {
+  background: #292524;
+  border-color: #78350f;
+  color: #fde68a;
+}
+
+.tips-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.tips-subtitle {
+  font-weight: 600;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.tips-list {
+  list-style: disc;
+  padding-left: 18px;
+  margin: 0;
+}
+
+.tips-list li {
+  margin-bottom: 2px;
+}
+
+.tips-list-secondary {
+  list-style: circle;
+  opacity: 0.75;
+}
+
+.tips-got-it {
+  margin-top: 8px;
 }
 
 .spinner {
@@ -389,167 +514,7 @@ async function downloadSample() {
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.error-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--bg-error);
-  color: var(--text-error);
-  border-radius: 8px;
-  margin-bottom: 24px;
-}
-
-/* Data Quality Tips */
-.tips-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.tips-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: 1px dashed var(--border);
-  border-radius: 20px;
-  padding: 6px 16px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.tips-toggle:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--primary-light, #eff6ff);
-}
-
-.tips-arrow {
-  font-size: 10px;
-  transition: transform 0.2s;
-}
-
-.sample-download {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: 1px dashed var(--border);
-  border-radius: 20px;
-  padding: 6px 16px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s;
-}
-
-.sample-download:active {
-  cursor: pointer;
-}
-
-.sample-download:hover {
-  border-color: #16a34a;
-  color: #16a34a;
-  background: #f0fdf4;
-}
-
-.sheet-selector {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.tips-panel {
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fffbeb 100%);
-  border: 1px solid #fcd34d;
-  border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 20px;
-  text-align: left;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-  box-shadow: 0 2px 12px rgba(251, 191, 36, 0.12);
-}
-
-.tips-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #92400e;
-  margin: 0 0 12px 0;
-}
-
-.tips-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 12px 0;
-}
-
-.tips-list li {
-  position: relative;
-  padding: 5px 0 5px 8px;
-  font-size: 13px;
-  color: #78350f;
-  line-height: 1.6;
-}
-
-.tips-list-secondary {
-  margin-top: 2px;
-}
-
-.tips-list-secondary li {
-  color: #a16207;
-  font-size: 12px;
-}
-
-.tips-subtitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: #92400e;
-  margin: 14px 0 6px 0;
-}
-
-.tips-got-it {
-  margin-top: 12px;
-  width: 100%;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .tips-panel {
-    background: linear-gradient(135deg, #292524 0%, #1c1917 50%, #292524 100%);
-    border-color: #78350f;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-  }
-
-  .tips-title,
-  .tips-subtitle {
-    color: #fcd34d;
-  }
-
-  .tips-list li {
-    color: #fde68a;
-  }
-
-  .tips-list-secondary li {
-    color: #fbbf24;
-  }
+  to { transform: rotate(360deg); }
 }
 </style>
+

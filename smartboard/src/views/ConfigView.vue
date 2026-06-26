@@ -1,8 +1,13 @@
 <template>
   <div class="config-view">
-    <div v-if="!dataStore.dataSet" class="no-data">
+    <div v-if="!dataStore.dataSet && dataStore.tableCount === 0" class="no-data">
       <p>{{ t('config.noData') }}</p>
       <button class="btn btn-sm btn-primary" @click="$router.push('/')">{{ t('config.backToUpload') }}</button>
+    </div>
+
+    <div v-else-if="!dataStore.dataSet && dataStore.tableCount > 0" class="no-data">
+      <p>数据加载中...</p>
+      <button class="btn btn-sm btn-primary" @click="recoverData">{{ t('common.confirm') }}</button>
     </div>
 
     <template v-else>
@@ -323,7 +328,7 @@
                       <span class="tct-icon">{{ roleIcon(effRole(col)) }}</span>
                       {{ col }}
                     </span>
-                    <span class="tct-col-type">{{ typeLabel(dataStore.dataSet?.classifications[col]?.type) }}</span>
+                    <span class="tct-col-type">{{ typeLabel((dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col])?.type) }}</span>
                     <span class="tct-col-role" @click.stop="cycleRole(col)">{{ roleLabel(effRole(col)) }}
                       <span class="role-edit-hint">🖉</span>
                     </span>
@@ -358,7 +363,7 @@
                       </select>
                     </span>
                     <span class="tct-col-rules" @click.stop>
-                      <button v-if="dataStore.dataSet?.classifications[col]?.type === 'numeric'" class="tct-rule-toggle"
+                      <button v-if="isNumericCol(col)" class="tct-rule-toggle"
                         :class="{ active: expandedColRules.has(col) }" @click="toggleColRules(col)"
                         :title="t('config.columnTextRule')">
                         <span v-if="ruleCount(col)" class="tct-rule-count">{{ ruleCount(col) }}</span>
@@ -372,7 +377,7 @@
                     </span>
                   </div>
                   <!-- 列条件着色规则展开行 -->
-                  <div v-if="expandedColRules.has(col) && dataStore.dataSet?.classifications[col]?.type === 'numeric'"
+                  <div v-if="expandedColRules.has(col) && isNumericCol(col)"
                     class="tct-rule-expand" @click.stop>
                     <div v-for="(rule, ri) in (configStore.config.table.columnTextRules?.[col] || [])" :key="ri"
                       class="tct-rule-row">
@@ -1068,20 +1073,25 @@ function onPointerUp(e: PointerEvent) {
 const numericCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.type === 'numeric' && effRole(h) === 'metric' && !dataStore.excludedColumns.has(h))
+  const headers = dataStore.hasRelations ? allHeaders.value : ds.headers
+  return headers.filter((h) => {
+    const cls = dataStore.getEffectiveClassification(h) || ds.classifications[h]
+    return cls?.type === 'numeric' && effRole(h) === 'metric' && !dataStore.excludedColumns.has(h)
+  })
 })
 
 const dimensionCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter(
+  const headers = dataStore.hasRelations ? allHeaders.value : ds.headers
+  return headers.filter(
     (h) => effRole(h) === 'dimension' && !dataStore.excludedColumns.has(h),
   )
 })
 
 const allHeaders = computed(() => {
-  // Phase 4: 多表时使用跨表字段列表
-  if (dataStore.hasRelations) return dataStore.allFieldOptions
+  // Phase 4: 多表时使用预览存储的有效列头（与 buildEffectiveDS 一致）
+  if (dataStore.hasRelations) return previewStore.effectiveHeaders
   return dataStore.dataSet?.headers ?? []
 })
 
@@ -1092,7 +1102,7 @@ const filterableColumns = computed(() =>
 
 /** 判断列是否为数值类型（数值列用 > < >= <=，非数值列用 in ~） */
 function isNumericCol(col: string): boolean {
-  return dataStore.dataSet?.classifications[col]?.type === 'numeric'
+  return (dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col])?.type === 'numeric'
 }
 
 // Role cycling (same as DataPreview)
@@ -1202,6 +1212,8 @@ const allNumericCols = computed(() => {
 const allDataCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
+  // Phase 4: 有关联表时返回跨表合并列，否则返回活跃表列
+  if (dataStore.hasRelations) return allHeaders.value.filter((h) => !dataStore.excludedColumns.has(h))
   return ds.headers.filter((h) => !dataStore.excludedColumns.has(h))
 })
 
@@ -1320,6 +1332,14 @@ function cancelKpiEdit() {
   showKpiEditor.value = false
 }
 
+// Phase 5: 数据恢复（从 tables 中恢复 dataSet）
+function recoverData() {
+  const keys = Object.keys(dataStore.tables)
+  if (keys.length > 0) {
+    dataStore.switchTable(keys[0])
+  }
+}
+
 function goToDashboard() {
   router.push('/dashboard')
 }
@@ -1346,7 +1366,12 @@ const chartForm = reactive({
 })
 
 function effRole(col: string): string {
-  return roleOverrides.value[col] || dataStore.dataSet?.classifications[col]?.role || 'ignore'
+  const override = roleOverrides.value[col]
+  if (override) return override
+  // 跨表列：优先用 getEffectiveClassification 查找所有表的分类
+  const cls = dataStore.getEffectiveClassification(col)
+  if (cls?.role) return cls.role
+  return dataStore.dataSet?.classifications[col]?.role || 'ignore'
 }
 
 const allMetricCols = computed(() => {
@@ -1354,13 +1379,21 @@ const allMetricCols = computed(() => {
   if (!ds) return []
   // Touch roleOverrides.value to ensure computed re-runs on change
   const ro = roleOverrides.value
-  return ds.headers.filter((h) => (ro[h] || ds.classifications[h]?.role) === 'metric' && !dataStore.excludedColumns.has(h))
+  const headers = dataStore.hasRelations ? allHeaders.value : ds.headers
+  return headers.filter((h) => {
+    const cls = dataStore.getEffectiveClassification(h) || ds.classifications[h]
+    return (ro[h] || cls?.role) === 'metric' && !dataStore.excludedColumns.has(h)
+  })
 })
 
 const dateCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
-  return ds.headers.filter((h) => ds.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
+  const headers = dataStore.hasRelations ? allHeaders.value : ds.headers
+  return headers.filter((h) => {
+    const cls = dataStore.getEffectiveClassification(h) || ds.classifications[h]
+    return cls?.type === 'date' && !dataStore.excludedColumns.has(h)
+  })
 })
 
 // ====== Chart selection ======

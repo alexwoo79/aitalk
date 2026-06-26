@@ -9,7 +9,7 @@ use calamine::{open_workbook_auto, Data as XlDataType, Reader};
 use polars::prelude::*;
 use std::path::Path;
 
-use crate::commands::loader::auto_cast_numeric;
+use crate::commands::loader::{auto_cast_numeric, cell_to_string, is_date_column_name};
 use crate::df_util::{df_to_payload, PREVIEW_LIMIT};
 use crate::state::{register_dataset, replace_active_dataframe};
 use crate::types::{ApiResult, ChartPayload, SheetInfo};
@@ -73,6 +73,10 @@ pub fn list_sheets_impl(path: &str) -> Result<Vec<SheetInfo>> {
                     .next()
                     .map(|r| r.len())
                     .unwrap_or(0);
+                // 过滤掉少于 2 行的工作表（无数据或仅有表头）
+                if rows < 2 {
+                    continue;
+                }
                 sheets.push(SheetInfo {
                     name: name.clone(),
                     index,
@@ -131,6 +135,12 @@ pub fn load_sheet_impl(path: &str, sheet_index: usize) -> Result<DataFrame> {
         })
         .collect();
 
+    // Pre-compute which columns are date columns by name heuristic
+    let date_col_mask: Vec<bool> = headers
+        .iter()
+        .map(|h| is_date_column_name(h))
+        .collect();
+
     let mut columns: Vec<Vec<String>> = headers.iter().map(|_| Vec::new()).collect();
 
     for row in iter {
@@ -138,23 +148,8 @@ pub fn load_sheet_impl(path: &str, sheet_index: usize) -> Result<DataFrame> {
             if col_idx >= columns.len() {
                 break;
             }
-            let val = match cell {
-                XlDataType::String(s) => s.clone(),
-                XlDataType::Float(f) => {
-                    if *f == f.trunc() && f.abs() < 1e15 {
-                        format!("{}", *f as i64)
-                    } else {
-                        format!("{}", f)
-                    }
-                }
-                XlDataType::Int(i) => format!("{}", i),
-                XlDataType::Bool(b) => format!("{}", b),
-                XlDataType::DateTime(d) => d.to_string(),
-                XlDataType::DateTimeIso(d) => d.to_string(),
-                XlDataType::DurationIso(d) => d.to_string(),
-                XlDataType::Empty => String::new(),
-                XlDataType::Error(_) => String::new(),
-            };
+            let is_date_col = date_col_mask.get(col_idx).copied().unwrap_or(false);
+            let val = cell_to_string(cell, is_date_col);
             columns[col_idx].push(val);
         }
         for col_idx in row.len()..columns.len() {

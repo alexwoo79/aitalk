@@ -1,0 +1,227 @@
+{
+  "version": 2,
+  "config": {
+    "title": "收入类台账 分析看板",
+    "kpis": [
+      {
+        "column": "合同总金额",
+        "label": "合同总金额",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      },
+      {
+        "column": "外委合同额",
+        "label": "外委合同额",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      }
+    ],
+    "filters": [
+      "区域"
+    ],
+    "charts": [
+      {
+        "id": "5a141499-b62d-4965-b604-f25ef3e0fdc3",
+        "type": "horizontal_bar",
+        "title": "区域 排行",
+        "dimension": "区域",
+        "metric": "合同总金额",
+        "metrics": [
+          "合同总金额"
+        ],
+        "selected": true
+      },
+      {
+        "id": "110a61d1-746b-4d6e-818b-44f84f53ab33",
+        "type": "histogram",
+        "title": "合同总金额 分布",
+        "metric": "合同总金额",
+        "selected": true
+      },
+      {
+        "id": "e58eac53-342f-40c9-8685-0ebc6ff31da6",
+        "type": "line",
+        "title": "合同总金额 月度趋势",
+        "dateColumn": "签订日期",
+        "metric": "合同总金额",
+        "selected": true
+      },
+      {
+        "id": "4ea4579d-a23b-4f08-97be-9d87e7f8aa95",
+        "type": "timeseries",
+        "title": "合同总金额 时序分析",
+        "dateColumn": "签订日期",
+        "metric": "合同总金额",
+        "selected": true
+      },
+      {
+        "id": "f42e6f3e-b6c3-4bf1-a26b-84d26e394e57",
+        "type": "decile",
+        "title": "合同总金额 十分位分析",
+        "metric": "合同总金额",
+        "selected": true
+      },
+      {
+        "id": "ed6c39c5-aa6d-45f6-897b-ba116acb42a6",
+        "type": "cluster",
+        "title": "聚类分析",
+        "metrics": [
+          "合同总金额",
+          "外委合同额"
+        ],
+        "clusterMetrics": [
+          "合同总金额",
+          "外委合同额"
+        ],
+        "k": 3,
+        "selected": true
+      }
+    ],
+    "table": {
+      "sortBy": "合同总金额",
+      "columns": [
+        "区域",
+        "签订日期",
+        "项目名称",
+        "合同名称",
+        "合同编号",
+        "甲方单位名称",
+        "合同总金额",
+        "乙方单位名称",
+        "外委合同额"
+      ],
+      "summaryAggs": {
+        "区域": "unique_count",
+        "签订日期": "unique_count",
+        "合同总金额": "sum",
+        "支出类台账.签订日期": "unique_count",
+        "外委合同额": "sum"
+      }
+    },
+    "layout": [
+      {
+        "i": "kpi-0",
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "kpi-1",
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "chart-0",
+        "x": 0,
+        "y": 1,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-1",
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-2",
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-3",
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-4",
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-5",
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      }
+    ]
+  },
+  "relations": [
+    {
+      "leftTableId": "mqvau5p44tqhbm",
+      "leftColumn": "区域",
+      "rightTableId": "mqvau5sdb9f25r",
+      "rightColumn": "区域",
+      "joinType": "left"
+    }
+  ],
+  "mainTableId": "mqvau5p44tqhbm",
+  "tableMeta": [
+    {
+      "id": "mqvau5p44tqhbm",
+      "name": "收入类台账",
+      "filePath": "/Users/alex/Documents/github/aitalk/smartboard/test_data/设计业务收入、支出合同-项管(1).xlsx",
+      "sheetName": "收入类台账",
+      "sheetIndex": 0,
+      "headers": [
+        "区域",
+        "签订日期",
+        "项目名称",
+        "合同名称",
+        "合同编号",
+        "甲方单位名称",
+        "合同总金额"
+      ],
+      "rows": 200
+    },
+    {
+      "id": "mqvau5sdb9f25r",
+      "name": "支出类台账",
+      "filePath": "/Users/alex/Documents/github/aitalk/smartboard/test_data/设计业务收入、支出合同-项管(1).xlsx",
+      "sheetName": "支出类台账",
+      "sheetIndex": 1,
+      "headers": [
+        "区域",
+        "签订日期",
+        "项目名称",
+        "合同名称",
+        "合同编号",
+        "乙方单位名称",
+        "外委合同额"
+      ],
+      "rows": 200
+    }
+  ],
+  "exportedAt": "2026-06-26T19:04:55.098Z"
+}
