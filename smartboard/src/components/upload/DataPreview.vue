@@ -26,16 +26,34 @@
           </span>
         </div>
       </div>
+
+      <!-- 数据质量警告 -->
+      <div v-if="dirtyColumns.length > 0" class="quality-warning">
+        <span class="quality-icon">⚠️</span>
+        <span>{{ t('upload.dirtyDataWarning', { count: dirtyColumns.length }) }}</span>
+        <button class="btn-link btn-detail" @click="showQualityDetail = !showQualityDetail">
+          {{ showQualityDetail ? t('common.collapse') : t('common.detail') }}
+        </button>
+        <div v-if="showQualityDetail" class="quality-detail">
+          <div v-for="dc in dirtyColumns" :key="dc.column" class="quality-item">
+            {{ t('upload.dirtyDataDetail', { col: dc.column, count: dc.dirtyCount }) }}
+            <span class="dirty-samples">（示例：{{ dc.samples.join('、') }}）</span>
+          </div>
+        </div>
+      </div>
       <div class="col-grid">
         <div v-for="col in dataSet.headers" :key="col" class="col-card" :class="[
           'role-' + dataSet.classifications[col]?.role,
-          { excluded: dataStore.excludedColumns.has(col) }
+          { excluded: dataStore.excludedColumns.has(col), dirty: isDirty(col) }
         ]" @click="onToggleExclude(col)">
           <div class="col-icon">
             <span>{{ roleIcon(effectiveRole(col)) }}</span>
           </div>
           <div class="col-body">
-            <div class="col-name">{{ col }}</div>
+            <div class="col-name">
+              {{ col }}
+              <span v-if="isDirty(col)" class="dirty-badge" :title="dirtyTitle(col)">⚠️{{ getDirtyCount(col) }}</span>
+            </div>
             <div class="col-meta" @click.stop="cycleRole(col)">
               {{ typeLabel(dataSet.classifications[col]?.type) }} · {{ roleLabel(effectiveRole(col)) }}
               <span class="role-hint">🖉</span>
@@ -82,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { DataSet } from '@/types/data'
 import { useDataStore } from '@/stores/data-store'
 
@@ -94,8 +112,28 @@ defineProps<{ dataSet: DataSet }>()
 const emit = defineEmits<{ next: []; toggleExclude: [] }>()
 
 const dataStore = useDataStore()
+const showQualityDetail = ref(false)
 
 const excludedCount = computed(() => dataStore.excludedColumns.size)
+
+// 脏数据检测
+const dirtyColumns = computed(() => {
+  return dataStore.dataSet?.dataQuality?.dirtyColumns ?? []
+})
+
+function isDirty(col: string): boolean {
+  return dirtyColumns.value.some((dc) => dc.column === col)
+}
+
+function getDirtyCount(col: string): number {
+  return dirtyColumns.value.find((dc) => dc.column === col)?.dirtyCount ?? 0
+}
+
+function dirtyTitle(col: string): string {
+  const dc = dirtyColumns.value.find((dc) => dc.column === col)
+  if (!dc) return ''
+  return t('upload.dirtyDataDetail', { col: dc.column, count: dc.dirtyCount })
+}
 
 const visibleHeaders = computed(() =>
   (dataStore.dataSet?.headers ?? []).filter((h) => !dataStore.excludedColumns.has(h)),
@@ -197,8 +235,12 @@ function truncate(val: string | number | undefined): string {
 }
 
 .file-info h3 {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sheet-sel {
@@ -294,6 +336,68 @@ function truncate(val: string | number | undefined): string {
 
 .btn-link:hover {
   color: var(--primary-hover);
+}
+
+.btn-detail {
+  margin-left: 4px;
+  font-weight: 500;
+}
+
+/* Data quality warning */
+.quality-warning {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: #fff8e1;
+  border: 1px solid #ffc107;
+  font-size: 13px;
+  color: #795548;
+}
+
+.quality-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.quality-detail {
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e0c88e;
+}
+
+.quality-item {
+  font-size: 12px;
+  padding: 3px 0;
+  color: #8d6e63;
+}
+
+.dirty-samples {
+  color: #bcaaa4;
+  font-style: italic;
+}
+
+/* Dirty badge on column card */
+.dirty-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: #fff3cd;
+  color: #856404;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: help;
+}
+
+.col-card.dirty {
+  border-color: #ffc107;
 }
 
 /* Column grid */

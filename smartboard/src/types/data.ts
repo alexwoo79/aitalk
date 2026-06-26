@@ -11,6 +11,8 @@ export interface ColumnClassification {
   dateRatio: number
   stats?: ColumnStats
   topValues?: [string, number][]
+  /** 格式异常但被容忍解析的数量（仅采样范围内） */
+  dirtyCount?: number
 }
 
 /** 数值列统计 */
@@ -22,6 +24,14 @@ export interface ColumnStats {
   count: number
   nonzero: number
   nonzeroRatio: number
+}
+
+/** 数据质量摘要 */
+export interface DataQualitySummary {
+  /** 存在脏数据的列 */
+  dirtyColumns: { column: string; dirtyCount: number; totalCount: number; samples: string[] }[]
+  /** 是否有任何脏数据 */
+  hasIssues: boolean
 }
 
 /** 解析后的数据集 */
@@ -38,6 +48,8 @@ export interface DataSet {
   fileSize?: number
   fileModified?: string
   fileHash?: string
+  /** 数据质量摘要 */
+  dataQuality?: DataQualitySummary
 }
 
 /** 解析原始文件结果（解析后、分类前） */

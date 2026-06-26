@@ -2,15 +2,9 @@
  * 聚合计算 — group-by + sum/avg/count/min/max
  */
 
-type AggFunc = 'sum' | 'avg' | 'count' | 'min' | 'max'
+import { getNumericValue } from './numeric'
 
-function getNumericVal(v: string | number | undefined): number {
-  if (v === undefined || v === null || v === '') return 0
-  if (typeof v === 'number') return v
-  const s = String(v).replace(/,/g, '').replace(/%/g, '').trim()
-  const n = Number(s)
-  return isNaN(n) ? 0 : n
-}
+type AggFunc = 'sum' | 'avg' | 'count' | 'min' | 'max'
 
 export interface AggResult {
   label: string
@@ -31,7 +25,7 @@ export function aggregate(
   for (const row of rows) {
     const key = String(row[dimCol] ?? '').trim()
     if (!key) continue
-    const val = metricCol === 'count' ? 1 : getNumericVal(row[metricCol])
+    const val = metricCol === 'count' ? 1 : getNumericValue(row[metricCol], 0)
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key)!.push(val)
   }
@@ -70,7 +64,7 @@ export function aggregate(
 export function computeColumnStats(values: (string | number)[]): {
   sum: number; avg: number; min: number; max: number; count: number
 } {
-  const nums = values.map(getNumericVal).filter((n) => n !== 0 || values.some((v) => v === 0 || v === '0'))
+  const nums = values.map((v) => getNumericValue(v, 0)).filter((n) => n !== 0 || values.some((v) => v === 0 || v === '0'))
   if (nums.length === 0) return { sum: 0, avg: 0, min: 0, max: 0, count: 0 }
   const sum = nums.reduce((a, b) => a + b, 0)
   return {

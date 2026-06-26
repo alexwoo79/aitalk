@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { DataSet } from '@/types/data'
+import type { DataSet, DataQualitySummary } from '@/types/data'
 import { parseFile } from '@/core/parser'
 import { getXLSXSheetNames, parseXLSXSheet } from '@/core/parser'
 import { classifyAllColumns, selectPrimaryMetric, selectChartDimensions } from '@/core/classifier'
+import { parseNumeric } from '@/core/numeric'
 import { readTextFile, readFile, stat } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-dialog'
 
@@ -36,7 +37,8 @@ export const useDataStore = defineStore('data', () => {
     loading.value = true
     error.value = null
     try {
-      const fileName = filePath.split('/').pop() || filePath
+      // 兼容 Windows (\\) 和 Unix (/) 路径分隔符
+      const fileName = filePath.replace(/^.*[/\\]/, '') || filePath
       const ext = fileName.toLowerCase().split('.').pop()
 
       let parsed
@@ -57,6 +59,9 @@ export const useDataStore = defineStore('data', () => {
       const classifications = classifyAllColumns(parsed.headers, parsed.rows)
       const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
       const chartDimensions = selectChartDimensions(parsed.headers, classifications)
+
+      // 构建数据质量摘要
+      const dataQuality = buildDataQuality(parsed.headers, parsed.rows, classifications)
 
       // 收集文件元数据（大小、修改时间、哈希）
       let fileSize: number | undefined
@@ -85,6 +90,7 @@ export const useDataStore = defineStore('data', () => {
         fileSize,
         fileModified,
         fileHash,
+        dataQuality,
       }
     } catch (e: any) {
       error.value = e.message || '文件加载失败'
@@ -119,6 +125,41 @@ export const useDataStore = defineStore('data', () => {
     roleOverrides.value = { ...roleOverrides.value, [col]: role }
   }
 
+  /**
+   * 扫描全部行，收集存在格式异常的数值列
+   * 每列最多保留 3 个异常样本供 UI 展示
+   */
+  function buildDataQuality(
+    headers: string[],
+    rows: Record<string, string | number>[],
+    classifications: Record<string, any>,
+  ): DataQualitySummary {
+    const dirtyColumns: DataQualitySummary['dirtyColumns'] = []
+    for (const col of headers) {
+      // 只看被分类为 numeric 且有 dirtyCount 的列
+      const cls = classifications[col]
+      if (!cls || cls.type !== 'numeric' || !cls.dirtyCount || cls.dirtyCount === 0) continue
+
+      const samples: string[] = []
+      let dirtyTotal = 0
+      for (const row of rows) {
+        const v = row[col]
+        if (v === undefined || v === null || v === '') continue
+        const { clean, value } = parseNumeric(v)
+        if (!isNaN(value) && !clean) {
+          dirtyTotal++
+          if (samples.length < 3) {
+            samples.push(typeof v === 'number' ? String(v) : String(v))
+          }
+        }
+      }
+      if (dirtyTotal > 0) {
+        dirtyColumns.push({ column: col, dirtyCount: dirtyTotal, totalCount: rows.length, samples })
+      }
+    }
+    return { dirtyColumns, hasIssues: dirtyColumns.length > 0 }
+  }
+
   async function selectSheet(index: number) {
     if (!_xlsxRawData || index >= xlsxSheetNames.value.length) return
     loading.value = true
@@ -128,6 +169,7 @@ export const useDataStore = defineStore('data', () => {
       const classifications = classifyAllColumns(parsed.headers, parsed.rows)
       const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
       const chartDimensions = selectChartDimensions(parsed.headers, classifications)
+      const dataQuality = buildDataQuality(parsed.headers, parsed.rows, classifications)
       const ds = dataSet.value
       dataSet.value = {
         ...ds!,
@@ -137,6 +179,7 @@ export const useDataStore = defineStore('data', () => {
         classifications,
         primaryMetric,
         chartDimensions,
+        dataQuality,
       }
     } catch (e: any) {
       error.value = e.message || 'Sheet 加载失败'

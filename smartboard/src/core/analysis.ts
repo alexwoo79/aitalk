@@ -3,6 +3,8 @@
  * timeseries / decile / cluster (K-means)
  */
 
+import { getNumericOrNaN } from './numeric'
+
 // ====== Timeseries ======
 
 export interface TimeseriesData {
@@ -13,16 +15,6 @@ export interface TimeseriesData {
   yoy: (number | null)[]       // 同比 % (仅月度)
   trend: number[]              // 线性回归趋势
   forecast: { labels: string[]; values: number[] }
-}
-
-function getNumericVal(v: string | number | undefined): number {
-  if (v === undefined || v === null || v === '') return NaN
-  if (typeof v === 'number') return v
-  let s = String(v).trim()
-  if (s.endsWith('%')) s = s.slice(0, -1)
-  s = s.replace(/,/g, '')
-  const n = parseFloat(s)
-  return isNaN(n) ? NaN : n
 }
 
 function getPeriodKey(dateStr: string, period: 'month' | 'quarter' | 'year'): string | null {
@@ -74,7 +66,7 @@ export function computeTimeseries(
     const dv = String(row[dateCol] || '').trim()
     const key = getPeriodKey(dv, period)
     if (!key) continue
-    const v = getNumericVal(row[metricCol])
+    const v = getNumericOrNaN(row[metricCol])
     if (!isNaN(v)) groups[key] = (groups[key] || 0) + v
   }
 
@@ -154,7 +146,7 @@ export function computeDeciles(
   metricCol: string,
 ): DecileData | null {
   const nums = rows
-    .map((r) => getNumericVal(r[metricCol]))
+    .map((r) => getNumericOrNaN(r[metricCol]))
     .filter((n) => !isNaN(n))
     .sort((a, b) => a - b)
 
@@ -209,8 +201,8 @@ export function computeClusters(
   // 提取有效点
   const points: { x: number; y: number; label: string }[] = []
   for (const row of rows) {
-    const x = getNumericVal(row[colX])
-    const y = getNumericVal(row[colY])
+    const x = getNumericOrNaN(row[colX])
+    const y = getNumericOrNaN(row[colY])
     if (!isNaN(x) && !isNaN(y)) {
       // 取第一列文本作为 label
       const label = String(Object.values(row)[0] ?? '')

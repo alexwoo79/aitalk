@@ -47,6 +47,10 @@ export interface KpiSpec {
     variables: { column: string; agg: string; filter?: string }[]
     expression: string
     filter?: string
+    /** 行内计算表达式 */
+    rowExpression?: string
+    /** 行内计算后的聚合方式，默认 sum */
+    rowAgg?: 'sum' | 'avg' | 'min' | 'max' | 'count'
   }
 }
 

@@ -63,10 +63,18 @@ const wrapRef = ref<HTMLElement | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
 const chartRef = ref<InstanceType<typeof VChart> | null>(null)
 let ro: ResizeObserver | null = null
+let _resizePending = false
 
 onMounted(() => {
     if (containerRef.value) {
-        ro = new ResizeObserver(() => chartRef.value?.chart?.resize())
+        ro = new ResizeObserver(() => {
+            if (_resizePending) return
+            _resizePending = true
+            requestAnimationFrame(() => {
+                chartRef.value?.chart?.resize()
+                _resizePending = false
+            })
+        })
         ro.observe(containerRef.value)
     }
 })

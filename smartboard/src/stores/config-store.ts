@@ -52,8 +52,9 @@ export const useConfigStore = defineStore('config', () => {
   function generateAutoFilters() {
     const base = _autoBase()
     if (!base) return
+    // 所有有效角色为 dimension 的列都作为筛选项（含用户手动覆盖的）
     config.value.filters = base.ds.headers.filter(
-      (h) => _effRole(h) === 'dimension' && base.ds.classifications[h]?.type === 'categorical' && !base.excluded.has(h),
+      (h) => _effRole(h) === 'dimension' && !base.excluded.has(h),
     )
   }
 

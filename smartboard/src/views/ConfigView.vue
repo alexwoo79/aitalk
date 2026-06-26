@@ -605,6 +605,31 @@
                 </div>
                 <input v-model="kpiForm.expression" class="input formula-input"
                   placeholder="如: [0] + [1]  或  ([0] - [1]) / [0] * 100" />
+
+                <!-- 行内计算模式 -->
+                <div class="formula-label" style="margin-top:14px">{{ t('config.calcMode') }}</div>
+                <div class="calc-mode-toggle">
+                  <button class="period-btn" :class="{ active: !kpiForm.useRowExpr }"
+                    @click="kpiForm.useRowExpr = false">{{ t('config.calcModePost') }}</button>
+                  <button class="period-btn" :class="{ active: kpiForm.useRowExpr }"
+                    @click="kpiForm.useRowExpr = true">{{ t('config.calcModeRow') }}</button>
+                </div>
+                <div class="calc-mode-hint">{{ kpiForm.useRowExpr ? t('config.calcModeRowHint') :
+                  t('config.calcModePostHint') }}</div>
+
+                <template v-if="kpiForm.useRowExpr">
+                  <div class="formula-label">{{ t('config.rowExpression') }}</div>
+                  <input v-model="kpiForm.rowExpression" class="input formula-input"
+                    :placeholder="t('config.rowExpressionPlaceholder')" />
+                  <div class="formula-label">{{ t('config.rowAgg') }}</div>
+                  <select v-model="kpiForm.rowAgg" class="input select-sm" style="width:120px">
+                    <option value="sum">{{ t('config.aggSum') }}</option>
+                    <option value="avg">{{ t('config.aggAvg') }}</option>
+                    <option value="min">{{ t('config.aggMin') }}</option>
+                    <option value="max">{{ t('config.aggMax') }}</option>
+                    <option value="count">{{ t('config.aggCount') }}</option>
+                  </select>
+                </template>
               </div>
               <div class="editor-grid" style="margin-top:12px">
                 <label>{{ t('common.label') }}</label>
@@ -1106,7 +1131,7 @@ const dimensionCols = computed(() => {
   const ds = dataStore.dataSet
   if (!ds) return []
   return ds.headers.filter(
-    (h) => effRole(h) === 'dimension' && ds.classifications[h]?.type === 'categorical' && !dataStore.excludedColumns.has(h),
+    (h) => effRole(h) === 'dimension' && !dataStore.excludedColumns.has(h),
   )
 })
 
@@ -1211,6 +1236,9 @@ const kpiForm = reactive({
   filter: '',
   variables: [] as KpiVariable[],
   expression: '',
+  useRowExpr: false,
+  rowExpression: '',
+  rowAgg: 'sum' as string,
 })
 
 const allNumericCols = computed(() => {
@@ -1261,6 +1289,9 @@ function openAddKpi() {
   kpiForm.filter = ''
   kpiForm.variables = [{ column: '', agg: 'sum', filter: '' }, { column: '', agg: 'sum', filter: '' }]
   kpiForm.expression = '[0] + [1]'
+  kpiForm.useRowExpr = false
+  kpiForm.rowExpression = ''
+  kpiForm.rowAgg = 'sum'
   showKpiEditor.value = true
 }
 
@@ -1274,6 +1305,9 @@ function openEditKpi(idx: number) {
     kpiForm.filter = kpi.formula.filter || ''
     kpiForm.column = ''
     kpiForm.agg = 'sum'
+    kpiForm.useRowExpr = !!kpi.formula.rowExpression
+    kpiForm.rowExpression = kpi.formula.rowExpression || ''
+    kpiForm.rowAgg = kpi.formula.rowAgg || 'sum'
   } else {
     kpiForm.useFormula = false
     kpiForm.column = kpi.column
@@ -1281,6 +1315,9 @@ function openEditKpi(idx: number) {
     kpiForm.filter = kpi.filter || ''
     kpiForm.variables = [{ column: '', agg: 'sum', filter: '' }, { column: '', agg: 'sum', filter: '' }]
     kpiForm.expression = '[0] + [1]'
+    kpiForm.useRowExpr = false
+    kpiForm.rowExpression = ''
+    kpiForm.rowAgg = 'sum'
   }
   kpiForm.label = kpi.label
   kpiForm.format = kpi.format
@@ -1309,6 +1346,8 @@ function saveKpi() {
       })),
       expression: kpiForm.expression.trim(),
       filter: kpiForm.filter.trim() || undefined,
+      rowExpression: kpiForm.useRowExpr ? kpiForm.rowExpression.trim() || undefined : undefined,
+      rowAgg: kpiForm.useRowExpr ? (kpiForm.rowAgg || 'sum') : undefined,
     }
   } else {
     // 从公式切换为单列时，清除旧的 formula
@@ -2191,6 +2230,20 @@ function cancelChartEdit() {
   font-size: 11px;
   color: var(--text-secondary);
   opacity: 0.7;
+}
+
+.calc-mode-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.calc-mode-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.75;
+  margin-bottom: 10px;
+  line-height: 1.4;
 }
 
 .filter-chips {

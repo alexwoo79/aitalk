@@ -1,4 +1,5 @@
 import type { ColumnClassification, ColumnStats } from '@/types/data'
+import { parseNumeric } from './numeric'
 
 // ====== 日期格式检测 ======
 
@@ -14,14 +15,15 @@ function isDate(val: string): boolean {
   return DATE_PATTERNS.some((p) => p.test(val.trim()))
 }
 
-// ====== 数值解析 ======
+// ====== 数值解析（使用共享容忍式解析） ======
 
+/**
+ * 容忍式 parseNum：能提取数字前缀的值也算作可解析
+ * dirtyCount 用于追踪格式异常的值的个数
+ */
 function parseNum(val: string): number | null {
-  if (!val || val === '') return null
-  let s = val.trim().replace(/,/g, '').replace(/%/g, '')
-  if (s === '' || s === '-') return null
-  const n = Number(s)
-  return isNaN(n) ? null : n
+  const { value } = parseNumeric(val)
+  return isNaN(value) ? null : value
 }
 
 // ====== ID 模式匹配 ======
@@ -80,7 +82,7 @@ export function classifyColumn(values: string[], colName: string): ColumnClassif
   if (nonEmpty.length < total * 0.05) {
     return {
       type: 'text', role: 'ignore', format: 'text', label: colName, prefix: '',
-      uniqueCount: 0, uniqueRatio: 0, numericRatio: 0, dateRatio: 0,
+      uniqueCount: 0, uniqueRatio: 0, numericRatio: 0, dateRatio: 0, dirtyCount: 0,
     }
   }
 
@@ -95,13 +97,16 @@ export function classifyColumn(values: string[], colName: string): ColumnClassif
   const dateCount = dateSample.filter(isDate).length
   const dateRatio = dateCount / dateSample.length
 
-  // 数值比率
-  const numParsed = sample.map(parseNum)
-  const numCount = numParsed.filter((n) => n !== null).length
+  // 数值比率（容忍式解析 + 脏数据计数）
+  const numParsed = sample.map((v) => parseNumeric(v))
+  const numCount = numParsed.filter((n) => !isNaN(n.value)).length
   const numericRatio = numCount / sample.length
+  const dirtyCount = numParsed.filter((n) => !isNaN(n.value) && !n.clean).length
 
-  // 数值统计
-  const numVals = numParsed.filter((n): n is number => n !== null)
+  // 数值统计（仅用干净值计算 stats，避免脏数据污染 min/max/avg）
+  const cleanVals = numParsed.filter((n) => !isNaN(n.value) && n.clean).map((n) => n.value)
+  const allNumVals = numParsed.filter((n) => !isNaN(n.value)).map((n) => n.value)
+  const numVals = cleanVals.length > 0 ? cleanVals : allNumVals
   const allInt = numVals.length > 0 && numVals.every((n) => Number.isInteger(n))
   const hasPercent = sample.some((v) => v.includes('%'))
   const stats = numVals.length > 0 ? computeStats(numVals) : undefined
@@ -112,7 +117,7 @@ export function classifyColumn(values: string[], colName: string): ColumnClassif
   if (dateRatio > 0.8) {
     return {
       type: 'date', role: 'time_axis', format: 'date', label: colName, prefix: '',
-      uniqueCount, uniqueRatio, numericRatio, dateRatio, stats,
+      uniqueCount, uniqueRatio, numericRatio, dateRatio, stats, dirtyCount,
       topValues: topValues(sample, 5),
     }
   }
@@ -125,7 +130,7 @@ export function classifyColumn(values: string[], colName: string): ColumnClassif
     if (allInt && uniqueCount < 15 && avgAbs < 1000) {
       return {
         type: 'numeric', role: 'dimension', format: 'integer', label: colName, prefix: '',
-        uniqueCount, uniqueRatio, numericRatio, dateRatio, stats,
+        uniqueCount, uniqueRatio, numericRatio, dateRatio, stats, dirtyCount,
       }
     }
 
@@ -133,7 +138,7 @@ export function classifyColumn(values: string[], colName: string): ColumnClassif
     if (allInt && (uniqueRatio > 0.85 || isIdColumn(colName)) && avgAbs < 1000) {
       return {
         type: 'numeric', role: 'label', format: 'integer', label: colName, prefix: '',
-        uniqueCount, uniqueRatio, numericRatio, dateRatio, stats,
+        uniqueCount, uniqueRatio, numericRatio, dateRatio, stats, dirtyCount,
       }
     }
 
@@ -141,7 +146,7 @@ export function classifyColumn(values: string[], colName: string): ColumnClassif
     if (isIdColumn(colName) && uniqueRatio > 0.85) {
       return {
         type: 'numeric', role: 'label', format: 'integer', label: colName, prefix: '',
-        uniqueCount, uniqueRatio, numericRatio, dateRatio, stats,
+        uniqueCount, uniqueRatio, numericRatio, dateRatio, stats, dirtyCount,
       }
     }
 
@@ -150,7 +155,7 @@ export function classifyColumn(values: string[], colName: string): ColumnClassif
     const fmt = (hasPercent || nameIsPercent) ? 'percent' : (allInt ? 'integer' : 'number')
     return {
       type: 'numeric', role: 'metric', format: fmt, label: colName, prefix: '',
-      uniqueCount, uniqueRatio, numericRatio, dateRatio, stats,
+      uniqueCount, uniqueRatio, numericRatio, dateRatio, stats, dirtyCount,
     }
   }
 
@@ -158,7 +163,7 @@ export function classifyColumn(values: string[], colName: string): ColumnClassif
   if (uniqueCount <= Math.min(20, nonEmpty.length * 0.5)) {
     return {
       type: 'categorical', role: 'dimension', format: 'text', label: colName, prefix: '',
-      uniqueCount, uniqueRatio, numericRatio, dateRatio,
+      uniqueCount, uniqueRatio, numericRatio, dateRatio, dirtyCount,
       topValues: topValues(sample, 10),
     }
   }
@@ -167,14 +172,14 @@ export function classifyColumn(values: string[], colName: string): ColumnClassif
   if (uniqueRatio > 0.9) {
     return {
       type: 'text', role: 'label', format: 'text', label: colName, prefix: '',
-      uniqueCount, uniqueRatio, numericRatio, dateRatio,
+      uniqueCount, uniqueRatio, numericRatio, dateRatio, dirtyCount,
     }
   }
 
   // 5. 默认 → 标签
   return {
     type: 'text', role: 'label', format: 'text', label: colName, prefix: '',
-    uniqueCount, uniqueRatio, numericRatio, dateRatio,
+    uniqueCount, uniqueRatio, numericRatio, dateRatio, dirtyCount,
     topValues: topValues(sample, 5),
   }
 }

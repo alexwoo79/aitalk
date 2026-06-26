@@ -219,8 +219,61 @@ export const usePreviewStore = defineStore('preview', () => {
     // 公式 KPI
     if (kpi.formula && kpi.formula.variables.length > 0) {
       const sharedFilter = kpi.formula.filter || kpi.filter
+
+      // ====== 行内计算模式：先行内逐行计算再聚合 ======
+      if (kpi.formula.rowExpression) {
+        const rowExpr = kpi.formula.rowExpression
+        const rowAgg = kpi.formula.rowAgg || 'sum'
+
+        // 行筛选
+        let filtered = rows
+        if (sharedFilter) {
+          filtered = applyFilter(rows, sharedFilter)
+        }
+
+        // 为每行构建 [0], [1], ... 的原始值
+        const rowResults: number[] = []
+        for (const row of filtered) {
+          // 提取各变量的行内原始值
+          const rawValues = kpi.formula.variables.map((v) => {
+            const val = row[v.column]
+            if (val === undefined || val === null || val === '') return 0
+            if (typeof val === 'number') return val
+            const s = String(val).replace(/,/g, '').replace(/%/g, '').trim()
+            const n = Number(s)
+            return isNaN(n) ? 0 : n
+          })
+
+          // 替换表达式中的 [i] 为原始值
+          let expr = rowExpr
+          for (let i = 0; i < rawValues.length; i++) {
+            expr = expr.replace(new RegExp(`\\[${i}\\]`, 'g'), String(rawValues[i]))
+          }
+
+          try {
+            const result = new Function(`"use strict"; return (${expr})`)()
+            if (typeof result === 'number' && isFinite(result) && !isNaN(result)) {
+              rowResults.push(result)
+            }
+          } catch {
+            // 跳过计算失败的行
+          }
+        }
+
+        // 聚合行内计算结果
+        if (rowResults.length === 0) return 0
+        switch (rowAgg) {
+          case 'sum': return rowResults.reduce((a, b) => a + b, 0)
+          case 'avg': return rowResults.reduce((a, b) => a + b, 0) / rowResults.length
+          case 'min': return Math.min(...rowResults)
+          case 'max': return Math.max(...rowResults)
+          case 'count': return rowResults.length
+          default: return rowResults.reduce((a, b) => a + b, 0)
+        }
+      }
+
+      // ====== 聚合后计算模式（原有逻辑） ======
       const varValues = kpi.formula.variables.map((v) => {
-        // 变量筛选 & 共享筛选（用 & 连接叠加）
         const combined = [v.filter, sharedFilter].filter(Boolean).join(' & ')
         return computeColumnValue(v.column, v.agg, rows, combined || undefined)
       })

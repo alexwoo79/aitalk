@@ -92,19 +92,39 @@ var SmartboardRenderer = (function(exports) {
         return true;
     }
   }
-  function getNumericVal$2(v) {
-    if (v === void 0 || v === null || v === "") return 0;
-    if (typeof v === "number") return v;
-    const s = String(v).replace(/,/g, "").replace(/%/g, "").trim();
-    const n = Number(s);
-    return isNaN(n) ? 0 : n;
+  function parseNumeric(val) {
+    if (val === void 0 || val === null || val === "") {
+      return { value: NaN, clean: false };
+    }
+    if (typeof val === "number") {
+      return { value: val, clean: true };
+    }
+    const raw = String(val).trim();
+    if (raw === "" || raw === "-") {
+      return { value: NaN, clean: false };
+    }
+    let s = raw.replace(/,/g, "").replace(/%/g, "");
+    const n = parseFloat(s);
+    if (isNaN(n)) {
+      return { value: NaN, clean: false };
+    }
+    const clean = /^-?[\d,]+(\.\d+)?%?\s*$/.test(raw);
+    return { value: n, clean };
+  }
+  function getNumericValue(val, fallback = 0) {
+    const { value } = parseNumeric(val);
+    return isNaN(value) ? fallback : value;
+  }
+  function getNumericOrNaN(val) {
+    const { value } = parseNumeric(val);
+    return value;
   }
   function aggregate(rows, dimCol, metricCol, agg = "sum") {
     const groups = /* @__PURE__ */ new Map();
     for (const row of rows) {
       const key = String(row[dimCol] ?? "").trim();
       if (!key) continue;
-      const val = metricCol === "count" ? 1 : getNumericVal$2(row[metricCol]);
+      const val = metricCol === "count" ? 1 : getNumericValue(row[metricCol], 0);
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(val);
     }
@@ -210,7 +230,7 @@ var SmartboardRenderer = (function(exports) {
     if (a >= 1e4) return (n / 1e4).toFixed(1) + "万";
     return fmt(n);
   }
-  function getNumericVal$1(v) {
+  function getNumericVal(v) {
     if (v === void 0 || v === null || v === "") return NaN;
     if (typeof v === "number") return v;
     let s = String(v).trim();
@@ -414,7 +434,7 @@ var SmartboardRenderer = (function(exports) {
       if (!groups[key]) groups[key] = {};
       for (const m of metricCols) {
         if (!groups[key][m]) groups[key][m] = [];
-        const v = getNumericVal$1(row[m]);
+        const v = getNumericVal(row[m]);
         if (!isNaN(v)) groups[key][m].push(v);
       }
     }
@@ -487,7 +507,7 @@ var SmartboardRenderer = (function(exports) {
       if (!groups[key]) groups[key] = {};
       for (const m of metricCols) {
         if (!groups[key][m]) groups[key][m] = [];
-        const v = getNumericVal$1(row[m]);
+        const v = getNumericVal(row[m]);
         if (!isNaN(v)) groups[key][m].push(v);
       }
     }
@@ -621,7 +641,7 @@ var SmartboardRenderer = (function(exports) {
   function buildHistogramOption(chart, rows, binCount) {
     const col = chart.metric || chart.metrics?.[0] || "";
     if (!col) return {};
-    const values = rows.map((r) => getNumericVal$1(r[col])).filter((n) => !isNaN(n));
+    const values = rows.map((r) => getNumericVal(r[col])).filter((n) => !isNaN(n));
     if (values.length === 0) return {};
     const min = Math.min(...values);
     const max = Math.max(...values);
@@ -692,7 +712,7 @@ var SmartboardRenderer = (function(exports) {
         if (!seriesData[ym]) seriesData[ym] = {};
         for (const mc of metricCols) {
           if (!seriesData[ym][mc]) seriesData[ym][mc] = [];
-          const v = getNumericVal$1(row[mc]);
+          const v = getNumericVal(row[mc]);
           if (!isNaN(v)) seriesData[ym][mc].push(v);
         }
       }
@@ -703,7 +723,7 @@ var SmartboardRenderer = (function(exports) {
         if (!seriesData[key]) seriesData[key] = {};
         for (const mc of metricCols) {
           if (!seriesData[key][mc]) seriesData[key][mc] = [];
-          const v = getNumericVal$1(row[mc]);
+          const v = getNumericVal(row[mc]);
           if (!isNaN(v)) seriesData[key][mc].push(v);
         }
       }
@@ -759,15 +779,6 @@ var SmartboardRenderer = (function(exports) {
       series
     };
   }
-  function getNumericVal(v) {
-    if (v === void 0 || v === null || v === "") return NaN;
-    if (typeof v === "number") return v;
-    let s = String(v).trim();
-    if (s.endsWith("%")) s = s.slice(0, -1);
-    s = s.replace(/,/g, "");
-    const n = parseFloat(s);
-    return isNaN(n) ? NaN : n;
-  }
   function getPeriodKey(dateStr, period) {
     const m = dateStr.match(/^(\d{4})[-/.](\d{1,2})/);
     if (!m) return null;
@@ -812,7 +823,7 @@ var SmartboardRenderer = (function(exports) {
       const dv = String(row[dateCol] || "").trim();
       const key = getPeriodKey(dv, period);
       if (!key) continue;
-      const v = getNumericVal(row[metricCol]);
+      const v = getNumericOrNaN(row[metricCol]);
       if (!isNaN(v)) groups[key] = (groups[key] || 0) + v;
     }
     const sortedKeys = Object.keys(groups).sort();
@@ -860,7 +871,7 @@ var SmartboardRenderer = (function(exports) {
     return n.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
   }
   function computeDeciles(rows, metricCol) {
-    const nums = rows.map((r) => getNumericVal(r[metricCol])).filter((n) => !isNaN(n)).sort((a, b) => a - b);
+    const nums = rows.map((r) => getNumericOrNaN(r[metricCol])).filter((n) => !isNaN(n)).sort((a, b) => a - b);
     if (nums.length < 10) return null;
     const bucketSize = Math.floor(nums.length / 10);
     const labels = [];
@@ -887,8 +898,8 @@ var SmartboardRenderer = (function(exports) {
     if (!colX || !colY) return null;
     const points = [];
     for (const row of rows) {
-      const x = getNumericVal(row[colX]);
-      const y = getNumericVal(row[colY]);
+      const x = getNumericOrNaN(row[colX]);
+      const y = getNumericOrNaN(row[colY]);
       if (!isNaN(x) && !isNaN(y)) {
         const label = String(Object.values(row)[0] ?? "");
         points.push({ x, y, label });
@@ -1301,7 +1312,7 @@ var SmartboardRenderer = (function(exports) {
       const v = r[column];
       if (v == null || v === "") return 0;
       if (typeof v === "number") return v;
-      return getNumericVal$1(v) || 0;
+      return getNumericVal(v) || 0;
     });
     switch (agg) {
       case "sum":
@@ -1366,7 +1377,7 @@ var SmartboardRenderer = (function(exports) {
         const v = r[k.column];
         if (v == null || v === "") return 0;
         if (typeof v === "number") return v;
-        return getNumericVal$1(v) || 0;
+        return getNumericVal(v) || 0;
       });
       switch (k.agg) {
         case "count":
@@ -2117,7 +2128,7 @@ var SmartboardRenderer = (function(exports) {
       const sorted = filtered.slice();
       if (sortCol) {
         sorted.sort((a2, b) => {
-          const va = getNumericVal$1(a2[sortCol]), vb = getNumericVal$1(b[sortCol]);
+          const va = getNumericVal(a2[sortCol]), vb = getNumericVal(b[sortCol]);
           if (!isNaN(va) && !isNaN(vb)) return (va - vb) * (sortDir ? -1 : 1);
           return String(a2[sortCol] ?? "").localeCompare(String(b[sortCol] ?? "")) * (sortDir ? -1 : 1);
         });
@@ -2161,7 +2172,7 @@ var SmartboardRenderer = (function(exports) {
     const sorted = filtered.slice();
     if (sortCol) {
       sorted.sort((a, b) => {
-        const va = getNumericVal$1(a[sortCol]), vb = getNumericVal$1(b[sortCol]);
+        const va = getNumericVal(a[sortCol]), vb = getNumericVal(b[sortCol]);
         if (!isNaN(va) && !isNaN(vb)) return (va - vb) * (sortDir ? -1 : 1);
         return String(a[sortCol] ?? "").localeCompare(String(b[sortCol] ?? "")) * (sortDir ? -1 : 1);
       });
@@ -2186,7 +2197,7 @@ var SmartboardRenderer = (function(exports) {
         else {
           const cl = DATA.classifications[c];
           if (cl?.type === "numeric" && cl?.role === "metric") {
-            const n = getNumericVal$1(v);
+            const n = getNumericVal(v);
             if (!isNaN(n)) {
               const md = DATA.metricDefaults[c];
               if (md && md.format && md.format !== "global") v = fmtByChart(n, { metricFormats: DATA.metricDefaults }, c);
@@ -2209,7 +2220,7 @@ var SmartboardRenderer = (function(exports) {
             const raw = sorted.map((r) => String(r[c] ?? "")).filter((v) => v !== "");
             val = new Set(raw).size;
           } else {
-            const vals = sorted.map((r) => getNumericVal$1(r[c])).filter((v) => !isNaN(v));
+            const vals = sorted.map((r) => getNumericVal(r[c])).filter((v) => !isNaN(v));
             if (vals.length > 0) {
               switch (agg) {
                 case "sum":

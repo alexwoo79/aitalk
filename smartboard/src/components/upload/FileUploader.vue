@@ -15,10 +15,9 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useDataStore } from '@/stores/data-store'
-import { readFile, readTextFile } from '@tauri-apps/plugin-fs'
-import { open } from '@tauri-apps/plugin-dialog'
 import { parseFile } from '@/core/parser'
 import { classifyAllColumns, selectPrimaryMetric, selectChartDimensions } from '@/core/classifier'
+import { parseNumeric } from '@/core/numeric'
 
 const emit = defineEmits<{ loaded: [] }>()
 const { t } = useI18n()
@@ -62,41 +61,9 @@ async function openDialog() {
 }
 
 async function loadFilePath(filePath: string) {
-  dataStore.loading = true
-  dataStore.error = null
-  try {
-    const fileName = filePath.split('/').pop() || filePath
-    const ext = fileName.toLowerCase().split('.').pop()
-
-    let parsed
-    if (ext === 'xlsx' || ext === 'xls') {
-      const data = await readFile(filePath)
-      parsed = parseFile(fileName, data)
-    } else {
-      const text = await readTextFile(filePath)
-      parsed = parseFile(fileName, text)
-    }
-
-    const classifications = classifyAllColumns(parsed.headers, parsed.rows)
-    const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
-    const chartDimensions = selectChartDimensions(parsed.headers, classifications)
-
-    dataStore.dataSet = {
-      headers: parsed.headers,
-      rows: parsed.rows,
-      rawRows: parsed.rawRows,
-      classifications,
-      primaryMetric,
-      chartDimensions,
-      filePath,
-      fileName,
-    }
-    emit('loaded')
-  } catch (err: any) {
-    dataStore.error = err.message || t('upload.parseError')
-  } finally {
-    dataStore.loading = false
-  }
+  // 复用 dataStore.loadFile 完整流程（含数据质量检测）
+  await dataStore.loadFile(filePath)
+  if (!dataStore.error) emit('loaded')
 }
 
 // HTML5 drag-and-drop (for OS file drops into the webview)
@@ -126,6 +93,25 @@ async function onHtmlDrop(e: DragEvent) {
     const primaryMetric = selectPrimaryMetric(parsed.headers, classifications)
     const chartDimensions = selectChartDimensions(parsed.headers, classifications)
 
+    // 构建数据质量摘要
+    const dirtyColumns: { column: string; dirtyCount: number; totalCount: number; samples: string[] }[] = []
+    for (const col of parsed.headers) {
+      const cls = classifications[col]
+      if (!cls || cls.type !== 'numeric' || !cls.dirtyCount || cls.dirtyCount === 0) continue
+      const samples: string[] = []
+      let dirtyTotal = 0
+      for (const row of parsed.rows) {
+        const v = row[col]
+        if (v === undefined || v === null || v === '') continue
+        const { clean, value } = parseNumeric(v)
+        if (!isNaN(value) && !clean) {
+          dirtyTotal++
+          if (samples.length < 3) samples.push(typeof v === 'number' ? String(v) : String(v))
+        }
+      }
+      if (dirtyTotal > 0) dirtyColumns.push({ column: col, dirtyCount: dirtyTotal, totalCount: parsed.rows.length, samples })
+    }
+
     dataStore.dataSet = {
       headers: parsed.headers,
       rows: parsed.rows,
@@ -135,6 +121,7 @@ async function onHtmlDrop(e: DragEvent) {
       chartDimensions,
       filePath: file.name,
       fileName: file.name,
+      dataQuality: { dirtyColumns, hasIssues: dirtyColumns.length > 0 },
     }
     emit('loaded')
   } catch (err: any) {
