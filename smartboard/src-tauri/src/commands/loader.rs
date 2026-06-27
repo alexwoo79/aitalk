@@ -118,7 +118,7 @@ pub async fn load_files(paths: Vec<String>) -> ApiResult<Vec<ChartPayload>> {
 #[tauri::command]
 pub async fn get_dataframe_info() -> ApiResult<ChartPayload> {
     let df = {
-        let guard = GLOBAL_DF.lock().unwrap();
+        let guard = GLOBAL_DF.read().unwrap();
         match guard.as_ref() {
             None => return ApiResult::failure("没有加载数据"),
             Some(df) => df.clone(),

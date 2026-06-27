@@ -15,6 +15,7 @@ export const usePreviewStore = defineStore('preview', () => {
   const searchText = ref('')
   const conditionFilter = ref('')
   const dashboardResult = ref<ComputeResponse | null>(null)
+  let _cachedEffectiveDS: import('@/types/data').DataSet | null = null
   const dataStore = useDataStore()
   const configStore = useConfigStore()
 
@@ -30,6 +31,7 @@ export const usePreviewStore = defineStore('preview', () => {
   }
 
   function buildEffectiveDS(ds: import('@/types/data').DataSet): import('@/types/data').DataSet {
+    if (_cachedEffectiveDS) return _cachedEffectiveDS
     const rels = dataStore.relations; if (rels.length === 0) return ds
     let mergedRows = [...ds.rows]; const mergedHeaders = [...ds.headers]; const mergedClass: Record<string, any> = { ...ds.classifications }
     for (const rel of rels) {
@@ -72,7 +74,7 @@ export const usePreviewStore = defineStore('preview', () => {
     const tbl: TableSpec = { columns: cfg.table.columns.length > 0 ? cfg.table.columns : e.headers.filter(h => !ex.has(h)), sortBy: cfg.table.sortBy || '', summaryAggs: cfg.table.summaryAggs, columnColors: cfg.table.columnColors, columnTextColors: cfg.table.columnTextColors, columnTextRules: cfg.table.columnTextRules, rowConditionColors: cfg.table.rowConditionColors }
     let drs: DashboardSpec['dateRange']; const adc = e.headers.filter(h => e.classifications[h]?.type === 'date' && !ex.has(h))
     const cd = cfg.dateColumns?.length ? cfg.dateColumns : adc; const dc = cd.length > 0 ? cd[0] : undefined
-    if (dc) { const dts = e.rows.map(r => String(r[dc] ?? '')).filter(v => v !== '').sort(); if (dts.length > 0) drs = { column: dc, min: dts[0], max: dts[dts.length - 1] } }
+    if (dc) { const dts = e.rows.reduce((acc: {min: string, max: string}, r) => { const d = String(r[dc] ?? ''); if (!d) return acc; return { min: !acc.min || d < acc.min ? d : acc.min, max: !acc.max || d > acc.max ? d : acc.max }; }, {min: '', max: ''}); if (dts.min) drs = { column: dc, min: dts.min, max: dts.max } }
     return { title: cfg.title || 'Dashboard', primaryMetric: e.primaryMetric && !ex.has(e.primaryMetric) ? e.primaryMetric : null, chartDimensions: e.chartDimensions.filter(d => !ex.has(d)), columns: e.classifications, kpis, charts, filters: cfg.filters.map(f => ({ column: f })), table: tbl, analyses: {}, dateRange: drs, dateColumns: cd, layout: cfg.layout, metricDefaults: defs }
   }
 
@@ -86,7 +88,7 @@ export const usePreviewStore = defineStore('preview', () => {
     }
     if (searchText.value.trim()) { const q = searchText.value.trim().toLowerCase(); rows = rows.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q))) }
     if (conditionFilter.value.trim()) rows = applyFilter(rows, undefined, conditionFilter.value)
-    filteredRows.value = rows; refreshDashboard()
+    filteredRows.value = rows; _cachedEffectiveDS = dataStore.hasRelations ? buildEffectiveDS(ds) : null; refreshDashboard()
   }
 
   async function refreshDashboard() {
@@ -137,7 +139,14 @@ export const usePreviewStore = defineStore('preview', () => {
     switch (kpi.agg) { case 'sum': return vals.reduce((a, b) => a + b, 0); case 'avg': return vals.reduce((a, b) => a + b, 0) / vals.length; case 'min': return Math.min(...vals); case 'max': return Math.max(...vals); default: return vals.reduce((a, b) => a + b, 0) }
   }
 
-  function getFilterOptions(column: string): string[] { const ds = dataStore.dataSet; if (!ds) return []; return [...new Set(ds.rows.map(r => String(r[column] ?? '').trim()).filter(v => v))].sort() }
+  const _filterOptionsCache = new Map<string, string[]>()
+  function getFilterOptions(column: string): string[] {
+    if (_filterOptionsCache.has(column)) return _filterOptionsCache.get(column)!
+    const ds = dataStore.dataSet; if (!ds) return []
+    const opts = [...new Set(ds.rows.map(r => String(r[column] ?? '').trim()).filter(v => v))].sort()
+    _filterOptionsCache.set(column, opts)
+    return opts
+  }
 
   function getAggData(dimCol: string, metricCol: string, agg: string = 'sum') {
     const key = `${dimCol}:${metricCol}:${agg}`

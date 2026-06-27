@@ -1,7 +1,7 @@
 // 统一 Dashboard 计算 — 一次 IPC，全部结果
 // 前端传筛选条件 + 计算规格，Rust 计算后返回所有结果
 
-use crate::state::get_active_df;
+use crate::state::with_active_df;
 use crate::types::ApiResult;
 use polars::prelude::*;
 use std::collections::HashMap;
@@ -72,42 +72,34 @@ pub async fn compute_dashboard(request_json: String) -> ApiResult<ComputeRespons
         Err(e) => return ApiResult::failure(format!("请求 JSON 解析失败: {e}")),
     };
 
-    let df = match get_active_df() {
-        Ok(v) => v,
+    let filtered = match with_active_df(|df| apply_dim_date_filters(df, &req.filters)) {
+        Ok(Ok(v)) => v,
+        Ok(Err(e)) => return ApiResult::failure(e),
         Err(e) => return ApiResult::failure(e.to_string()),
-    };
-    let filtered = match apply_dim_date_filters(&df, &req.filters) {
-        Ok(v) => v,
-        Err(e) => return ApiResult::failure(e),
     };
     let row_count = filtered.height();
 
     let mut kpi_values = HashMap::new();
+
+    // 去重：相同 filter 的 KPI 共享同一个 DataFrame
+    let names = filtered
+        .get_column_names()
+        .iter()
+        .map(|n| n.to_string())
+        .collect::<Vec<_>>();
+    let mut filter_dfs: HashMap<String, DataFrame> = HashMap::new();
+
     for kpi in &req.kpis {
-        let kpi_df = if kpi.filter.is_empty() {
-            filtered.clone()
+        let df = if kpi.filter.is_empty() {
+            &filtered
         } else {
-            match parse_condition_expr(
-                &kpi.filter,
-                &filtered
-                    .get_column_names()
-                    .iter()
-                    .map(|n| n.to_string())
-                    .collect::<Vec<_>>(),
-            ) {
-                Some(expr) => filtered
-                    .clone()
-                    .lazy()
-                    .filter(expr)
-                    .collect()
-                    .unwrap_or_else(|_| filtered.clone()),
-                None => filtered.clone(),
-            }
+            filter_dfs.entry(kpi.filter.clone()).or_insert_with(|| {
+                parse_condition_expr(&kpi.filter, &names)
+                    .and_then(|expr| filtered.clone().lazy().filter(expr).collect().ok())
+                    .unwrap_or_else(|| filtered.clone())
+            })
         };
-        kpi_values.insert(
-            kpi.label.clone(),
-            compute_one(&kpi_df, &kpi.column, &kpi.agg),
-        );
+        kpi_values.insert(kpi.label.clone(), compute_one(df, &kpi.column, &kpi.agg));
     }
 
     let mut chart_data = HashMap::new();
