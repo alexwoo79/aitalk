@@ -230,7 +230,7 @@
   <!-- 拓扑图弹出窗口 -->
   <Teleport to="body">
     <div v-if="showGraphPopup" class="graph-popup-overlay" @click.self="showGraphPopup = false">
-      <div class="graph-popup" :style="popupStyle" @mousedown="onPopupFocus">
+      <div class="graph-popup" :style="popupStyle">
         <div class="gp-header">
           <span class="gp-title">🗺️ {{ t('upload.relationGraph') }}</span>
           <span class="gp-summary">{{ dataStore.tableCount }}表 · {{ dataStore.relations.length }}关联</span>
