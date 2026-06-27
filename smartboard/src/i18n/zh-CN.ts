@@ -153,7 +153,7 @@ export default {
     dbExecute: '执行并导入',
     dbNoTables: '未找到数据表',
     dbFile: '文件',
-    dbConnPlaceholder: '连接字符串（如 mysql://user:pass@host/db）',
+    dbConnPlaceholder: '连接字符串（mysql:// 或 postgres:// 开头）',
     dbTestConn: '测试连接',
     // 飞书多维表格
     feishuTitle: '飞书多维表格',

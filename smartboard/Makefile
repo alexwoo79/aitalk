@@ -59,6 +59,8 @@ help: ## 📖 显示此帮助信息
 	@echo ""
 	@echo "$(BOLD)$(BLUE)── 发布 ────────────────────────────────────────────$(NC)"
 	@awk '/^release|^release-arm64|^release-all:/{printf "  $(GREEN)%-18s$(NC) %s\n", substr($$1,1,index($$1,":")-1), substr($$0,index($$0,"## ")+3)}' $(MAKEFILE_LIST)
+	@echo "    $(YELLOW)用法: make release VERSION=1.2.3$(NC)"
+	@echo "    $(YELLOW)默认: 0.1.0+YYYYMMDD 或 git tag+日期$(NC)"
 	@echo ""
 
 # ============================================================
@@ -100,6 +102,38 @@ build-release: build-save ## 📦 发布构建（优化 + 剥离符号 + LTO）
 # ============================================================
 # ⚠️  APP_NAME 取自 Cargo.toml [package].name (小写)
 #     tauri ios init 生成的 Xcode 项目/目标名基于此，而非 productName
+# ---- 版本（可通过 make release VERSION=x.y.z 覆盖） ----
+# 生成合法 semver：优先 git tag，否则用 0.1.0 + 日期
+_VERSION_RAW := $(shell git describe --tags --always --dirty 2>/dev/null || echo "0.1.0")
+# 如果 git describe 输出了纯 hash（无 tag），则回退
+ifeq ($(shell echo '$(_VERSION_RAW)' | grep -qE '^[0-9]+\.[0-9]+'; echo $$?),0)
+VERSION ?= $(_VERSION_RAW)
+else
+VERSION ?= 0.1.0
+endif
+# 追加日期确保唯一性
+VERSION := $(VERSION)-$(shell date +%Y%m%d)
+
+# ---- 生成可读版本号 ----
+define set_version
+	@echo "$(BLUE)🏷  设定版本: $(VERSION)$(NC)"
+	@if [ -f src-tauri/tauri.conf.json ]; then \
+		perl -i.bak -pe 's/"version":\s*"[^"]*"/"version": "$(VERSION)"/' src-tauri/tauri.conf.json; \
+	fi
+	@if [ -f package.json ]; then \
+		perl -i.bak -pe 's/"version":\s*"[^"]*"/"version": "$(VERSION)"/' package.json; \
+	fi
+endef
+
+define restore_version
+	@if [ -f src-tauri/tauri.conf.json.bak ]; then \
+		mv src-tauri/tauri.conf.json.bak src-tauri/tauri.conf.json; \
+	fi
+	@if [ -f package.json.bak ]; then \
+		mv package.json.bak package.json; \
+	fi
+endef
+
 APP_NAME   := smartboard
 IOS_PROJ   := src-tauri/gen/apple/$(APP_NAME).xcodeproj
 IOS_SCHEME := $(APP_NAME)_iOS
@@ -272,20 +306,25 @@ ios-ipa-install: ## 📦 将指定 IPA 安装到真机 (用法: make ios-ipa-ins
 # 发布
 # ============================================================
 release: check build-save ## 🚀 一键发布 (check → 桌面 x86_64 + iOS)
+	$(call set_version)
 	@echo "=== 构建桌面 Release (x86_64) ==="
 	npm run tauri build
 	@echo "=== 构建 iOS Release ==="
 	npm run tauri ios build
-	@echo "=== 发布完成 ==="
+	$(call restore_version)
+	@echo "=== 发布完成 版本 $(VERSION) ==="
 
 release-arm64: build-save ## 🍎 构建桌面 arm64 (Apple Silicon) 发布包
+	$(call set_version)
 	@echo "=== 构建桌面 Release (arm64) ==="
 	@rustup target list --installed | grep -q aarch64-apple-darwin || \
 		{ echo "$(YELLOW)⚠ 未安装 arm64 target，正在安装...$(NC)"; rustup target add aarch64-apple-darwin; }
 	npm run tauri build -- --target aarch64-apple-darwin
-	@echo "=== arm64 发布完成 ==="
+	$(call restore_version)
+	@echo "=== arm64 发布完成 版本 $(VERSION) ==="
 
 release-all: build-save ## 🚀 发布全部平台 (x86_64 + arm64 + iOS)
+	$(call set_version)
 	@echo "=== 构建桌面 Release (x86_64) ==="
 	npm run tauri build
 	@echo "=== 构建桌面 Release (arm64) ==="
@@ -294,7 +333,8 @@ release-all: build-save ## 🚀 发布全部平台 (x86_64 + arm64 + iOS)
 	npm run tauri build -- --target aarch64-apple-darwin
 	@echo "=== 构建 iOS Release ==="
 	npm run tauri ios build
-	@echo "=== 全部发布完成 ==="
+	$(call restore_version)
+	@echo "=== 全部发布完成 版本 $(VERSION) ==="
 
 # ============================================================
 # 质量检查

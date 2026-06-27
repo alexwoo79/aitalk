@@ -152,7 +152,7 @@ export default {
     dbExecute: 'Execute & Import',
     dbNoTables: 'No tables found',
     dbFile: 'File',
-    dbConnPlaceholder: 'Connection string (e.g. mysql://user:pass@host/db)',
+    dbConnPlaceholder: 'Connection string (starts with mysql:// or postgres://)',
     dbTestConn: 'Test Connection',
     // Feishu Bitable
     feishuTitle: 'Feishu Bitable',

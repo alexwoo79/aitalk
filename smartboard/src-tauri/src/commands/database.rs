@@ -5,16 +5,16 @@
 // 通过连接字符串连接远程数据库，执行 SELECT 查询并转为 DataFrame。
 
 use anyhow::{bail, Context, Result};
+use mysql::prelude::*;
 use serde::Serialize;
 use std::fs;
-use mysql::prelude::*;
 use tokio_postgres::NoTls;
 
 use crate::commands::loader::load_file_impl;
+use crate::df_util::convert_ms_timestamps;
 use crate::df_util::df_to_payload;
 use crate::state::{register_dataset, replace_active_dataframe};
 use crate::types::{ApiResult, ChartPayload};
-use crate::df_util::convert_ms_timestamps;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 类型
@@ -39,10 +39,18 @@ pub struct DbTestResult {
 
 fn detect_sql_driver(conn: &str) -> &'static str {
     let s = conn.trim().to_lowercase();
-    if s.starts_with("mysql://") { return "mysql"; }
-    if s.starts_with("postgres://") || s.starts_with("postgresql://") { return "postgres"; }
-    if s.starts_with("sqlite://") || s.starts_with("sqlite:") || s == ":memory:" { return "sqlite"; }
-    if !s.contains("://") { return "sqlite"; }
+    if s.starts_with("mysql://") {
+        return "mysql";
+    }
+    if s.starts_with("postgres://") || s.starts_with("postgresql://") {
+        return "postgres";
+    }
+    if s.starts_with("sqlite://") || s.starts_with("sqlite:") || s == ":memory:" {
+        return "sqlite";
+    }
+    if !s.contains("://") {
+        return "sqlite";
+    }
     "unknown"
 }
 
@@ -56,7 +64,10 @@ fn csv_escape(raw: &str) -> String {
 
 fn temp_csv_path() -> std::path::PathBuf {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     std::env::temp_dir().join(format!("smartboard_sql_{}.csv", ts))
 }
 
@@ -64,8 +75,7 @@ fn temp_csv_path() -> std::path::PathBuf {
 fn query_mysql(connection_string: &str, query: &str) -> Result<String> {
     let opts = mysql::Opts::from_url(connection_string)
         .map_err(|e| anyhow::anyhow!("MySQL 连接串解析失败: {e}"))?;
-    let mut conn = mysql::Conn::new(opts)
-        .map_err(|e| anyhow::anyhow!("MySQL 连接失败: {e}"))?;
+    let mut conn = mysql::Conn::new(opts).map_err(|e| anyhow::anyhow!("MySQL 连接失败: {e}"))?;
 
     let result: Vec<mysql::Row> = conn
         .query(query)
@@ -80,7 +90,13 @@ fn query_mysql(connection_string: &str, query: &str) -> Result<String> {
     let headers: Vec<String> = (1..=col_count).map(|i| format!("Column_{i}")).collect();
 
     let mut csv_text = String::new();
-    csv_text.push_str(&headers.iter().map(|h| csv_escape(h)).collect::<Vec<_>>().join(","));
+    csv_text.push_str(
+        &headers
+            .iter()
+            .map(|h| csv_escape(h))
+            .collect::<Vec<_>>()
+            .join(","),
+    );
     csv_text.push('\n');
 
     for row in &result {
@@ -95,7 +111,9 @@ fn query_mysql(connection_string: &str, query: &str) -> Result<String> {
                 mysql::Value::Double(f) => f.to_string(),
                 mysql::Value::Bytes(b) => String::from_utf8_lossy(&b).to_string(),
                 mysql::Value::Date(y, m, d, 0, 0, 0, _) => format!("{y:04}-{m:02}-{d:02}"),
-                mysql::Value::Date(y, m, d, h, min, s, _) => format!("{y:04}-{m:02}-{d:02} {h:02}:{min:02}:{s:02}"),
+                mysql::Value::Date(y, m, d, h, min, s, _) => {
+                    format!("{y:04}-{m:02}-{d:02} {h:02}:{min:02}:{s:02}")
+                }
                 mysql::Value::Time(..) => val.as_sql(true),
                 // Remove the unreachable 'other' pattern since we've covered all variants
                 // If you want to handle any future variants, you could use:
@@ -122,7 +140,8 @@ async fn query_postgres(connection_string: &str, query: &str) -> Result<String> 
         }
     });
 
-    let rows = client.query(query, &[])
+    let rows = client
+        .query(query, &[])
         .await
         .map_err(|e| anyhow::anyhow!("PostgreSQL 查询失败: {e}"))?;
 
@@ -134,7 +153,13 @@ async fn query_postgres(connection_string: &str, query: &str) -> Result<String> 
     let headers: Vec<String> = (1..=col_count).map(|i| format!("Column_{i}")).collect();
 
     let mut csv_text = String::new();
-    csv_text.push_str(&headers.iter().map(|h| csv_escape(h)).collect::<Vec<_>>().join(","));
+    csv_text.push_str(
+        &headers
+            .iter()
+            .map(|h| csv_escape(h))
+            .collect::<Vec<_>>()
+            .join(","),
+    );
     csv_text.push('\n');
 
     for row in &rows {
@@ -152,38 +177,62 @@ async fn query_postgres(connection_string: &str, query: &str) -> Result<String> 
 
 /// PG Row 单元格 → 文本
 fn pg_cell_to_text(row: &tokio_postgres::Row, i: usize) -> String {
-    if let Ok(v) = row.try_get::<_, Option<String>>(i) { return v.unwrap_or_default(); }
-    if let Ok(v) = row.try_get::<_, Option<i64>>(i) { return v.map(|x| x.to_string()).unwrap_or_default(); }
-    if let Ok(v) = row.try_get::<_, Option<i32>>(i) { return v.map(|x| x.to_string()).unwrap_or_default(); }
-    if let Ok(v) = row.try_get::<_, Option<f64>>(i) { return v.map(|x| x.to_string()).unwrap_or_default(); }
-    if let Ok(v) = row.try_get::<_, Option<bool>>(i) { return v.map(|x| x.to_string()).unwrap_or_default(); }
+    if let Ok(v) = row.try_get::<_, Option<String>>(i) {
+        return v.unwrap_or_default();
+    }
+    if let Ok(v) = row.try_get::<_, Option<i64>>(i) {
+        return v.map(|x| x.to_string()).unwrap_or_default();
+    }
+    if let Ok(v) = row.try_get::<_, Option<i32>>(i) {
+        return v.map(|x| x.to_string()).unwrap_or_default();
+    }
+    if let Ok(v) = row.try_get::<_, Option<f64>>(i) {
+        return v.map(|x| x.to_string()).unwrap_or_default();
+    }
+    if let Ok(v) = row.try_get::<_, Option<bool>>(i) {
+        return v.map(|x| x.to_string()).unwrap_or_default();
+    }
     if let Ok(v) = row.try_get::<_, Option<chrono::NaiveDateTime>>(i) {
-        return v.map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string()).unwrap_or_default();
+        return v
+            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+            .unwrap_or_default();
     }
     if let Ok(v) = row.try_get::<_, Option<chrono::NaiveDate>>(i) {
-        return v.map(|d| d.format("%Y-%m-%d").to_string()).unwrap_or_default();
+        return v
+            .map(|d| d.format("%Y-%m-%d").to_string())
+            .unwrap_or_default();
     }
     String::new()
 }
 
 fn query_sqlite_csv(path: &str, query: &str) -> Result<String> {
-    let conn = rusqlite::Connection::open(path)
-        .with_context(|| format!("打开 SQLite 失败: {path}"))?;
+    let conn =
+        rusqlite::Connection::open(path).with_context(|| format!("打开 SQLite 失败: {path}"))?;
 
     let mut stmt = conn.prepare(query).context("SQL 预处理失败")?;
     let col_count = stmt.column_count();
-    if col_count == 0 { bail!("SQL 未返回可读取列"); }
+    if col_count == 0 {
+        bail!("SQL 未返回可读取列");
+    }
 
     let headers: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
     let mut csv_text = String::new();
-    csv_text.push_str(&headers.iter().map(|h| csv_escape(h)).collect::<Vec<_>>().join(","));
+    csv_text.push_str(
+        &headers
+            .iter()
+            .map(|h| csv_escape(h))
+            .collect::<Vec<_>>()
+            .join(","),
+    );
     csv_text.push('\n');
 
     let mut rows = stmt.query([]).context("SQL 执行失败")?;
     while let Ok(Some(row)) = rows.next() {
         let mut line = Vec::with_capacity(col_count);
         for i in 0..col_count {
-            let v = row.get_ref(i).with_context(|| format!("读取第 {} 列失败", i + 1))?;
+            let v = row
+                .get_ref(i)
+                .with_context(|| format!("读取第 {} 列失败", i + 1))?;
             let text = match v {
                 rusqlite::types::ValueRef::Null => String::new(),
                 rusqlite::types::ValueRef::Integer(i) => i.to_string(),
@@ -200,7 +249,11 @@ fn query_sqlite_csv(path: &str, query: &str) -> Result<String> {
 }
 
 /// 通过 SQL → CSV → Polars 方式加载数据
-fn load_sql_result(csv_text: &str, source_name: &str, dataset_name: &str) -> ApiResult<ChartPayload> {
+fn load_sql_result(
+    csv_text: &str,
+    source_name: &str,
+    dataset_name: &str,
+) -> ApiResult<ChartPayload> {
     let tmp = temp_csv_path();
     if let Err(e) = fs::write(&tmp, csv_text.as_bytes()) {
         return ApiResult::failure(format!("写入临时文件失败: {e}"));
@@ -240,12 +293,17 @@ pub async fn test_db_connection(connection_string: String) -> ApiResult<DbTestRe
 
     match driver {
         "mysql" => {
-            let opts = mysql::Opts::from_url(conn)
-                .map_err(|e| return ApiResult::<DbTestResult>::failure(format!("连接串解析失败: {e}"))).unwrap();
-            let mut c = mysql::Conn::new(opts)
-                .map_err(|e| return ApiResult::<DbTestResult>::failure(format!("连接失败: {e}"))).unwrap();
+            let opts = match mysql::Opts::from_url(conn) {
+                Ok(o) => o,
+                Err(e) => return ApiResult::failure(format!("连接串解析失败: {e}")),
+            };
+            let mut c = match mysql::Conn::new(opts) {
+                Ok(c) => c,
+                Err(e) => return ApiResult::failure(format!("连接失败: {e}")),
+            };
 
-            let version: String = c.query_first("SELECT VERSION()")
+            let version: String = c
+                .query_first("SELECT VERSION()")
                 .unwrap_or(None)
                 .map(|v: String| v)
                 .unwrap_or_else(|| "unknown".to_string());
@@ -260,7 +318,11 @@ pub async fn test_db_connection(connection_string: String) -> ApiResult<DbTestRe
                 })
                 .unwrap_or_default();
 
-            ApiResult::success(DbTestResult { driver: "mysql".to_string(), version, tables })
+            ApiResult::success(DbTestResult {
+                driver: "mysql".to_string(),
+                version,
+                tables,
+            })
         }
         "postgres" => {
             let (client, conn) = match tokio_postgres::connect(conn, NoTls).await {
@@ -274,7 +336,8 @@ pub async fn test_db_connection(connection_string: String) -> ApiResult<DbTestRe
                 }
             });
 
-            let version: String = client.query_one("SELECT VERSION()", &[])
+            let version: String = client
+                .query_one("SELECT VERSION()", &[])
                 .await
                 .map(|r| r.get::<_, String>(0))
                 .unwrap_or_else(|_| "unknown".to_string());
@@ -290,11 +353,16 @@ pub async fn test_db_connection(connection_string: String) -> ApiResult<DbTestRe
                 })
                 .unwrap_or_default();
 
-            ApiResult::success(DbTestResult { driver: "postgres".to_string(), version, tables })
+            ApiResult::success(DbTestResult {
+                driver: "postgres".to_string(),
+                version,
+                tables,
+            })
         }
         "sqlite" => {
             let path = conn
-                .strip_prefix("sqlite://").or_else(|| conn.strip_prefix("sqlite:"))
+                .strip_prefix("sqlite://")
+                .or_else(|| conn.strip_prefix("sqlite:"))
                 .unwrap_or(conn);
             let version = "SQLite (local)".to_string();
 
@@ -311,7 +379,13 @@ pub async fn test_db_connection(connection_string: String) -> ApiResult<DbTestRe
                         .unwrap()
                         .filter_map(|r| r.ok())
                         .collect();
-                    names.into_iter().map(|n| DbTableInfo { name: n, columns: vec![] }).collect()
+                    names
+                        .into_iter()
+                        .map(|n| DbTableInfo {
+                            name: n,
+                            columns: vec![],
+                        })
+                        .collect()
                 }
                 Err(e) => return ApiResult::failure(format!("打开 SQLite 失败: {e}")),
             };
@@ -335,8 +409,12 @@ pub async fn execute_db_query(
 ) -> ApiResult<ChartPayload> {
     let conn = connection_string.trim();
     let q = query.trim().trim_end_matches(';').trim();
-    if conn.is_empty() { return ApiResult::failure("连接字符串不能为空"); }
-    if q.is_empty() { return ApiResult::failure("SQL 查询不能为空"); }
+    if conn.is_empty() {
+        return ApiResult::failure("连接字符串不能为空");
+    }
+    if q.is_empty() {
+        return ApiResult::failure("SQL 查询不能为空");
+    }
 
     let upper = q.to_uppercase();
     if !upper.starts_with("SELECT") && !upper.starts_with("WITH") {
@@ -354,7 +432,10 @@ pub async fn execute_db_query(
             Err(e) => return ApiResult::failure(e.to_string()),
         },
         "sqlite" => {
-            let path = conn.strip_prefix("sqlite://").or_else(|| conn.strip_prefix("sqlite:")).unwrap_or(conn);
+            let path = conn
+                .strip_prefix("sqlite://")
+                .or_else(|| conn.strip_prefix("sqlite:"))
+                .unwrap_or(conn);
             match query_sqlite_csv(path, q) {
                 Ok(t) => t,
                 Err(e) => return ApiResult::failure(e.to_string()),
