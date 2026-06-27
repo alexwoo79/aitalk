@@ -343,3 +343,55 @@ export async function loadFeishuTable(
     appId, appSecret, baseUrl, tableId, tableName,
   })
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 高级分析（Rust 端）
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface TimeseriesResult {
+  labels: string[]; values: number[]
+  ma: (number | null)[]; mom: (number | null)[]; yoy: (number | null)[]
+  trend: number[]; forecast_labels: string[]; forecast_values: number[]
+}
+
+export interface DecileResult {
+  labels: string[]; counts: number[]; sums: number[]; avgs: number[]; ranges: string[]
+}
+
+export interface ClusterPoint { x: number; y: number; cluster: number; label: string }
+export interface ClusterResult {
+  points: ClusterPoint[]; centroids: [number, number][]
+  col_x: string; col_y: string
+}
+
+/** 时序分析：按周期聚合 + MA/MoM/YoY/回归/预测 */
+export async function computeTimeseries(
+  rows: Record<string, unknown>[],
+  dateCol: string, metricCol: string, period: string,
+): Promise<ApiResult<TimeseriesResult>> {
+  if (!isTauri()) throw new Error('computeTimeseries 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<TimeseriesResult>>('compute_timeseries', {
+    rowsJson: JSON.stringify(rows), dateCol, metricCol, period,
+  })
+}
+
+/** 十分位分析 */
+export async function computeDeciles(
+  rows: Record<string, unknown>[], metricCol: string,
+): Promise<ApiResult<DecileResult>> {
+  if (!isTauri()) throw new Error('computeDeciles 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<DecileResult>>('compute_deciles', {
+    rowsJson: JSON.stringify(rows), metricCol,
+  })
+}
+
+/** K-means 聚类 */
+export async function computeClusters(
+  rows: Record<string, unknown>[], metricCols: string[], k: number,
+  xCol?: string, yCol?: string,
+): Promise<ApiResult<ClusterResult>> {
+  if (!isTauri()) throw new Error('computeClusters 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ClusterResult>>('compute_clusters', {
+    rowsJson: JSON.stringify(rows), metricCols, k, xCol, yCol,
+  })
+}

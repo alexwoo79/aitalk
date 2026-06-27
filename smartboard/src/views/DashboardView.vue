@@ -7,14 +7,14 @@
     <div v-if="!spec" class="no-data">
       <p>{{ t('dashboard.noData') }}</p>
       <button class="btn btn-sm btn-primary" @click="$router.push('/config')">{{ t('dashboard.backToConfigText')
-      }}</button>
+        }}</button>
     </div>
 
     <template v-else>
       <!-- 工具栏 -->
       <div class="dashboard-toolbar">
         <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← {{ t('dashboard.backToConfigText')
-        }}</button>
+          }}</button>
         <h2 class="dashboard-title">{{ spec.title }}</h2>
         <span class="layout-size">{{ layoutW }} × {{ layoutH }}</span>
       </div>
@@ -55,7 +55,7 @@
         <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
       </div>
       <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
-      }}</span>
+        }}</span>
 
       <!-- 日期范围 -->
       <div v-if="dateColWarn" class="date-col-warn">
@@ -176,7 +176,7 @@
                 <div class="picker-panel">
                   <div class="picker-actions">
                     <button class="btn-link" @click="activeColumns = allColumns.slice()">{{ t('common.selectAll')
-                    }}</button>
+                      }}</button>
                     <button class="btn-link" @click="activeColumns = []">{{ t('common.clearAll') }}</button>
                   </div>
                   <div class="picker-chips">
@@ -236,7 +236,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import zhCN from '@/i18n/zh-CN'
 import enUS from '@/i18n/en-US'
@@ -324,8 +323,6 @@ function onResizeEnd() {
 const configStore = useConfigStore()
 const { t, locale } = useI18n()
 const previewStore = usePreviewStore()
-const { filteredRows: storeFilteredRows } = storeToRefs(previewStore)
-const { dataSet: storeDataSet } = storeToRefs(dataStore)
 
 const spec = computed(() => previewStore.buildSpec())
 
@@ -1012,12 +1009,12 @@ function getRowColorStyle(row: Record<string, any>): Record<string, string> {
 }
 
 // ====== Table rows with search + sorting ======
-const tableRows = computed(() => {
+// 共享的表格筛选结果（tableRows 和 summaryValues 共用，避免重复过滤）
+const tableFilteredRows = computed(() => {
   const rows = previewStore.filteredRows.length > 0
     ? previewStore.filteredRows
     : (dataStore.dataSet?.rows ?? [])
 
-  // 搜索过滤
   let filtered = rows
   const q = tableSearch.value.trim().toLowerCase()
   if (q) {
@@ -1030,14 +1027,14 @@ const tableRows = computed(() => {
       }),
     )
   }
-
-  // 表条件筛选（不影响图表）
   if (tableCondition.value.trim()) {
     filtered = applyFilter(filtered, undefined, tableCondition.value)
   }
+  return filtered
+})
 
-  // 排序
-  let sorted = [...filtered]
+const tableRows = computed(() => {
+  let sorted = [...tableFilteredRows.value]
   if (sortCol.value) {
     const col = sortCol.value
     const dir = sortDir.value === 'desc' ? -1 : 1
@@ -1048,7 +1045,6 @@ const tableRows = computed(() => {
       return String(a[col] ?? '').localeCompare(String(b[col] ?? '')) * dir
     })
   }
-
   return sorted
 })
 
@@ -1059,32 +1055,12 @@ const hasSummaryRow = computed(() => {
 })
 
 const summaryValues = computed(() => {
-  // 无表格内搜索/条件时 → 直接使用 Rust 统一计算结果
   const noTableFilter = !tableSearch.value.trim() && !tableCondition.value.trim()
   if (noTableFilter && previewStore.dashboardResult?.summary_values) {
     return previewStore.dashboardResult.summary_values
   }
 
-  // 有表格内搜索/条件 → 前端过滤后计算
-  let rows = storeFilteredRows.value.length > 0
-    ? [...storeFilteredRows.value]
-    : (storeDataSet.value?.rows ?? [])
-
-  const q = tableSearch.value.trim().toLowerCase()
-  if (q) {
-    const cols = activeColumns.value.length > 0 ? activeColumns.value : allColumns.value
-    rows = rows.filter((row) =>
-      cols.some((col) => {
-        const v = row[col]
-        if (v == null || v === '') return false
-        return String(v).toLowerCase().includes(q)
-      }),
-    )
-  }
-  if (tableCondition.value.trim()) {
-    rows = applyFilter(rows, undefined, tableCondition.value)
-  }
-
+  const rows = tableFilteredRows.value
   const aggs = spec.value?.table?.summaryAggs || {}
   if (Object.keys(aggs).length === 0) return {}
 

@@ -51,13 +51,13 @@
           <tr>
             <th class="ts-th sortable" @click="toggleTableSort('period')">
               {{ t('chart.detailTable.period') }} {{ tableSortCol === 'period' ? (tableSortDir === 'desc' ? '↓' : '↑') :
-              ''
+                ''
               }}
             </th>
             <th class="ts-th sortable" @click="toggleTableSort('value')">
               {{ t('chart.detailTable.actualValue') }} {{ tableSortCol === 'value' ? (tableSortDir === 'desc' ? '↓' :
-              '↑') :
-              '' }}
+                '↑') :
+                '' }}
             </th>
             <th class="ts-th" :title="t('chart.detailTable.ma3Title')">MA3</th>
             <th class="ts-th sortable" @click="toggleTableSort('mom')">
@@ -100,7 +100,8 @@ import { useChartDownload } from '@/composables/use-chart-download'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { useTheme } from '@/composables/use-theme'
-import { computeTimeseries } from '@/core/analysis'
+import { fetchTimeseries } from '@/core/analysis'
+import type { TimeseriesData } from '@/core/analysis'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -157,8 +158,26 @@ const activeMetrics = computed(() =>
   props.metrics && props.metrics.length > 0 ? props.metrics : [props.metric],
 )
 
-const tsData = computed(() =>
-  computeTimeseries(props.rows, props.dateColumn, selectedMetric.value, period.value),
+// Async data fetching — Rust when Tauri, JS fallback otherwise
+const tsData = ref<TimeseriesData | null>(null)
+const tsError = ref('')
+
+async function refreshTsData() {
+  tsError.value = ''
+  try {
+    tsData.value = await fetchTimeseries(
+      props.rows, props.dateColumn, selectedMetric.value, period.value,
+    )
+  } catch (e: any) {
+    tsError.value = e?.message || String(e)
+    tsData.value = null
+  }
+}
+
+watch(
+  () => [props.rows, props.dateColumn, selectedMetric.value, period.value] as const,
+  () => { refreshTsData() },
+  { immediate: true },
 )
 
 const lastMom = computed(() => {

@@ -31,6 +31,7 @@ pub async fn join_datasets(
     right_on: Vec<String>,
     how: String,
 ) -> ApiResult<ChartPayload> {
+    tokio::task::spawn_blocking(move || {
     if left_on.is_empty() || left_on.len() != right_on.len() {
         return ApiResult::failure("连接键不能为空，且左右键列数量必须相等");
     }
@@ -56,6 +57,7 @@ pub async fn join_datasets(
         }
         Err(e) => ApiResult::failure(e.to_string()),
     }
+    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,6 +67,7 @@ pub async fn join_datasets(
 /// 纵向拼接当前活跃表与指定数据集。
 #[tauri::command]
 pub async fn concat_datasets(right_dataset_id: String) -> ApiResult<ChartPayload> {
+    tokio::task::spawn_blocking(move || {
     let left_df = match get_active_df() {
         Ok(df) => df,
         Err(e) => return ApiResult::failure(e.to_string()),
@@ -87,6 +90,7 @@ pub async fn concat_datasets(right_dataset_id: String) -> ApiResult<ChartPayload
         }
         Err(e) => ApiResult::failure(e.to_string()),
     }
+    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

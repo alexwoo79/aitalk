@@ -67,59 +67,63 @@ pub struct ComputeResponse {
 
 #[tauri::command]
 pub async fn compute_dashboard(request_json: String) -> ApiResult<ComputeResponse> {
-    let req: ComputeRequest = match serde_json::from_str(&request_json) {
-        Ok(v) => v,
-        Err(e) => return ApiResult::failure(format!("请求 JSON 解析失败: {e}")),
-    };
-
-    let filtered = match with_active_df(|df| apply_dim_date_filters(df, &req.filters)) {
-        Ok(Ok(v)) => v,
-        Ok(Err(e)) => return ApiResult::failure(e),
-        Err(e) => return ApiResult::failure(e.to_string()),
-    };
-    let row_count = filtered.height();
-
-    let mut kpi_values = HashMap::new();
-
-    // 去重：相同 filter 的 KPI 共享同一个 DataFrame
-    let names = filtered
-        .get_column_names()
-        .iter()
-        .map(|n| n.to_string())
-        .collect::<Vec<_>>();
-    let mut filter_dfs: HashMap<String, DataFrame> = HashMap::new();
-
-    for kpi in &req.kpis {
-        let df = if kpi.filter.is_empty() {
-            &filtered
-        } else {
-            filter_dfs.entry(kpi.filter.clone()).or_insert_with(|| {
-                parse_condition_expr(&kpi.filter, &names)
-                    .and_then(|expr| filtered.clone().lazy().filter(expr).collect().ok())
-                    .unwrap_or_else(|| filtered.clone())
-            })
+    tokio::task::spawn_blocking(move || {
+        let req: ComputeRequest = match serde_json::from_str(&request_json) {
+            Ok(v) => v,
+            Err(e) => return ApiResult::failure(format!("请求 JSON 解析失败: {e}")),
         };
-        kpi_values.insert(kpi.label.clone(), compute_one(df, &kpi.column, &kpi.agg));
-    }
 
-    let mut chart_data = HashMap::new();
-    for chart in &req.charts {
-        let items = compute_groupby(&filtered, &chart.dim_col, &chart.metric_col, &chart.agg)
-            .unwrap_or_default();
-        chart_data.insert(chart.key.clone(), items);
-    }
+        let filtered = match with_active_df(|df| apply_dim_date_filters(df, &req.filters)) {
+            Ok(Ok(v)) => v,
+            Ok(Err(e)) => return ApiResult::failure(e),
+            Err(e) => return ApiResult::failure(e.to_string()),
+        };
+        let row_count = filtered.height();
 
-    let mut summary_values = HashMap::new();
-    for (cn, agg) in &req.summary {
-        summary_values.insert(cn.clone(), compute_one(&filtered, cn, agg));
-    }
+        let mut kpi_values = HashMap::new();
 
-    ApiResult::success(ComputeResponse {
-        row_count,
-        kpi_values,
-        chart_data,
-        summary_values,
+        // 去重：相同 filter 的 KPI 共享同一个 DataFrame
+        let names = filtered
+            .get_column_names()
+            .iter()
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>();
+        let mut filter_dfs: HashMap<String, DataFrame> = HashMap::new();
+
+        for kpi in &req.kpis {
+            let df = if kpi.filter.is_empty() {
+                &filtered
+            } else {
+                filter_dfs.entry(kpi.filter.clone()).or_insert_with(|| {
+                    parse_condition_expr(&kpi.filter, &names)
+                        .and_then(|expr| filtered.clone().lazy().filter(expr).collect().ok())
+                        .unwrap_or_else(|| filtered.clone())
+                })
+            };
+            kpi_values.insert(kpi.label.clone(), compute_one(df, &kpi.column, &kpi.agg));
+        }
+
+        let mut chart_data = HashMap::new();
+        for chart in &req.charts {
+            let items = compute_groupby(&filtered, &chart.dim_col, &chart.metric_col, &chart.agg)
+                .unwrap_or_default();
+            chart_data.insert(chart.key.clone(), items);
+        }
+
+        let mut summary_values = HashMap::new();
+        for (cn, agg) in &req.summary {
+            summary_values.insert(cn.clone(), compute_one(&filtered, cn, agg));
+        }
+
+        ApiResult::success(ComputeResponse {
+            row_count,
+            kpi_values,
+            chart_data,
+            summary_values,
+        })
     })
+    .await
+    .unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 fn apply_dim_date_filters(df: &DataFrame, f: &FilterInput) -> Result<DataFrame, String> {

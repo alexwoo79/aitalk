@@ -66,7 +66,8 @@ import { useChartDownload } from '@/composables/use-chart-download'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { useTheme } from '@/composables/use-theme'
-import { computeDeciles } from '@/core/analysis'
+import { fetchDeciles } from '@/core/analysis'
+import type { DecileData } from '@/core/analysis'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -106,7 +107,25 @@ const activeMetrics = computed(() =>
   props.metrics && props.metrics.length > 0 ? props.metrics : [props.metric],
 )
 
-const decData = computed(() => computeDeciles(props.rows, selectedMetric.value))
+// Async data fetching — Rust when Tauri, JS fallback otherwise
+const decData = ref<DecileData | null>(null)
+const decError = ref('')
+
+async function refreshDecData() {
+  decError.value = ''
+  try {
+    decData.value = await fetchDeciles(props.rows, selectedMetric.value)
+  } catch (e: any) {
+    decError.value = e?.message || String(e)
+    decData.value = null
+  }
+}
+
+watch(
+  () => [props.rows, selectedMetric.value] as const,
+  () => { refreshDecData() },
+  { immediate: true },
+)
 
 const chartMeta = computed(() => ({
   format: '', unit: 'yuan',

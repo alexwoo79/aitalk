@@ -8,6 +8,7 @@ use anyhow::{anyhow, bail, Result};
 use polars::prelude::*;
 use std::collections::BTreeSet;
 use std::fs;
+use std::io::Cursor;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -39,10 +40,6 @@ fn set_loaded_df(df: DataFrame, dataset_name: String, source: &str) -> ApiResult
         Ok(p) => ApiResult::success(p),
         Err(e) => ApiResult::failure(e.to_string()),
     }
-}
-
-fn temp_csv_path(prefix: &str) -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("{}_{}.csv", prefix, now_ts_secs()))
 }
 
 /// Escape a single cell value for CSV output.
@@ -181,14 +178,13 @@ pub async fn paste_from_clipboard(text: String, has_header: bool) -> ApiResult<C
         return ApiResult::failure("剪贴板内容为空");
     }
 
-    // Parse TSV from clipboard text: write to temp file then use Polars CsvReader
-    let tmp = temp_csv_path("smartboard_clipboard");
+    // TSV requires custom separator — use temp file path for Polars CSV reader
+    let tmp = std::env::temp_dir().join(format!("smartboard_clipboard_{}.csv", now_ts_secs()));
     if let Err(e) = fs::write(&tmp, trimmed.as_bytes()) {
-        return ApiResult::failure(format!("写入临时文件失败: {e}"));
+        return ApiResult::failure(format!("写入临时数据失败: {e}"));
     }
     let df = match CsvReadOptions::default()
         .with_has_header(has_header)
-        .with_infer_schema_length(None)
         .map_parse_options(|opts| opts.with_separator(b'\t').with_truncate_ragged_lines(true))
         .try_into_reader_with_file_path(Some(tmp.clone()))
     {
@@ -441,16 +437,11 @@ pub async fn fetch_from_url(
             Err(e) => return ApiResult::failure(e.to_string()),
         }
     } else {
-        // Treat as CSV
-        let tmp = temp_csv_path("smartboard_url");
-        if let Err(e) = fs::write(&tmp, body.as_bytes()) {
-            return ApiResult::failure(format!("写入临时 CSV 失败: {e}"));
-        }
-        let output = load_file_impl(tmp.to_string_lossy().as_ref(), 0, 0, -1, false);
-        let _ = fs::remove_file(&tmp);
-        match output {
+        // Treat as CSV — parse directly from memory
+        let cursor = Cursor::new(body.as_bytes());
+        match CsvReader::new(cursor).finish() {
             Ok(df) => df,
-            Err(e) => return ApiResult::failure(e.to_string()),
+            Err(e) => return ApiResult::failure(format!("解析 CSV 失败: {e}")),
         }
     };
 
@@ -635,22 +626,19 @@ async fn load_sqlite_query(
 
     drop(conn);
 
-    // Write to temp CSV and parse with Polars
-    let tmp = temp_csv_path("smartboard_sqlite");
-    if let Err(e) = fs::write(&tmp, csv_text.as_bytes()) {
-        return ApiResult::failure(format!("写入临时 CSV 失败: {e}"));
+    // Parse CSV from memory (no temp file)
+    let cursor = Cursor::new(csv_text.as_bytes());
+    let df = match CsvReader::new(cursor).finish() {
+        Ok(df) => df,
+        Err(e) => return ApiResult::failure(format!("解析 SQL 结果为 CSV 失败: {e}")),
+    };
+
+    if df.height() == 0 {
+        return ApiResult::failure("SQL 查询结果为空");
     }
 
-    let output = load_file_impl(tmp.to_string_lossy().as_ref(), 0, 0, -1, false);
-    let _ = fs::remove_file(&tmp);
-
-    match output {
-        Ok(df) => {
-            let name = table_name.unwrap_or_else(|| format!("SQL数据_{}", now_ts_secs()));
-            set_loaded_df(df, name, "load_sqlite_query")
-        }
-        Err(e) => ApiResult::failure(e.to_string()),
-    }
+    let name = table_name.unwrap_or_else(|| format!("SQL数据_{}", now_ts_secs()));
+    set_loaded_df(df, name, "load_sqlite_query")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

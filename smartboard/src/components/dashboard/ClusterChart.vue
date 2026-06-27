@@ -86,7 +86,8 @@ import { useChartDownload } from '@/composables/use-chart-download'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { useTheme } from '@/composables/use-theme'
-import { computeClusters } from '@/core/analysis'
+import { fetchClusters } from '@/core/analysis'
+import type { ClusterData } from '@/core/analysis'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -135,8 +136,26 @@ watch(availableAxes, (axes) => {
   if (!axes.includes(yCol.value)) yCol.value = axes[1] || axes[0] || ''
 }, { immediate: true })
 
-const clusterData = computed(() =>
-  computeClusters(props.rows, props.metrics, props.k || 3, xCol.value, yCol.value),
+// Async data fetching — Rust when Tauri, JS fallback otherwise
+const clusterData = ref<ClusterData | null>(null)
+const clusterError = ref('')
+
+async function refreshClusterData() {
+  clusterError.value = ''
+  try {
+    clusterData.value = await fetchClusters(
+      props.rows, props.metrics, props.k || 3, xCol.value, yCol.value,
+    )
+  } catch (e: any) {
+    clusterError.value = e?.message || String(e)
+    clusterData.value = null
+  }
+}
+
+watch(
+  () => [props.rows, xCol.value, yCol.value, props.k] as const,
+  () => { refreshClusterData() },
+  { immediate: true },
 )
 
 const chartMeta = computed(() => ({

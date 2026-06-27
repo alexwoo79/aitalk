@@ -35,6 +35,10 @@ pub fn run() {
             commands::groupby::compute_chart_data,
             commands::groupby::compute_table_summary,
             commands::groupby::compute_chart_groupby_filtered,
+            // ── 高级分析 ──
+            commands::analysis::compute_timeseries,
+            commands::analysis::compute_deciles,
+            commands::analysis::compute_clusters,
             // ── 多数据源接入 ──
             commands::datasource::paste_from_clipboard,
             commands::datasource::load_json_file,

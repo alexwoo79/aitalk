@@ -31,6 +31,7 @@ pub async fn list_excel_sheets(path: String) -> ApiResult<Vec<SheetInfo>> {
 /// Load a specific sheet from an Excel workbook by index (0-based).
 #[tauri::command]
 pub async fn load_excel_sheet(path: String, sheet_index: usize) -> ApiResult<ChartPayload> {
+    tokio::task::spawn_blocking(move || {
     let normalized = crate::commands::loader::normalize_file_path(&path);
     match load_sheet_impl(&normalized, sheet_index) {
         Ok(df) => {
@@ -45,6 +46,7 @@ pub async fn load_excel_sheet(path: String, sheet_index: usize) -> ApiResult<Cha
         }
         Err(e) => ApiResult::failure(e.to_string()),
     }
+    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

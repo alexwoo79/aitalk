@@ -258,3 +258,74 @@ export function computeClusters(
     colY,
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tauri + 浏览器统一入口
+// ─────────────────────────────────────────────────────────────────────────────
+
+import {
+  isTauri,
+  computeTimeseries as rustTimeseries,
+  computeDeciles as rustDeciles,
+  computeClusters as rustClusters,
+} from '@/composables/use-rust-bridge'
+import type {
+  TimeseriesResult as RustTimeseriesResult,
+  DecileResult as RustDecileResult,
+  ClusterResult as RustClusterResult,
+} from '@/composables/use-rust-bridge'
+
+function unwrapOrThrow<T>(r: { ok: boolean; data: T | null; error: string | null }): T {
+  if (r.ok && r.data !== null && r.data !== undefined) return r.data
+  throw new Error(r.error || 'Rust 计算失败')
+}
+
+/** 时序分析 — 自动选择 Rust / JS */
+export async function fetchTimeseries(
+  rows: Record<string, string | number>[],
+  dateCol: string, metricCol: string, period: 'month' | 'quarter' | 'year' = 'month',
+): Promise<TimeseriesData> {
+  if (isTauri()) {
+    const rust = unwrapOrThrow(await rustTimeseries(rows, dateCol, metricCol, period))
+    return {
+      labels: rust.labels, values: rust.values,
+      ma: rust.ma, mom: rust.mom, yoy: rust.yoy,
+      trend: rust.trend,
+      forecast: { labels: rust.forecast_labels, values: rust.forecast_values },
+    }
+  }
+  const js = computeTimeseries(rows, dateCol, metricCol, period)
+  if (!js) throw new Error('数据点不足')
+  return js
+}
+
+/** 十分位分析 — 自动选择 Rust / JS */
+export async function fetchDeciles(
+  rows: Record<string, string | number>[], metricCol: string,
+): Promise<DecileData> {
+  if (isTauri()) {
+    const rust = unwrapOrThrow(await rustDeciles(rows, metricCol))
+    return { labels: rust.labels, counts: rust.counts, sums: rust.sums, avgs: rust.avgs, ranges: rust.ranges }
+  }
+  const js = computeDeciles(rows, metricCol)
+  if (!js) throw new Error('数据点不足（至少需要10个）')
+  return js
+}
+
+/** K-means 聚类 — 自动选择 Rust / JS */
+export async function fetchClusters(
+  rows: Record<string, string | number>[], metricCols: string[], k = 3,
+  xCol?: string, yCol?: string,
+): Promise<ClusterData> {
+  if (isTauri()) {
+    const rust = unwrapOrThrow(await rustClusters(rows, metricCols, k, xCol, yCol))
+    return {
+      points: rust.points,
+      centroids: rust.centroids.map(([x, y]) => ({ x, y })),
+      colX: rust.col_x, colY: rust.col_y,
+    }
+  }
+  const js = computeClusters(rows, metricCols, k, xCol, yCol)
+  if (!js) throw new Error('数据点不足')
+  return js
+}

@@ -142,10 +142,10 @@ var SmartboardRenderer = (function(exports) {
           value = values.length;
           break;
         case "min":
-          value = Math.min(...values);
+          value = values.reduce((a, b) => a < b ? a : b, Infinity);
           break;
         case "max":
-          value = Math.max(...values);
+          value = values.reduce((a, b) => a > b ? a : b, -Infinity);
           break;
         default:
           value = values.reduce((a, b) => a + b, 0);
@@ -643,8 +643,8 @@ var SmartboardRenderer = (function(exports) {
     if (!col) return {};
     const values = rows.map((r) => getNumericVal(r[col])).filter((n) => !isNaN(n));
     if (values.length === 0) return {};
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    const min = values.reduce((a, b) => a < b ? a : b, Infinity);
+    const max = values.reduce((a, b) => a > b ? a : b, -Infinity);
     if (min === max) {
       return {
         toolbox: buildToolbox(),
@@ -781,6 +781,10 @@ var SmartboardRenderer = (function(exports) {
       series
     };
   }
+  typeof SuppressedError === "function" ? SuppressedError : function(error, suppressed, message) {
+    var e = new Error(message);
+    return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+  };
   function getPeriodKey(dateStr, period) {
     const m = dateStr.match(/^(\d{4})[-/.](\d{1,2})/);
     if (!m) return null;

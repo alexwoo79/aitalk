@@ -66,6 +66,7 @@ pub async fn load_file(
     header_row: i64,
     header_locked: bool,
 ) -> ApiResult<ChartPayload> {
+    tokio::task::spawn_blocking(move || {
     let normalized = normalize_file_path(&path);
     match load_file_impl(&normalized, skip_head, skip_tail, header_row, header_locked) {
         Ok(df) => {
@@ -81,11 +82,13 @@ pub async fn load_file(
         }
         Err(e) => ApiResult::failure(e.to_string()),
     }
+    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 /// Load multiple files and register each as a dataset.
 #[tauri::command]
 pub async fn load_files(paths: Vec<String>) -> ApiResult<Vec<ChartPayload>> {
+    tokio::task::spawn_blocking(move || {
     let mut results = Vec::new();
     for path in &paths {
         let normalized = normalize_file_path(path);
@@ -112,11 +115,13 @@ pub async fn load_files(paths: Vec<String>) -> ApiResult<Vec<ChartPayload>> {
         }
     }
     ApiResult::success(results)
+    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 /// Get basic info about the currently loaded DataFrame.
 #[tauri::command]
 pub async fn get_dataframe_info() -> ApiResult<ChartPayload> {
+    tokio::task::spawn_blocking(|| {
     let df = {
         let guard = GLOBAL_DF.read().unwrap();
         match guard.as_ref() {
@@ -125,6 +130,7 @@ pub async fn get_dataframe_info() -> ApiResult<ChartPayload> {
         }
     };
     df_to_payload(&df, None).map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
+    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
