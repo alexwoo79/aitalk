@@ -78,16 +78,21 @@ fn extract_gsheet_id(url: &str) -> Option<String> {
 fn extract_gsheet_gid(url: &str) -> Option<String> {
     let marker = "gid=";
     let start = url.find(marker)? + marker.len();
-    let digits: String = url[start..].chars().take_while(|c| c.is_ascii_digit()).collect();
-    if digits.is_empty() { None } else { Some(digits) }
+    let digits: String = url[start..]
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    if digits.is_empty() {
+        None
+    } else {
+        Some(digits)
+    }
 }
 
 /// Convert a Google Sheets URL to the CSV export URL.
 fn gsheet_to_export_url(url: &str) -> String {
     let sid = extract_gsheet_id(url).unwrap_or_default();
-    let mut export = format!(
-        "https://docs.google.com/spreadsheets/d/{sid}/export?format=csv"
-    );
+    let mut export = format!("https://docs.google.com/spreadsheets/d/{sid}/export?format=csv");
     if let Some(gid) = extract_gsheet_gid(url) {
         export.push_str("&gid=");
         export.push_str(&gid);
@@ -157,8 +162,7 @@ pub fn json_to_df(value: serde_json::Value) -> Result<DataFrame> {
         cols.push(Series::new(k.into(), values).into());
     }
 
-    crate::df_util::dataframe_from_columns(cols)
-        .map_err(|e| anyhow!("构造 DataFrame 失败: {e}"))
+    crate::df_util::dataframe_from_columns(cols).map_err(|e| anyhow!("构造 DataFrame 失败: {e}"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,10 +175,7 @@ pub fn json_to_df(value: serde_json::Value) -> Result<DataFrame> {
 ///   text       — clipboard text (TSV format)
 ///   has_header — whether the first row is a header
 #[tauri::command]
-pub async fn paste_from_clipboard(
-    text: String,
-    has_header: bool,
-) -> ApiResult<ChartPayload> {
+pub async fn paste_from_clipboard(text: String, has_header: bool) -> ApiResult<ChartPayload> {
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return ApiResult::failure("剪贴板内容为空");
@@ -188,10 +189,7 @@ pub async fn paste_from_clipboard(
     let df = match CsvReadOptions::default()
         .with_has_header(has_header)
         .with_infer_schema_length(None)
-        .map_parse_options(|opts| {
-            opts.with_separator(b'\t')
-                .with_truncate_ragged_lines(true)
-        })
+        .map_parse_options(|opts| opts.with_separator(b'\t').with_truncate_ragged_lines(true))
         .try_into_reader_with_file_path(Some(tmp.clone()))
     {
         Ok(reader) => match reader.finish() {
@@ -304,9 +302,22 @@ pub async fn fetch_from_url(
         return ApiResult::failure("URL 不能为空");
     }
 
-    // Handle file:// URLs locally
-    if endpoint.starts_with("file://") {
-        let local_path = crate::commands::loader::normalize_file_path(endpoint);
+    // Handle local file paths (file://, absolute paths, Windows drive letters, ~)
+    if is_local_path(endpoint) {
+        let local_path = if endpoint.starts_with("file://") {
+            crate::commands::loader::normalize_file_path(endpoint)
+        } else {
+            // Expand ~ and normalize direct paths
+            let expanded = if endpoint.starts_with('~') {
+                let home = std::env::var("HOME")
+                    .or_else(|_| std::env::var("USERPROFILE"))
+                    .unwrap_or_default();
+                endpoint.replacen('~', &home, 1)
+            } else {
+                endpoint.to_string()
+            };
+            expanded
+        };
         let path = Path::new(&local_path);
         let ext = path
             .extension()
@@ -447,6 +458,37 @@ pub async fn fetch_from_url(
     set_loaded_df(df, name, "fetch_from_url")
 }
 
+/// Detect if a string looks like a local file path rather than a remote URL.
+fn is_local_path(s: &str) -> bool {
+    let trimmed = s.trim();
+    // file:// protocol
+    if trimmed.starts_with("file://") {
+        return true;
+    }
+    // Unix/Mac absolute path
+    if trimmed.starts_with('/') {
+        return true;
+    }
+    // Home directory
+    if trimmed.starts_with("~/") {
+        return true;
+    }
+    // Windows drive letter: C:\ ... Z:\ or C:/ ... Z:/
+    let bytes = trimmed.as_bytes();
+    if bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+    {
+        return true;
+    }
+    // UNC path: \\server\share
+    if trimmed.starts_with("\\\\") {
+        return true;
+    }
+    false
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase 4: SQLite database import
 // ─────────────────────────────────────────────────────────────────────────────
@@ -508,20 +550,14 @@ pub async fn list_sqlite_tables(path: String) -> ApiResult<Vec<SqliteTableInfo>>
 
 /// Load a specific table from a SQLite database.
 #[tauri::command]
-pub async fn load_sqlite_table(
-    path: String,
-    table_name: String,
-) -> ApiResult<ChartPayload> {
+pub async fn load_sqlite_table(path: String, table_name: String) -> ApiResult<ChartPayload> {
     let query = format!("SELECT * FROM \"{}\"", table_name.replace('"', "\"\""));
     load_sqlite_query(path, query, Some(table_name)).await
 }
 
 /// Execute a custom SQL SELECT query against a SQLite database.
 #[tauri::command]
-pub async fn execute_sqlite_query(
-    path: String,
-    query: String,
-) -> ApiResult<ChartPayload> {
+pub async fn execute_sqlite_query(path: String, query: String) -> ApiResult<ChartPayload> {
     let q = query.trim();
     if q.is_empty() {
         return ApiResult::failure("SQL 查询不能为空");
@@ -586,9 +622,7 @@ async fn load_sqlite_query(
                     rusqlite::types::ValueRef::Null => String::new(),
                     rusqlite::types::ValueRef::Integer(i) => i.to_string(),
                     rusqlite::types::ValueRef::Real(f) => f.to_string(),
-                    rusqlite::types::ValueRef::Text(t) => {
-                        String::from_utf8_lossy(t).to_string()
-                    }
+                    rusqlite::types::ValueRef::Text(t) => String::from_utf8_lossy(t).to_string(),
                     rusqlite::types::ValueRef::Blob(b) => format!("<blob:{} bytes>", b.len()),
                 };
                 line.push(csv_escape_cell(&text));

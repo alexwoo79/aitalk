@@ -2,15 +2,14 @@
   <div class="data-preview">
     <!-- 文件信息 -->
     <div class="preview-header">
-      <h3>
-        {{ dataSet.fileName }}
-        <span class="file-meta">（{{ dataSet.rows.length }}{{ t('common.rows') }} × {{ dataSet.headers.length }}{{ t('common.columns') }}）</span>
-        <button
-          v-if="dataStore.tableCount > 1"
-          class="main-table-btn"
-          @click.stop="dataStore.setMainTable(dataStore.mainTableId === dataSet.id ? null : dataSet.id)"
-        >⭐{{ dataStore.mainTableId === dataSet.id ? t('upload.mainTable') : t('upload.setMainTable') }}</button>
-      </h3>
+      <div class="preview-header-left">
+        <span class="preview-filename">{{ dataSet.customName || dataSet.fileName }}</span>
+        <span class="file-meta">（{{ dataSet.rows.length }}{{ t('common.rows') }} × {{ dataSet.headers.length }}{{
+          t('common.columns') }}）</span>
+        <button v-if="dataStore.tableCount > 1" class="main-table-btn"
+          @click.stop="dataStore.setMainTable(dataStore.mainTableId === dataSet.id ? null : dataSet.id)">⭐{{
+            dataStore.mainTableId === dataSet.id ? t('upload.mainTable') : t('upload.setMainTable') }}</button>
+      </div>
       <button class="btn-next" @click="$emit('next')">{{ t('upload.nextStep') }}</button>
     </div>
 
@@ -63,28 +62,32 @@
     <div v-if="dataSet.primaryMetric" class="section">
       <h4>{{ t('upload.autoDetect') }}</h4>
       <p class="detect-text">
-        {{ t('upload.primaryMetric') }}：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ? t('upload.excludedHint') : dataSet.primaryMetric }}</strong>
+        {{ t('upload.primaryMetric') }}：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ?
+          t('upload.excludedHint') : dataSet.primaryMetric }}</strong>
         &nbsp;|&nbsp;
-        {{ t('upload.chartDimensions') }}：<strong>{{ dataSet.chartDimensions.filter(d => !dataStore.excludedColumns.has(d)).join(', ') || t('upload.noDimensions') }}</strong>
+        {{ t('upload.chartDimensions') }}：<strong>{{dataSet.chartDimensions.filter(d =>
+          !dataStore.excludedColumns.has(d)).join(', ') || t('upload.noDimensions')}}</strong>
       </p>
     </div>
 
     <!-- 样本数据 -->
     <div class="section">
       <h4>{{ t('upload.sampleData', { cols: visibleHeaders.length }) }}</h4>
-      <table class="sample-table">
-        <thead>
-          <tr>
-            <th v-for="col in visibleHeaders" :key="col"
-              :class="{ 'col-excluded-th': dataStore.excludedColumns.has(col) }">{{ col }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(row, i) in dataSet.rows.slice(0, 5)" :key="i">
-            <td v-for="col in visibleHeaders" :key="col">{{ truncate(row[col]) }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="sample-table-wrap">
+        <table class="sample-table">
+          <thead>
+            <tr>
+              <th v-for="col in visibleHeaders" :key="col"
+                :class="{ 'col-excluded-th': dataStore.excludedColumns.has(col) }">{{ col }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, i) in dataSet.rows.slice(0, 5)" :key="i">
+              <td v-for="col in visibleHeaders" :key="col">{{ truncate(row[col]) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -212,17 +215,26 @@ function truncate(val: string | number | undefined): string {
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
+  min-width: 0;
 }
 
-.preview-header h3 {
+.preview-header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.preview-filename {
   font-size: 14px;
   font-weight: 600;
-  max-width: 340px;
+  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin: 0;
-  flex: 1;
+  flex-shrink: 1;
 }
 
 .file-meta {
@@ -239,10 +251,13 @@ function truncate(val: string | number | undefined): string {
   padding: 1px 4px;
   opacity: 0.5;
   transition: opacity 0.15s;
-  vertical-align: middle;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.main-table-btn:hover { opacity: 1; }
+.main-table-btn:hover {
+  opacity: 1;
+}
 
 .btn-next {
   padding: 0 24px;
@@ -258,7 +273,9 @@ function truncate(val: string | number | undefined): string {
   margin-left: auto;
 }
 
-.btn-next:hover { opacity: 0.9; }
+.btn-next:hover {
+  opacity: 0.9;
+}
 
 /* ── 分区卡片 ── */
 .section {
@@ -283,7 +300,9 @@ function truncate(val: string | number | undefined): string {
   margin-bottom: 10px;
 }
 
-.section-head h4 { margin: 0; }
+.section-head h4 {
+  margin: 0;
+}
 
 .section-hint {
   font-size: 11px;
@@ -322,8 +341,16 @@ function truncate(val: string | number | undefined): string {
   border-top: 1px dashed #e0c88e;
 }
 
-.quality-item { font-size: 11px; padding: 2px 0; color: #8d6e63; }
-.dirty-samples { color: #bcaaa4; font-style: italic; }
+.quality-item {
+  font-size: 11px;
+  padding: 2px 0;
+  color: #8d6e63;
+}
+
+.dirty-samples {
+  color: #bcaaa4;
+  font-style: italic;
+}
 
 .dirty-badge {
   display: inline-flex;
@@ -368,11 +395,31 @@ function truncate(val: string | number | undefined): string {
   border-style: dashed;
 }
 
-.col-card.role-metric    { background: var(--role-metric-bg);    color: var(--role-metric-text); }
-.col-card.role-dimension { background: var(--role-dimension-bg); color: var(--role-dimension-text); }
-.col-card.role-time_axis { background: var(--role-time-bg);     color: var(--role-time-text); }
-.col-card.role-label     { background: var(--role-label-bg);     color: var(--role-label-text); }
-.col-card.role-ignore    { background: var(--role-ignore-bg);    color: var(--role-ignore-text); opacity: 0.7; }
+.col-card.role-metric {
+  background: var(--role-metric-bg);
+  color: var(--role-metric-text);
+}
+
+.col-card.role-dimension {
+  background: var(--role-dimension-bg);
+  color: var(--role-dimension-text);
+}
+
+.col-card.role-time_axis {
+  background: var(--role-time-bg);
+  color: var(--role-time-text);
+}
+
+.col-card.role-label {
+  background: var(--role-label-bg);
+  color: var(--role-label-text);
+}
+
+.col-card.role-ignore {
+  background: var(--role-ignore-bg);
+  color: var(--role-ignore-text);
+  opacity: 0.7;
+}
 
 .col-icon {
   font-size: 16px;
@@ -381,7 +428,10 @@ function truncate(val: string | number | undefined): string {
   text-align: center;
 }
 
-.col-text { flex: 1; min-width: 0; }
+.col-text {
+  flex: 1;
+  min-width: 0;
+}
 
 .col-name {
   font-weight: 600;
@@ -417,11 +467,21 @@ function truncate(val: string | number | undefined): string {
   color: var(--text-secondary);
   margin: 0;
 }
-.detect-text strong { color: var(--text-primary); }
+
+.detect-text strong {
+  color: var(--text-primary);
+}
 
 /* ── 样本表格 ── */
+.sample-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
 .sample-table {
   width: 100%;
+  min-width: max-content;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -445,5 +505,7 @@ function truncate(val: string | number | undefined): string {
   white-space: nowrap;
 }
 
-.sample-table tbody tr:hover { background: var(--bg-hover); }
+.sample-table tbody tr:hover {
+  background: var(--bg-hover);
+}
 </style>

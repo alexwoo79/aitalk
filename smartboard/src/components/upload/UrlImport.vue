@@ -2,16 +2,11 @@
   <div class="import-card">
     <div class="import-icon">🌐</div>
     <p class="import-text">{{ t('upload.urlTitle') }}</p>
-    <p class="import-sub">{{ t('upload.urlPlaceholder') }}</p>
+    <p class="import-sub">{{ t('upload.urlLocalHint') }}</p>
 
     <div class="card-input-row">
-      <input
-        v-model="url"
-        type="text"
-        class="card-input"
-        :placeholder="t('upload.urlPlaceholder')"
-        @keyup.enter="doFetch"
-      />
+      <input v-model="url" type="text" class="card-input" :placeholder="t('upload.urlPlaceholder')"
+        @keyup.enter="doFetch" />
       <select v-model="format" class="card-select">
         <option value="auto">{{ t('upload.urlAutoDetect') }}</option>
         <option value="csv">CSV</option>
@@ -89,6 +84,16 @@ async function doFetch() {
     }
   } catch (e: any) {
     if (cancelled.value) return
+
+    // Detect local file path (not supported in browser)
+    const isLocal = /^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/|\\\\)/.test(trimmed)
+    if (isLocal) {
+      error.value = t('upload.urlLocalNotSupported') ?? '浏览器模式不支持本地路径，请在桌面应用中使用或使用文件上传功能'
+      statusText.value = ''
+      loading.value = false
+      return
+    }
+
     // Browser fallback: try fetch + parse locally
     try {
       const resp = await fetch(trimmed)
@@ -148,21 +153,25 @@ function cancel() {
   min-height: 130px;
   gap: 12px;
 }
+
 .import-card:hover {
   border-color: var(--primary);
   background: var(--primary-light);
 }
+
 .import-icon {
   font-size: 36px;
   margin-bottom: 2px;
   opacity: 0.9;
 }
+
 .import-text {
   font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
   margin: 0;
 }
+
 .import-sub {
   font-size: 12px;
   color: var(--text-secondary);
@@ -171,12 +180,14 @@ function cancel() {
   line-height: 1.5;
   margin: 0;
 }
+
 .card-input-row {
   display: flex;
   gap: 8px;
   width: 100%;
   max-width: 500px;
 }
+
 .card-input {
   flex: 1;
   padding: 8px 12px;
@@ -186,10 +197,12 @@ function cancel() {
   background: var(--bg-primary);
   color: var(--text-primary);
 }
+
 .card-input:focus {
   outline: none;
   border-color: var(--primary);
 }
+
 .card-select {
   padding: 8px 12px;
   border: 1px solid var(--border);
@@ -198,26 +211,43 @@ function cancel() {
   background: var(--bg-primary);
   color: var(--text-primary);
 }
+
 .card-btn {
   margin-top: 2px;
 }
+
 .card-btn-row {
   display: flex;
   gap: 8px;
   align-items: center;
 }
+
 .btn-stop {
   background: var(--bg-primary);
   color: #e74c3c;
   border: 1px solid #e74c3c;
 }
-.btn-stop:hover { background: #fef2f2; }
+
+.btn-stop:hover {
+  background: #fef2f2;
+}
+
 .card-status {
   font-size: 13px;
 }
-.status-loading { color: var(--text-secondary); }
-.status-success { color: #27ae60; }
-.status-error { color: #e74c3c; }
+
+.status-loading {
+  color: var(--text-secondary);
+}
+
+.status-success {
+  color: #27ae60;
+}
+
+.status-error {
+  color: #e74c3c;
+}
+
 .card-error {
   color: #e74c3c;
   font-size: 13px;

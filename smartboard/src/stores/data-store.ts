@@ -513,11 +513,25 @@ export const useDataStore = defineStore('data', () => {
     mainTableId.value = id
   }
 
+  /** 重命名表（自定义名称） */
+  function renameTable(id: string, name: string) {
+    const ds = tables.value[id]
+    if (!ds) return
+    ds.customName = name.trim() || undefined
+    // 触发响应式更新
+    tables.value = { ...tables.value }
+  }
+
+  /** 获取表显示名称 */
+  function getTableDisplayName(ds: { fileName?: string; sheetName?: string; customName?: string }): string {
+    return ds.customName || ds.fileName || ds.sheetName || '未命名'
+  }
+
   /** 获取活跃表列表 */
   const tableList = computed(() => {
     return Array.from(Object.entries(tables.value)).map(([id, ds]) => ({
       id,
-      name: ds.fileName || ds.sheetName || '未命名',
+      name: getTableDisplayName(ds),
       rows: ds.totalRows ?? ds.rows.length,
       cols: ds.headers.length,
       isActive: id === activeTableId.value,
@@ -535,7 +549,7 @@ export const useDataStore = defineStore('data', () => {
     const fields: string[] = []
     if (hasRelations.value) {
       for (const [id, ds] of Object.entries(tables.value)) {
-        const prefix = (ds.fileName || ds.sheetName || '未命名') + '.'
+        const prefix = getTableDisplayName(ds) + '.'
         for (const h of ds.headers) {
           fields.push(prefix + h)
         }
@@ -561,7 +575,7 @@ export const useDataStore = defineStore('data', () => {
         // 跳过连接键列（与左表列名相同）
         if (rh === rel.rightColumn && headers.includes(rh)) continue
         const prefixedKey = headers.includes(rh)
-          ? (rightDs.fileName || rightDs.sheetName || 'right') + '.' + rh
+          ? getTableDisplayName(rightDs) + '.' + rh
           : rh
         if (!headers.includes(prefixedKey)) {
           headers.push(prefixedKey)
@@ -766,5 +780,7 @@ export const useDataStore = defineStore('data', () => {
     removeRelation,
     updateRelation,
     setMainTable,
+    renameTable,
+    getTableDisplayName,
   }
 })

@@ -6,9 +6,7 @@
         {{ t('upload.dataTips.toggle') }}
         <span class="tips-arrow">{{ showTips ? '▲' : '▼' }}</span>
       </button>
-      <span class="sample-download" role="button" tabindex="0"
-        @click="downloadSample"
-        @keydown.enter="downloadSample"
+      <span class="sample-download" role="button" tabindex="0" @click="downloadSample" @keydown.enter="downloadSample"
         @keydown.space.prevent="downloadSample">
         {{ t('upload.sampleDownload') }}
       </span>
@@ -43,13 +41,8 @@
 
       <!-- 导入方式 Tab 栏 -->
       <div class="method-tabs">
-        <button
-          v-for="mtab in methodTabs"
-          :key="mtab.key"
-          class="method-tab"
-          :class="{ active: activeMethod === mtab.key }"
-          @click="activeMethod = mtab.key"
-        >
+        <button v-for="mtab in methodTabs" :key="mtab.key" class="method-tab"
+          :class="{ active: activeMethod === mtab.key }" @click="activeMethod = mtab.key">
           {{ mtab.label }}
         </button>
       </div>
@@ -78,30 +71,21 @@
     <template v-if="dataStore.dataSet">
       <!-- Tab 栏：表名 + 关联 -->
       <div class="table-tabs">
-        <button
-          v-for="table in dataStore.tableList"
-          :key="table.id"
-          class="table-tab"
-          :class="{ active: table.isActive }"
-          @click="switchTable(table.id)"
-        >
-          <span class="tab-table-name">{{ table.name }}</span>
-          <span
-            class="tab-remove"
-            role="button"
-            tabindex="0"
-            :title="t('upload.removeTable')"
-            @click.stop="dataStore.removeTable(table.id)"
-            @keydown.enter.stop="dataStore.removeTable(table.id)"
-            @keydown.space.prevent.stop="dataStore.removeTable(table.id)"
-          >✕</span>
+        <button v-for="table in dataStore.tableList" :key="table.id" class="table-tab"
+          :class="{ active: table.isActive }" @click="switchTable(table.id)">
+          <!-- 编辑模式 -->
+          <input v-if="editingTabId === table.id" ref="renameInput" v-model="editName" class="tab-rename-input"
+            maxlength="60" @keydown.enter="confirmRename" @keydown.escape="cancelRename" @blur="confirmRename"
+            @click.stop />
+          <!-- 显示模式 -->
+          <span v-else class="tab-table-name" :title="t('upload.doubleClickToRename')"
+            @dblclick.stop="startRename(table)">{{ table.name }}</span>
+          <span class="tab-remove" role="button" tabindex="0" :title="t('upload.removeTable')"
+            @click.stop="dataStore.removeTable(table.id)" @keydown.enter.stop="dataStore.removeTable(table.id)"
+            @keydown.space.prevent.stop="dataStore.removeTable(table.id)">✕</span>
         </button>
-        <button
-          v-if="dataStore.tableCount > 1"
-          class="table-tab"
-          :class="{ active: activeTab === 'relation' }"
-          @click="activeTab = 'relation'"
-        >{{ t('upload.tabRelation') }}</button>
+        <button v-if="dataStore.tableCount > 1" class="table-tab" :class="{ active: activeTab === 'relation' }"
+          @click="activeTab = 'relation'">{{ t('upload.tabRelation') }}</button>
       </div>
 
       <!-- 关联 Tab 内容 -->
@@ -116,18 +100,15 @@
     </template>
 
     <!-- Excel 多 Sheet 选择弹窗 -->
-    <SheetSelector
-      :visible="!!dataStore.pendingSheetSelection"
+    <SheetSelector :visible="!!dataStore.pendingSheetSelection"
       :file-name="dataStore.pendingSheetSelection?.filePath?.replace(/^.*[/\\]/, '') ?? ''"
-      :sheets="dataStore.pendingSheetSelection?.sheets ?? []"
-      @confirm="onSheetsConfirmed"
-      @cancel="dataStore.cancelSheetSelection()"
-    />
+      :sheets="dataStore.pendingSheetSelection?.sheets ?? []" @confirm="onSheetsConfirmed"
+      @cancel="dataStore.cancelSheetSelection()" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useDataStore } from '@/stores/data-store'
@@ -173,6 +154,38 @@ const activeTab = ref<'data' | 'relation'>('data')
 function switchTable(id: string) {
   dataStore.switchTable(id)
   activeTab.value = 'data'
+}
+
+// ── 双击重命名表 ──
+const editingTabId = ref<string | null>(null)
+const editName = ref('')
+const renameInput = ref<HTMLInputElement | null>(null)
+
+interface TableInfo {
+  id: string
+  name: string
+}
+
+function startRename(table: TableInfo) {
+  editingTabId.value = table.id
+  editName.value = table.name
+  void nextTick(() => {
+    renameInput.value?.focus()
+    renameInput.value?.select()
+  })
+}
+
+function confirmRename() {
+  if (editingTabId.value && editName.value.trim()) {
+    dataStore.renameTable(editingTabId.value, editName.value.trim())
+  }
+  editingTabId.value = null
+  editName.value = ''
+}
+
+function cancelRename() {
+  editingTabId.value = null
+  editName.value = ''
 }
 
 // Data quality tips: shown by default on first visit, toggleable
@@ -471,6 +484,23 @@ async function downloadSample() {
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: default;
+}
+
+.tab-rename-input {
+  max-width: 140px;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.tab-rename-input:focus {
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.25);
 }
 
 .tab-table-meta {
@@ -511,7 +541,10 @@ async function downloadSample() {
 }
 
 /* ── 提示面板 ── */
-.upload-view { position: relative; }
+.upload-view {
+  position: relative;
+}
+
 .tips-actions {
   display: flex;
   align-items: center;
@@ -528,7 +561,9 @@ async function downloadSample() {
   cursor: pointer;
 }
 
-.tips-arrow { font-size: 10px; }
+.tips-arrow {
+  font-size: 10px;
+}
 
 .sample-download {
   font-size: 13px;
@@ -537,7 +572,10 @@ async function downloadSample() {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.sample-download:hover { color: var(--primary); }
+
+.sample-download:hover {
+  color: var(--primary);
+}
 
 .tips-panel {
   position: absolute;
@@ -554,7 +592,7 @@ async function downloadSample() {
   color: #92400e;
   text-align: left;
   z-index: 100;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 :root[data-theme="dark"] .tips-panel {
@@ -603,7 +641,8 @@ async function downloadSample() {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
-

@@ -57,6 +57,8 @@ export interface DataSet {
   sheetIndex?: number
   /** 实际总行数（后端传入，可能大于 rows.length） */
   totalRows?: number
+  /** 用户自定义表名（双击 Tab 可修改） */
+  customName?: string
 }
 
 /** 解析原始文件结果（解析后、分类前） */
