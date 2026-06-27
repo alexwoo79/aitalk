@@ -9,7 +9,7 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use polars::prelude::*;
 use std::collections::{HashMap, HashSet};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use crate::types::{DatasetMeta, RuntimeDataset};
 
@@ -18,13 +18,13 @@ use crate::types::{DatasetMeta, RuntimeDataset};
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// The currently loaded DataFrame (shared across all Tauri commands).
-pub static GLOBAL_DF: Lazy<RwLock<Option<DataFrame>>> = Lazy::new(|| RwLock::new(None));
+pub static GLOBAL_DF: Lazy<RwLock<Option<Arc<DataFrame>>>> = Lazy::new(|| RwLock::new(None));
 
 /// Snapshot of the DataFrame right after loading, used for rollback.
-pub static ORIGINAL_DF: Lazy<RwLock<Option<DataFrame>>> = Lazy::new(|| RwLock::new(None));
+pub static ORIGINAL_DF: Lazy<RwLock<Option<Arc<DataFrame>>>> = Lazy::new(|| RwLock::new(None));
 
 /// History stack for step-wise clean undo.
-pub static CLEAN_HISTORY: Lazy<RwLock<Vec<DataFrame>>> = Lazy::new(|| RwLock::new(Vec::new()));
+pub static CLEAN_HISTORY: Lazy<RwLock<Vec<Arc<DataFrame>>>> = Lazy::new(|| RwLock::new(Vec::new()));
 
 /// Dataset registry for multi-table workflows.
 pub static DATASET_REGISTRY: Lazy<RwLock<Vec<RuntimeDataset>>> =
@@ -66,7 +66,7 @@ pub fn register_dataset(df: &DataFrame, name: String, _source: String) -> Result
     let mut registry = DATASET_REGISTRY.write().unwrap();
     registry.push(RuntimeDataset {
         meta: meta.clone(),
-        df: df.clone(),
+        df: Arc::new(df.clone()),
     });
 
     Ok(meta)
@@ -75,7 +75,7 @@ pub fn register_dataset(df: &DataFrame, name: String, _source: String) -> Result
 /// Replace the active DataFrame and optionally store it as a dataset.
 pub fn replace_active_dataframe(df: &DataFrame, register: bool) {
     let mut global = GLOBAL_DF.write().unwrap();
-    *global = Some(df.clone());
+    *global = Some(Arc::new(df.clone()));
 
     if register {
         let dataset_name = "current_dataset".to_string();
@@ -89,8 +89,8 @@ pub fn set_active_dataset_id(id: Option<String>) {
     *active = id;
 }
 
-/// Get a clone of the current active DataFrame.
-pub fn get_active_df() -> Result<DataFrame> {
+/// Get an Arc clone of the current active DataFrame (cheap ref-count increment).
+pub fn get_active_df() -> Result<Arc<DataFrame>> {
     let guard = GLOBAL_DF.read().unwrap();
     guard
         .as_ref()
@@ -99,7 +99,6 @@ pub fn get_active_df() -> Result<DataFrame> {
 }
 
 /// Execute a closure with a read-locked reference to the active DataFrame.
-/// Avoids cloning when the caller only needs to read.
 pub fn with_active_df<F, T>(f: F) -> Result<T>
 where
     F: FnOnce(&DataFrame) -> T,
@@ -107,7 +106,7 @@ where
     let guard = GLOBAL_DF.read().unwrap();
     guard
         .as_ref()
-        .map(|df| f(df))
+        .map(|arc| f(arc.as_ref()))
         .ok_or_else(|| anyhow::anyhow!("没有加载数据，请先上传文件"))
 }
 
@@ -150,12 +149,12 @@ pub fn push_clean_history() -> Result<()> {
 
 /// Pop the last state from the clean history stack.
 /// Lock order: GLOBAL_DF → CLEAN_HISTORY（与 push_clean_history 一致）
-pub fn pop_clean_history() -> Option<DataFrame> {
+pub fn pop_clean_history() -> Option<Arc<DataFrame>> {
     let mut global = GLOBAL_DF.write().unwrap();
     let mut history = CLEAN_HISTORY.write().unwrap();
     let popped = history.pop();
     if let Some(df) = &popped {
-        *global = Some(df.clone());
+        *global = Some(Arc::clone(df));
     }
     popped
 }

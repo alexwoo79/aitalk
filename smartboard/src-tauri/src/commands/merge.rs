@@ -75,7 +75,7 @@ pub async fn concat_datasets(right_dataset_id: String) -> ApiResult<ChartPayload
         None => return ApiResult::failure("找不到指定的右表数据集"),
     };
 
-    match concat_impl(&[left_df, right_rec.df]) {
+    match concat_impl(&[(*left_df).clone(), (*right_rec.df).clone()]) {
         Ok(result) => {
             replace_active_dataframe(&result, false);
             let _ =

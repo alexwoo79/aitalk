@@ -423,15 +423,16 @@ function onDateColumnChange() {
     dateColWarn.value = ''
   }
 
-  const dates = ds.rows
-    .map((r) => String(r[previewStore.activeDateColumn] ?? ''))
-    .filter((v) => v !== '')
-    .sort()
-  if (dates.length > 0) {
-    previewStore.dateRange.start = dates[0]
-    previewStore.dateRange.end = dates[dates.length - 1]
-    dateStart.value = dates[0]
-    dateEnd.value = dates[dates.length - 1]
+  const dates = ds.rows.reduce((acc: { min: string, max: string }, r) => {
+    const d = String(r[previewStore.activeDateColumn] ?? '')
+    if (!d) return acc
+    return { min: !acc.min || d < acc.min ? d : acc.min, max: !acc.max || d > acc.max ? d : acc.max }
+  }, { min: '', max: '' })
+  if (dates.min) {
+    previewStore.dateRange.start = dates.min
+    previewStore.dateRange.end = dates.max
+    dateStart.value = dates.min
+    dateEnd.value = dates.max
     previewStore.applyFilters()
   }
 }
@@ -860,10 +861,10 @@ const dateRangeCount = computed(() => {
   const end = previewStore.dateRange.end
   if (!start || !end) return 0
   const rows = dataStore.dataSet?.rows ?? []
-  return rows.filter((r) => {
+  return rows.reduce((n, r) => {
     const d = String(r[dateCol] ?? '').trim()
-    return d >= start && d <= end
-  }).length
+    return d >= start && d <= end ? n + 1 : n
+  }, 0)
 })
 
 // ====== KPI icon logic (matches dashboard_gen.py) ======
@@ -985,21 +986,29 @@ function matchColTextRule(col: string, val: any): string | null {
   return null
 }
 
-function getRowColorStyle(row: Record<string, any>): Record<string, string> {
+const rowColorCache = computed(() => {
   const rules = configStore.config.table.rowConditionColors
-  if (!rules || rules.length === 0) return {}
-  for (const rule of rules) {
-    if (!rule.condition.trim() || !rule.color) continue
-    try {
-      const filtered = applyFilter([row], undefined, rule.condition)
-      if (filtered.length > 0) {
-        const s: Record<string, string> = { backgroundColor: rule.color + '30' }
-        if (rule.textColor) s.color = rule.textColor + 'c0'
-        return s
-      }
-    } catch { /* skip invalid conditions */ }
+  if (!rules?.length) return null
+  const cache = new WeakMap<Record<string, any>, Record<string, string>>()
+  for (const row of tableRows.value) {
+    for (const rule of rules) {
+      if (!rule.condition.trim() || !rule.color) continue
+      try {
+        const filtered = applyFilter([row], undefined, rule.condition)
+        if (filtered.length > 0) {
+          const s: Record<string, string> = { backgroundColor: rule.color + '30' }
+          if (rule.textColor) s.color = rule.textColor + 'c0'
+          cache.set(row, s)
+          break
+        }
+      } catch { /* skip */ }
+    }
   }
-  return {}
+  return cache
+})
+
+function getRowColorStyle(row: Record<string, any>): Record<string, string> {
+  return rowColorCache.value?.get(row) ?? {}
 }
 
 // ====== Table rows with search + sorting ======
@@ -1093,8 +1102,8 @@ const summaryValues = computed(() => {
       case 'sum': result[col] = vals.reduce((a, b) => a + b, 0); break
       case 'avg': result[col] = vals.reduce((a, b) => a + b, 0) / vals.length; break
       case 'count': result[col] = vals.length; break
-      case 'min': result[col] = Math.min(...vals); break
-      case 'max': result[col] = Math.max(...vals); break
+      case 'min': result[col] = vals.reduce((a, b) => a < b ? a : b, Infinity); break
+      case 'max': result[col] = vals.reduce((a, b) => a > b ? a : b, -Infinity); break
     }
   }
   return result

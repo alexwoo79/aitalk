@@ -27,8 +27,8 @@ export function applyAgg(arr: number[], agg: string): number {
   switch (agg) {
     case 'sum': return arr.reduce((a, b) => a + b, 0)
     case 'avg': return arr.reduce((a, b) => a + b, 0) / arr.length
-    case 'min': return Math.min(...arr)
-    case 'max': return Math.max(...arr)
+    case 'min': return arr.reduce((a, b) => a < b ? a : b, Infinity)
+    case 'max': return arr.reduce((a, b) => a > b ? a : b, -Infinity)
     case 'count': return arr.length
     default: return arr.reduce((a, b) => a + b, 0)
   }
@@ -560,8 +560,8 @@ export function buildHistogramOption(
 
   if (values.length === 0) return {}
 
-  const min = Math.min(...values)
-  const max = Math.max(...values)
+  const min = values.reduce((a, b) => a < b ? a : b, Infinity)
+  const max = values.reduce((a, b) => a > b ? a : b, -Infinity)
 
   if (min === max) {
     return {

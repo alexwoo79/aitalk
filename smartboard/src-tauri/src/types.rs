@@ -110,7 +110,7 @@ pub struct DatasetMeta {
 #[derive(Debug, Clone)]
 pub struct RuntimeDataset {
     pub meta: DatasetMeta,
-    pub df: DataFrame,
+    pub df: std::sync::Arc<DataFrame>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -34,7 +34,7 @@ pub fn dataframe_from_columns(columns: Vec<Column>) -> polars::prelude::PolarsRe
 /// (2001-2100) and converts them to YYYY-MM-DD format.
 pub fn convert_ms_timestamps(df: &DataFrame) -> DataFrame {
     // Time range: 2001-01-01 to 2100-01-01 as ms timestamps
-    const MS_MIN: i64 = 978_307_200_000;  // 2001-01-01
+    const MS_MIN: i64 = 978_307_200_000; // 2001-01-01
     const MS_MAX: i64 = 4_102_444_800_000; // 2100-01-01
 
     let n_rows = df.height();
@@ -48,7 +48,10 @@ pub fn convert_ms_timestamps(df: &DataFrame) -> DataFrame {
         .map(|s| {
             let dtype = s.dtype();
             // Only check integer columns
-            let is_int = matches!(dtype, DataType::Int64 | DataType::Int32 | DataType::UInt32 | DataType::UInt64);
+            let is_int = matches!(
+                dtype,
+                DataType::Int64 | DataType::Int32 | DataType::UInt32 | DataType::UInt64
+            );
             if !is_int {
                 return s.clone().into();
             }
@@ -90,9 +93,8 @@ pub fn convert_ms_timestamps(df: &DataFrame) -> DataFrame {
                         };
                         let secs = ms / 1000;
                         let nanos = ((ms % 1000) * 1_000_000) as u32;
-                        DateTime::from_timestamp(secs, nanos).map(|dt| {
-                            dt.naive_utc().format("%Y-%m-%d").to_string()
-                        })
+                        DateTime::from_timestamp(secs, nanos)
+                            .map(|dt| dt.naive_utc().format("%Y-%m-%d").to_string())
                     })
                     .collect();
                 Column::new(s.name().clone(), date_strings).into()
@@ -102,14 +104,13 @@ pub fn convert_ms_timestamps(df: &DataFrame) -> DataFrame {
         })
         .collect();
 
-    DataFrame::new_with_broadcast(n_rows, cols)
-        .unwrap_or_else(|_| df.clone())
+    DataFrame::new_with_broadcast(n_rows, cols).unwrap_or_else(|_| df.clone())
 }
 
 /// Convert a Polars DataFrame into a ChartPayload for frontend consumption.
 pub fn df_to_payload(df: &DataFrame, limit: Option<usize>) -> Result<ChartPayload> {
     let total_rows = df.height();
-    let preview_n = limit.map(|l| l.min(total_rows)).unwrap_or(total_rows);
+    let preview_n = limit.unwrap_or(500).min(total_rows);
 
     let columns: Vec<ColumnInfo> = df
         .columns()
@@ -121,24 +122,31 @@ pub fn df_to_payload(df: &DataFrame, limit: Option<usize>) -> Result<ChartPayloa
         })
         .collect();
 
-    let mut rows: Vec<RowMap> = Vec::new();
-    let n_rows = total_rows.min(preview_n);
     let column_names: Vec<String> = df
         .get_column_names()
         .iter()
         .map(|s| s.to_string())
         .collect();
 
-    for row_idx in 0..n_rows {
-        let mut row_map = RowMap::new();
-        for col_name in &column_names {
-            let json_val = match df.column(col_name.as_str()) {
-                Ok(col) => match col.get(row_idx) {
-                    Ok(v) => v_to_json(&v),
-                    Err(_) => serde_json::Value::Null,
-                },
-                Err(_) => serde_json::Value::Null,
-            };
+    // 预提取所有列的 AnyValue 向量，避免逐 cell 调用 column()
+    let col_data: Vec<Vec<AnyValue>> = column_names
+        .iter()
+        .map(|name| {
+            df.column(name.as_str())
+                .map(|c| {
+                    (0..preview_n)
+                        .map(|i| c.get(i).unwrap_or(AnyValue::Null))
+                        .collect()
+                })
+                .unwrap_or_default()
+        })
+        .collect();
+
+    let mut rows: Vec<RowMap> = Vec::new();
+    for row_idx in 0..preview_n {
+        let mut row_map = RowMap::with_capacity(column_names.len());
+        for (col_idx, col_name) in column_names.iter().enumerate() {
+            let json_val = v_to_json(&col_data[col_idx][row_idx]);
             row_map.insert(col_name.clone(), json_val);
         }
         rows.push(row_map);

@@ -44,10 +44,10 @@ export function aggregate(
         value = values.length
         break
       case 'min':
-        value = Math.min(...values)
+        value = values.reduce((a, b) => a < b ? a : b, Infinity)
         break
       case 'max':
-        value = Math.max(...values)
+        value = values.reduce((a, b) => a > b ? a : b, -Infinity)
         break
       default:
         value = values.reduce((a, b) => a + b, 0)

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { DashboardSpec, KpiSpec, ChartSpec, FilterSpec, TableSpec } from '@/types/spec'
 import { useDataStore } from './data-store'
 import { useConfigStore } from './config-store'
@@ -18,6 +18,11 @@ export const usePreviewStore = defineStore('preview', () => {
   let _cachedEffectiveDS: import('@/types/data').DataSet | null = null
   const dataStore = useDataStore()
   const configStore = useConfigStore()
+  // 数据集变更时清空所有缓存
+  watch(() => dataStore.dataSet, () => {
+    _cachedEffectiveDS = null
+    _filterOptionsCache.clear()
+  })
 
   function safeFormula(f: any): any {
     if (!f || !f.variables) return f
@@ -80,13 +85,23 @@ export const usePreviewStore = defineStore('preview', () => {
 
   function applyFilters() {
     const ds = dataStore.dataSet; if (!ds) { filteredRows.value = []; return }
-    const e = dataStore.hasRelations ? buildEffectiveDS(ds) : ds; let rows = [...e.rows]
-    for (const [c, v] of Object.entries(filterValues.value)) if (v && v !== '__all__') rows = rows.filter(r => String(r[c] ?? '').trim() === v)
-    if (dateRange.value.start && dateRange.value.end) {
-      const dc = activeDateColumn.value || e.headers.find((h: string) => e.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h))
-      if (dc) { const s = dateRange.value.start; const ed = dateRange.value.end; rows = rows.filter(r => { const d = String(r[dc] ?? ''); return d >= s && d <= ed }) }
-    }
-    if (searchText.value.trim()) { const q = searchText.value.trim().toLowerCase(); rows = rows.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q))) }
+    const e = dataStore.hasRelations ? buildEffectiveDS(ds) : ds
+
+    // 预收集筛选参数，合并为单次遍历
+    const dimEntries = Object.entries(filterValues.value).filter(([, v]) => v && v !== '__all__')
+    const dc = (dateRange.value.start && dateRange.value.end)
+      ? (activeDateColumn.value || e.headers.find((h: string) => e.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h)))
+      : null
+    const ds2 = dc ? dateRange.value.start : ''
+    const de = dc ? dateRange.value.end : ''
+    const q = searchText.value.trim().toLowerCase() || null
+
+    let rows = e.rows.filter(r => {
+      for (const [c, v] of dimEntries) { if (String(r[c] ?? '').trim() !== v) return false }
+      if (dc) { const d = String(r[dc] ?? ''); if (d < ds2 || d > de) return false }
+      if (q && !Object.values(r).some(v2 => String(v2).toLowerCase().includes(q))) return false
+      return true
+    })
     if (conditionFilter.value.trim()) rows = applyFilter(rows, undefined, conditionFilter.value)
     filteredRows.value = rows; _cachedEffectiveDS = dataStore.hasRelations ? buildEffectiveDS(ds) : null; refreshDashboard()
   }
@@ -136,7 +151,7 @@ export const usePreviewStore = defineStore('preview', () => {
     if ((kpi.agg as string) === 'unique_count') return new Set(f.map(r => String(r[kpi.column] ?? '').trim()).filter(s => s !== '')).size
     const vals = f.map(r => { const v = r[kpi.column]; if (v === undefined || v === null || v === '') return NaN; if (typeof v === 'number') return v; return Number(String(v).replace(/,/g, '').replace(/%/g, '').trim()) }).filter(v => !isNaN(v))
     if (!vals.length) return 0
-    switch (kpi.agg) { case 'sum': return vals.reduce((a, b) => a + b, 0); case 'avg': return vals.reduce((a, b) => a + b, 0) / vals.length; case 'min': return Math.min(...vals); case 'max': return Math.max(...vals); default: return vals.reduce((a, b) => a + b, 0) }
+    switch (kpi.agg) { case 'sum': return vals.reduce((a, b) => a + b, 0); case 'avg': return vals.reduce((a, b) => a + b, 0) / vals.length; case 'min': return vals.reduce((a, b) => a < b ? a : b, Infinity); case 'max': return vals.reduce((a, b) => a > b ? a : b, -Infinity); default: return vals.reduce((a, b) => a + b, 0) }
   }
 
   const _filterOptionsCache = new Map<string, string[]>()
@@ -153,7 +168,7 @@ export const usePreviewStore = defineStore('preview', () => {
     if (dashboardResult.value?.chart_data?.[key]) return dashboardResult.value.chart_data[key].map(d => ({ label: d.label, value: d.value }))
     const rows = filteredRows.value.length > 0 ? filteredRows.value : (dataStore.dataSet?.rows ?? [])
     const groups = new Map<string, number[]>(); for (const row of rows) { const k = String(row[dimCol] || '未知'); if (!groups.has(k)) groups.set(k, []); const v = Number(row[metricCol]); if (!isNaN(v)) groups.get(k)!.push(v) }
-    return [...groups.entries()].map(([l, vs]) => { let v: number; switch (agg) { case 'sum': v = vs.reduce((a, b) => a + b, 0); break; case 'avg': v = vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : 0; break; case 'count': v = vs.length; break; case 'min': v = Math.min(...vs); break; case 'max': v = Math.max(...vs); break; default: v = vs.reduce((a, b) => a + b, 0) } return { label: l, value: v } }).sort((a, b) => b.value - a.value)
+    return [...groups.entries()].map(([l, vs]) => { let v: number; switch (agg) { case 'sum': v = vs.reduce((a, b) => a + b, 0); break; case 'avg': v = vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : 0; break; case 'count': v = vs.length; break; case 'min': v = vs.reduce((a, b) => a < b ? a : b, Infinity); break; case 'max': v = vs.reduce((a, b) => a > b ? a : b, -Infinity); break; default: v = vs.reduce((a, b) => a + b, 0) } return { label: l, value: v } }).sort((a, b) => b.value - a.value)
   }
 
   const rowCount = computed(() => dashboardResult.value?.row_count ?? (filteredRows.value.length || (dataStore.dataSet?.rows.length ?? 0)))

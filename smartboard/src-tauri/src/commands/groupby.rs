@@ -222,6 +222,7 @@ pub async fn compute_chart_data(
     };
 
     let agg_df = match df
+        .as_ref()
         .clone()
         .lazy()
         .group_by([group_by_col])

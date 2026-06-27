@@ -94,22 +94,19 @@ function computeRowWise(
   const aliasMap = new Map(vars.map(v => [v.alias, v.column]))
 
   const results: number[] = []
+
+  // 预编译表达式：一次 Function 构造，循环内只调用
+  const aliases = vars.map(v => v.alias)
+  const compiled = new Function(...aliases, `"use strict"; return (${innerExpr})`)
+  if (typeof compiled !== 'function') {
+    console.warn('[Formula] 表达式编译失败:', innerExpr)
+    return results
+  }
+
   for (const row of rows) {
-    // 提取该行各变量的原始数值
-    const rowVals: Record<string, number> = {}
-    for (const v of vars) {
-      const colVal = row[v.column]
-      rowVals[v.alias] = getNumericValue(colVal, 0)
-    }
-
-    // 替换表达式中的别名为数值
-    let expr = innerExpr
-    for (const v of vars) {
-      expr = expr.replace(new RegExp(`\\b${v.alias}\\b`, 'g'), String(rowVals[v.alias]))
-    }
-
+    const args: number[] = vars.map(v => getNumericValue(row[v.column], 0))
     try {
-      const result = new Function(`"use strict"; return (${expr})`)()
+      const result = compiled(...args)
       if (typeof result === 'number' && isFinite(result) && !isNaN(result)) {
         results.push(result)
       }
@@ -128,8 +125,8 @@ function applyAgg(values: number[], func: string, rows?: Record<string, string |
     case 'SUM': return values.reduce((a, b) => a + b, 0)
     case 'AVG': return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0
     case 'COUNT': return values.length
-    case 'MIN': return values.length > 0 ? Math.min(...values) : 0
-    case 'MAX': return values.length > 0 ? Math.max(...values) : 0
+    case 'MIN': return values.length > 0 ? values.reduce((a, b) => a < b ? a : b, Infinity) : 0
+    case 'MAX': return values.length > 0 ? values.reduce((a, b) => a > b ? a : b, -Infinity) : 0
     case 'UNIQUE_COUNT': {
       if (!rows || !col) return 0
       const unique = new Set(rows.map(r => {

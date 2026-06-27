@@ -181,9 +181,9 @@ var SmartboardRenderer = (function(exports) {
       case "avg":
         return arr.reduce((a, b) => a + b, 0) / arr.length;
       case "min":
-        return Math.min(...arr);
+        return arr.reduce((a, b) => a < b ? a : b, Infinity);
       case "max":
-        return Math.max(...arr);
+        return arr.reduce((a, b) => a > b ? a : b, -Infinity);
       case "count":
         return arr.length;
       default:
