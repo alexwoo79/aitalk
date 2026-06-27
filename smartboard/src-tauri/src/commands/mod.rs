@@ -2,6 +2,7 @@
 //
 // 命令模块集合
 
+pub mod compute;
 pub mod database;
 pub mod datasource;
 pub mod excel_selection;

@@ -31,16 +31,13 @@
             </option>
           </select>
         </div>
-        <div class="filter-item">
+        <div class="filter-item filter-search-group">
           <label>{{ t('common.search') }}</label>
-          <input type="text" v-model="previewStore.searchText" @input="onFilterChange"
-            class="input input-sm search-input" :placeholder="t('dashboard.searchPlaceholder')" />
-        </div>
-        <div class="filter-item">
+          <input type="text" v-model="previewStore.searchText" class="input input-sm search-input"
+            :placeholder="t('dashboard.searchPlaceholder')" />
           <label>{{ t('common.condition') }}</label>
-          <input type="text" v-model="previewStore.conditionFilter" @input="onFilterChange"
-            class="input input-sm condition-input" list="condition-cols"
-            :placeholder="t('dashboard.conditionPlaceholder')" />
+          <input type="text" v-model="previewStore.conditionFilter" class="input input-sm condition-input"
+            list="condition-cols" :placeholder="t('dashboard.conditionPlaceholder')" />
           <datalist id="condition-cols">
             <template v-for="col in allHeaders" :key="col">
               <option :value="col + ' = '" />
@@ -51,15 +48,14 @@
               <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
             </template>
           </datalist>
+          <button class="btn btn-sm btn-apply" @click="onFilterChange">{{ t('dashboard.applyFilter') }}</button>
         </div>
-        <div class="filter-actions">
-          <button class="btn btn-sm btn-reset" @click="resetFilters">{{ t('dashboard.resetFilter') }}</button>
-          <button class="btn btn-sm btn-clear" @click="clearDashboard">Clear</button>
-          <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
-        </div>
-        <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
-        }}</span>
+        <button class="btn btn-sm btn-reset" @click="resetFilters">{{ t('dashboard.resetFilter') }}</button>
+        <button class="btn btn-sm btn-clear" @click="clearDashboard">Clear</button>
+        <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
       </div>
+      <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
+      }}</span>
 
       <!-- 日期范围 -->
       <div v-if="dateColWarn" class="date-col-warn">
@@ -154,15 +150,16 @@
               t('common.matched')
                 }}</span> / {{ totalRows }} {{ t('common.rows') }}</h3>
             <div class="table-controls">
-              <div class="control-group">
-                <input type="text" v-model="tableSearch" class="input input-xs table-search"
-                  :placeholder="t('dashboard.tableSearchPlaceholder')" />
-                <button v-if="tableSearch" class="search-clear" @click="tableSearch = ''">✕</button>
-              </div>
-              <div class="control-group">
+              <div class="control-group table-search-group">
+                <label>{{ t('common.search') }}</label>
+                <input type="text" v-model="tableSearchInput" class="input input-xs table-search"
+                  :placeholder="t('dashboard.tableSearchPlaceholder')" @keyup.enter="applyTableFilter" />
+                <button v-if="tableSearchInput" class="search-clear"
+                  @click="tableSearchInput = ''; tableConditionInput = ''; applyTableFilter()">✕</button>
                 <label>{{ t('common.condition') }}</label>
-                <input type="text" v-model="tableCondition" class="input input-xs table-cond" list="table-cond-cols"
-                  :placeholder="t('dashboard.conditionPlaceholderShort')" />
+                <input type="text" v-model="tableConditionInput" class="input input-xs table-cond"
+                  list="table-cond-cols" :placeholder="t('dashboard.conditionPlaceholderShort')"
+                  @keyup.enter="applyTableFilter" />
                 <datalist id="table-cond-cols">
                   <template v-for="col in allHeaders" :key="col">
                     <option :value="col + ' = '" />
@@ -173,12 +170,13 @@
                     <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
                   </template>
                 </datalist>
+                <button class="btn btn-sm btn-apply" @click="applyTableFilter">{{ t('dashboard.applyFilter') }}</button>
               </div>
               <div class="control-group col-picker" v-if="showColPicker">
                 <div class="picker-panel">
                   <div class="picker-actions">
                     <button class="btn-link" @click="activeColumns = allColumns.slice()">{{ t('common.selectAll')
-                      }}</button>
+                    }}</button>
                     <button class="btn-link" @click="activeColumns = []">{{ t('common.clearAll') }}</button>
                   </div>
                   <div class="picker-chips">
@@ -351,6 +349,14 @@ const activeColumns = ref<string[]>([])
 const showColPicker = ref(false)
 const tableSearch = ref('')
 const tableCondition = ref('')
+// 输入框绑定本地 ref，点击"应用"后才更新到 tableSearch/tableCondition
+const tableSearchInput = ref('')
+const tableConditionInput = ref('')
+
+function applyTableFilter() {
+  tableSearch.value = tableSearchInput.value
+  tableCondition.value = tableConditionInput.value
+}
 
 // Available columns from the dataset (includes merged cross-table columns when relations exist)
 const allColumns = computed(() => {
@@ -1043,57 +1049,56 @@ const hasSummaryRow = computed(() => {
   return aggs && Object.keys(aggs).length > 0
 })
 
-const summaryValues = ref<Record<string, number>>({})
+const summaryValues = computed(() => {
+  // 无表格内搜索/条件时 → 直接使用 Rust 统一计算结果
+  const noTableFilter = !tableSearch.value.trim() && !tableCondition.value.trim()
+  if (noTableFilter && previewStore.dashboardResult?.summary_values) {
+    return previewStore.dashboardResult.summary_values
+  }
 
-// 使用 watch 强制在 filteredRows / summaryAggs / 表格搜索条件变化时重新计算合计行
-watch(
-  [storeFilteredRows, () => spec.value?.table?.summaryAggs, tableSearch, tableCondition],
-  () => {
-    let rows = storeFilteredRows.value.length > 0
-      ? [...storeFilteredRows.value]
-      : (storeDataSet.value?.rows ?? [])
+  // 有表格内搜索/条件 → 前端过滤后计算
+  let rows = storeFilteredRows.value.length > 0
+    ? [...storeFilteredRows.value]
+    : (storeDataSet.value?.rows ?? [])
 
-    // 同步表格自身的搜索过滤
-    const q = tableSearch.value.trim().toLowerCase()
-    if (q) {
-      const cols = activeColumns.value.length > 0 ? activeColumns.value : allColumns.value
-      rows = rows.filter((row) =>
-        cols.some((col) => {
-          const v = row[col]
-          if (v == null || v === '') return false
-          return String(v).toLowerCase().includes(q)
-        }),
-      )
+  const q = tableSearch.value.trim().toLowerCase()
+  if (q) {
+    const cols = activeColumns.value.length > 0 ? activeColumns.value : allColumns.value
+    rows = rows.filter((row) =>
+      cols.some((col) => {
+        const v = row[col]
+        if (v == null || v === '') return false
+        return String(v).toLowerCase().includes(q)
+      }),
+    )
+  }
+  if (tableCondition.value.trim()) {
+    rows = applyFilter(rows, undefined, tableCondition.value)
+  }
+
+  const aggs = spec.value?.table?.summaryAggs || {}
+  if (Object.keys(aggs).length === 0) return {}
+
+  const result: Record<string, number> = {}
+  for (const col of Object.keys(aggs)) {
+    const agg = aggs[col]
+    if (agg === 'unique_count') {
+      const raw = rows.map(r => String(r[col] ?? '')).filter(v => v !== '')
+      result[col] = new Set(raw).size
+      continue
     }
-
-    // 同步表格自身的条件筛选
-    if (tableCondition.value.trim()) {
-      rows = applyFilter(rows, undefined, tableCondition.value)
+    const vals = rows.map(r => getNumericVal(r[col])).filter(v => !isNaN(v))
+    if (vals.length === 0) { result[col] = 0; continue }
+    switch (agg) {
+      case 'sum': result[col] = vals.reduce((a, b) => a + b, 0); break
+      case 'avg': result[col] = vals.reduce((a, b) => a + b, 0) / vals.length; break
+      case 'count': result[col] = vals.length; break
+      case 'min': result[col] = Math.min(...vals); break
+      case 'max': result[col] = Math.max(...vals); break
     }
-
-    const result: Record<string, number> = {}
-    const aggs = spec.value?.table?.summaryAggs || {}
-    for (const col of Object.keys(aggs)) {
-      const agg = aggs[col]
-      if (agg === 'unique_count') {
-        const raw = rows.map(r => String(r[col] ?? '')).filter(v => v !== '')
-        result[col] = new Set(raw).size
-        continue
-      }
-      const vals = rows.map(r => getNumericVal(r[col])).filter(v => !isNaN(v))
-      if (vals.length === 0) { result[col] = 0; continue }
-      switch (agg) {
-        case 'sum': result[col] = vals.reduce((a, b) => a + b, 0); break
-        case 'avg': result[col] = vals.reduce((a, b) => a + b, 0) / vals.length; break
-        case 'count': result[col] = vals.length; break
-        case 'min': result[col] = Math.min(...vals); break
-        case 'max': result[col] = Math.max(...vals); break
-      }
-    }
-    summaryValues.value = result
-  },
-  { immediate: true, deep: true },
-)
+  }
+  return result
+})
 
 function formatSummaryValue(col: string): string {
   const val = summaryValues.value[col]
@@ -1343,6 +1348,13 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   gap: 8px;
 }
 
+.filter-search-group {
+  flex-shrink: 0;
+  border: 1.5px solid #10B981;
+  border-radius: 6px;
+  padding: 3px 10px;
+}
+
 .filter-item label {
   font-size: 13px;
   font-weight: 500;
@@ -1371,6 +1383,17 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   margin-left: 4px;
 }
 
+.btn-apply {
+  color: #fff;
+  background: #10B981;
+  border-color: #10B981;
+}
+
+.btn-apply:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
 .btn-reset {
   color: var(--text-secondary);
 }
@@ -1391,14 +1414,14 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 }
 
 .btn-save {
-  color: var(--primary);
-  border-color: var(--primary);
-  opacity: 0.8;
+  color: #fff;
+  background: #F59E0B;
+  border-color: #F59E0B;
 }
 
 .btn-save:hover {
-  opacity: 1;
-  background: var(--primary-light);
+  background: #D97706;
+  border-color: #D97706;
 }
 
 .filter-count {
@@ -1765,6 +1788,12 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 .control-group label {
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.table-search-group {
+  border: 1.5px solid #10B981;
+  border-radius: 6px;
+  padding: 2px 8px;
 }
 
 .table-input {

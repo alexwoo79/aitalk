@@ -105,6 +105,30 @@ export async function concatDatasets(
 // 聚合计算
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── 统一 Dashboard 计算（一次 IPC）──
+
+export interface DimensionFilter { column: string; value: string }
+export interface KpiInput { label: string; column: string; agg: string; filter?: string }
+export interface ChartInput { key: string; dimCol: string; metricCol: string; agg: string }
+export interface ComputeRequest {
+  dimensionFilters?: Record<string, string>
+  dateColumn?: string; dateStart?: string; dateEnd?: string
+  searchText?: string; condition?: string
+  kpis?: KpiInput[]; charts?: ChartInput[]; summary?: Record<string, string>
+}
+export interface ComputeResponse {
+  row_count: number
+  kpi_values: Record<string, number>
+  chart_data: Record<string, { label: string; value: number }[]>
+  summary_values: Record<string, number>
+}
+
+/** 一次 IPC 完成所有 Dashboard 计算（筛选 + KPI + 图表 + 合计） */
+export async function computeDashboard(req: ComputeRequest): Promise<ApiResult<ComputeResponse>> {
+  if (!isTauri()) throw new Error('computeDashboard 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ComputeResponse>>('compute_dashboard', { requestJson: JSON.stringify(req) })
+}
+
 /** 分组聚合 */
 export async function groupbyAgg(
   groupCols: string[],
@@ -149,6 +173,34 @@ export async function computeChartData(
 ): Promise<ApiResult<ChartDataItem[]>> {
   if (!isTauri()) throw new Error('computeChartData 仅在 Tauri 环境下可用')
   return invoke<ApiResult<ChartDataItem[]>>('compute_chart_data', { dimCol, metricCol, aggFunc })
+}
+
+/** 表格合计行计算 — 前端传入筛选后的行数据，Rust 计算各列聚合值 */
+export async function computeTableSummary(
+  rows: Record<string, string | number>[],
+  summaryAggs: Record<string, string>,
+): Promise<ApiResult<Record<string, number>>> {
+  if (!isTauri()) throw new Error('computeTableSummary 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<Record<string, number>>>('compute_table_summary', {
+    rowsJson: JSON.stringify(rows),
+    summaryAggsJson: JSON.stringify(summaryAggs),
+  })
+}
+
+/** 图表分组聚合 — 前端传入筛选后的行数据，Rust 做 groupby + agg */
+export async function computeChartGroupbyFiltered(
+  rows: Record<string, string | number>[],
+  dimCol: string,
+  metricCol: string,
+  aggFunc: string,
+): Promise<ApiResult<ChartDataItem[]>> {
+  if (!isTauri()) throw new Error('computeChartGroupbyFiltered 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartDataItem[]>>('compute_chart_groupby_filtered', {
+    rowsJson: JSON.stringify(rows),
+    dimCol,
+    metricCol,
+    aggFunc,
+  })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

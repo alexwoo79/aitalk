@@ -29,9 +29,12 @@ pub fn run() {
             commands::database::test_db_connection,
             commands::database::execute_db_query,
             commands::database::load_db_table,
+            commands::compute::compute_dashboard,
             commands::groupby::groupby_agg,
             commands::groupby::compute_kpi_values,
             commands::groupby::compute_chart_data,
+            commands::groupby::compute_table_summary,
+            commands::groupby::compute_chart_groupby_filtered,
             // ── 多数据源接入 ──
             commands::datasource::paste_from_clipboard,
             commands::datasource::load_json_file,

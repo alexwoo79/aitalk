@@ -77,10 +77,7 @@ pub async fn load_file(
                 .unwrap_or("加载数据")
                 .to_string();
             let _ = register_dataset(&df, file_name, "load_file".to_string());
-            payload.map_or_else(
-                |e| ApiResult::failure(e.to_string()),
-                ApiResult::success,
-            )
+            payload.map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
         }
         Err(e) => ApiResult::failure(e.to_string()),
     }
@@ -127,8 +124,7 @@ pub async fn get_dataframe_info() -> ApiResult<ChartPayload> {
             Some(df) => df.clone(),
         }
     };
-    df_to_payload(&df, None)
-        .map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
+    df_to_payload(&df, None).map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,7 +179,8 @@ pub fn excel_serial_to_date(serial: f64) -> String {
     serial.to_string()
 }
 
-/// Heuristic: detect if a column name suggests it holds date values.
+/// Heuristic: detect if a column likely holds date values.
+/// Uses column name heuristic + value range heuristic (Excel serial numbers).
 pub fn is_date_column_name(name: &str) -> bool {
     let lower = name.to_lowercase();
     lower.contains("date")
@@ -201,6 +198,35 @@ pub fn is_date_column_name(name: &str) -> bool {
         || lower.contains("成立")
         || lower.contains("创建")
         || lower.contains("到期")
+        || lower.contains("dt")
+        || lower.contains("at")
+        || lower.contains("timestamp")
+        || lower.ends_with("_dt")
+        || lower.ends_with("_at")
+}
+
+/// Detect if a column's values look like Excel date serial numbers.
+/// Returns true if most non-empty numeric values fall in the date serial range.
+pub fn is_date_column_by_values(values: &[String]) -> bool {
+    let (numeric_count, date_count) =
+        values
+            .iter()
+            .filter(|v| !v.trim().is_empty())
+            .fold((0usize, 0usize), |(nc, dc), v| {
+                if let Ok(n) = v.trim().parse::<f64>() {
+                    let nc = nc + 1;
+                    let dc = if n >= 30000.0 && n <= 80000.0 && n == n.trunc() {
+                        dc + 1
+                    } else {
+                        dc
+                    };
+                    (nc, dc)
+                } else {
+                    (nc, dc)
+                }
+            });
+    // At least 80% of values are numeric AND at least 60% of all values are in date serial range
+    numeric_count > 0 && date_count as f64 / values.len() as f64 > 0.6
 }
 
 /// Convert a calamine cell value to string, applying date conversion when appropriate.
@@ -249,9 +275,7 @@ fn load_csv(path: &Path, skip_head: usize, skip_tail: usize) -> Result<DataFrame
         .with_skip_rows(skip_head)
         .with_skip_rows_after_header(0)
         .with_infer_schema_length(None)
-        .map_parse_options(|opts| {
-            opts.with_truncate_ragged_lines(true)
-        })
+        .map_parse_options(|opts| opts.with_truncate_ragged_lines(true))
         .try_into_reader_with_file_path(Some(path.to_path_buf()))?
         .finish()?;
 
@@ -301,10 +325,7 @@ fn load_excel_first_sheet(path: &Path, skip_head: usize, skip_tail: usize) -> Re
         .collect();
 
     // Pre-compute which columns are date columns by name heuristic
-    let date_col_mask: Vec<bool> = headers
-        .iter()
-        .map(|h| is_date_column_name(h))
-        .collect();
+    let date_col_mask: Vec<bool> = headers.iter().map(|h| is_date_column_name(h)).collect();
 
     // Build columns
     let mut columns: Vec<Vec<String>> = headers.iter().map(|_| Vec::new()).collect();
@@ -337,8 +358,26 @@ fn load_excel_first_sheet(path: &Path, skip_head: usize, skip_tail: usize) -> Re
         }
     }
 
-    // Build DataFrame from columns
+    // Build DataFrame from columns (before date re-detection)
     let height = columns.first().map(|c| c.len()).unwrap_or(0);
+
+    // 二次检测：值范围判断日期列（补充命名启发式的遗漏）
+    let mut date_cols_to_fix: Vec<usize> = Vec::new();
+    for (idx, col_values) in columns.iter().enumerate() {
+        if !date_col_mask[idx] && is_date_column_by_values(col_values) {
+            date_cols_to_fix.push(idx);
+        }
+    }
+    for col_idx in date_cols_to_fix {
+        for val in columns[col_idx].iter_mut() {
+            if let Ok(n) = val.trim().parse::<f64>() {
+                if n >= 30000.0 && n <= 80000.0 && n == n.trunc() {
+                    *val = excel_serial_to_date(n);
+                }
+            }
+        }
+    }
+
     let series_vec: Vec<Series> = headers
         .iter()
         .enumerate()
@@ -362,7 +401,11 @@ fn load_excel_first_sheet(path: &Path, skip_head: usize, skip_tail: usize) -> Re
 /// Try to cast string columns that look numeric to Float64.
 pub fn auto_cast_numeric(df: DataFrame) -> DataFrame {
     let mut df = df;
-    let col_names: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
+    let col_names: Vec<String> = df
+        .get_column_names()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
 
     for name in col_names {
         if let Ok(s) = df.column(&name) {

@@ -19,17 +19,18 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 
 # ── Data processing: Polars ──
-polars = { version = "0.53", features = [
+polars = { version = "0.54", features = [
     "lazy",
     "csv",
     "parquet",
     "strings",
+    "regex",
     "dtype-date",
     "dtype-datetime",
     "rows",
     "serde",
 ] }
-polars-ops = { version = "0.53" }
+polars-ops = { version = "0.54" }
 
 # ── Serialization ──
 serde = { version = "1", features = ["derive"] }

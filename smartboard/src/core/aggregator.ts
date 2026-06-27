@@ -57,21 +57,3 @@ export function aggregate(
 
   return results.sort((a, b) => b.value - a.value)
 }
-
-/**
- * 计算单列的描述性统计
- */
-export function computeColumnStats(values: (string | number)[]): {
-  sum: number; avg: number; min: number; max: number; count: number
-} {
-  const nums = values.map((v) => getNumericValue(v, 0)).filter((n) => n !== 0 || values.some((v) => v === 0 || v === '0'))
-  if (nums.length === 0) return { sum: 0, avg: 0, min: 0, max: 0, count: 0 }
-  const sum = nums.reduce((a, b) => a + b, 0)
-  return {
-    sum,
-    avg: sum / nums.length,
-    min: Math.min(...nums),
-    max: Math.max(...nums),
-    count: nums.length,
-  }
-}

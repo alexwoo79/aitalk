@@ -25,7 +25,7 @@
               ? t('config.saved') : t('config.saveAll') }}</button>
             <span class="reset-wrap">
               <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">{{ t('config.resetAll')
-              }}</button>
+                }}</button>
               <button class="reset-info-btn" @click.stop="toggleResetHint" :title="t('config.resetHint')">💡</button>
               <div v-if="showResetHint" class="reset-popup">
                 {{ t('config.resetHint') }}
@@ -202,7 +202,7 @@
             <div v-show="isSectionOpen('kpis')" class="section-body">
               <div class="chart-quick-actions">
                 <span>{{ t('config.displayColumns') }} ({{ selectedKpiCount }}/{{ configStore.config.kpis.length
-                  }})</span>
+                }})</span>
                 <button class="btn-link" @click="configStore.selectAllKpis()">{{ t('common.selectAll') }}</button>
                 <button class="btn-link" @click="configStore.clearAllKpis()">{{ t('common.clearAll') }}</button>
               </div>
@@ -248,7 +248,7 @@
             <div v-show="isSectionOpen('charts')" class="section-body">
               <div class="chart-quick-actions">
                 <span>{{ t('config.displayColumns') }} ({{ selectedChartCount }}/{{ configStore.config.charts.length
-                }})</span>
+                  }})</span>
                 <button class="btn-link" @click="configStore.selectAllCharts()">{{ t('common.selectAll') }}</button>
                 <button class="btn-link" @click="configStore.clearAllCharts()">{{ t('common.clearAll') }}</button>
               </div>
@@ -269,7 +269,7 @@
                       <span v-if="chart.dimension">{{ t('config.dimension') }}: {{ chart.dimension }}</span>
                       <span v-if="chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metrics.join(', ') }}</span>
                       <span v-if="chart.metric && !chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metric
-                        }}</span>
+                      }}</span>
                       <span v-if="chart.dateColumn">{{ t('config.date') }} {{ chart.dateColumn }}</span>
                       <span v-if="chart.k">K: {{ chart.k }}</span>
                     </div>
@@ -302,11 +302,11 @@
               <div class="table-col-header">
                 <span>{{ t('config.displayColumns') }} ({{ configStore.config.table.columns.length }}/{{
                   allHeaders.length
-                  }})</span>
+                }})</span>
                 <button class="btn-link" @click="configStore.config.table.columns = allHeaders.slice()">{{
                   t('common.selectAll') }}</button>
                 <button class="btn-link" @click="configStore.config.table.columns = []">{{ t('common.clearAll')
-                  }}</button>
+                }}</button>
               </div>
               <div class="table-col-table">
                 <div class="tct-header">
@@ -328,7 +328,8 @@
                       <span class="tct-icon">{{ roleIcon(effRole(col)) }}</span>
                       {{ col }}
                     </span>
-                    <span class="tct-col-type">{{ typeLabel((dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col])?.type) }}</span>
+                    <span class="tct-col-type">{{ typeLabel((dataStore.getEffectiveClassification(col) ||
+                      dataStore.dataSet?.classifications[col])?.type) }}</span>
                     <span class="tct-col-role" @click.stop="cycleRole(col)">{{ roleLabel(effRole(col)) }}
                       <span class="role-edit-hint">🖉</span>
                     </span>
@@ -377,8 +378,7 @@
                     </span>
                   </div>
                   <!-- 列条件着色规则展开行 -->
-                  <div v-if="expandedColRules.has(col) && isNumericCol(col)"
-                    class="tct-rule-expand" @click.stop>
+                  <div v-if="expandedColRules.has(col) && isNumericCol(col)" class="tct-rule-expand" @click.stop>
                     <div v-for="(rule, ri) in (configStore.config.table.columnTextRules?.[col] || [])" :key="ri"
                       class="tct-rule-row">
                       <input type="text" class="input input-xs tct-rule-cond" :value="rule.condition"
@@ -442,11 +442,12 @@
           <div class="preview-dash">
             <div class="preview-dash-header">
               <h3>{{ configStore.config.title || t('common.preview') }}</h3>
+              <button class="btn btn-refresh btn-sm" @click="refreshPreview">{{ t('common.refresh') }}</button>
               <button class="btn btn-primary btn-sm" @click="goToDashboard">{{ t('config.generateArrow') }}</button>
             </div>
             <div class="save-status" v-if="allSaved">{{ t('config.savedAll') }}</div>
             <div class="save-status unsaved" v-else>{{ t('config.savedPartial', { n: savedCount, total: totalSections })
-              }}
+            }}
             </div>
 
             <!-- 筛选条件预览 -->
@@ -560,7 +561,8 @@
                   <select v-model="v.column" class="input input-sm" style="flex:1">
                     <option value="">{{ t('config.selectColumnPlaceholder') }}</option>
                     <option v-if="calculatedParams.length > 0" disabled>── {{ t('config.savedParams') }} ──</option>
-                    <option v-for="p in calculatedParams" :key="'🔢'+p.label" :value="'🔢'+p.label">🔢 {{ p.label }}</option>
+                    <option v-for="p in calculatedParams" :key="'🔢' + p.label" :value="'🔢' + p.label">🔢 {{ p.label }}
+                    </option>
                     <option disabled>── {{ t('config.dataColumns') }} ──</option>
                     <option v-for="col in allDataCols" :key="col" :value="col">{{ col }}</option>
                   </select>
@@ -569,14 +571,18 @@
                   <button v-if="kpiForm.variables.length > 1" class="btn-icon" @click="kpiForm.variables.splice(vi, 1)"
                     :title="t('config.remove')">✕</button>
                 </div>
-                <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">{{ t('config.addVariable') }}</button>
+                <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">{{ t('config.addVariable')
+                  }}</button>
 
-                <div class="formula-label">{{ t('config.sharedFilter') }} <span class="formula-hint">{{ t('config.sharedFilterHint') }}</span></div>
+                <div class="formula-label">{{ t('config.sharedFilter') }} <span class="formula-hint">{{
+                  t('config.sharedFilterHint') }}</span></div>
                 <div class="filter-wrap">
-                  <input v-model="kpiForm.filter" class="input" :placeholder="t('config.leaveEmptyAll')" list="filter-cols-formula" />
+                  <input v-model="kpiForm.filter" class="input" :placeholder="t('config.leaveEmptyAll')"
+                    list="filter-cols-formula" />
                   <datalist id="filter-cols-formula">
                     <template v-for="col in filterableColumns" :key="col">
-                      <option :value="col + ' = '" /><option :value="col + ' != '" />
+                      <option :value="col + ' = '" />
+                      <option :value="col + ' != '" />
                       <option v-if="isNumericCol(col)" :value="col + ' > '" />
                       <option v-if="isNumericCol(col)" :value="col + ' < '" />
                       <option v-if="!isNumericCol(col)" :value="col + ' in '" />
@@ -588,7 +594,9 @@
 
                 <div class="formula-label">{{ t('config.expression') }}</div>
                 <div class="formula-btns">
-                  <button v-for="v in kpiForm.variables" :key="v.alias" class="period-btn" @click="insertAlias(v.alias)">{{ v.alias }}</button>
+                  <button v-for="v in kpiForm.variables" :key="v.alias" class="period-btn"
+                    @click="insertAlias(v.alias)">{{ v.alias
+                    }}</button>
                   <span class="toggle-sep" style="margin:0 4px"></span>
                   <button class="period-btn func-btn" @click="insertFunc('SUM')">SUM</button>
                   <button class="period-btn func-btn" @click="insertFunc('AVG')">AVG</button>
@@ -1340,6 +1348,10 @@ function recoverData() {
   }
 }
 
+function refreshPreview() {
+  previewStore.applyFilters()
+}
+
 function goToDashboard() {
   router.push('/dashboard')
 }
@@ -1850,7 +1862,7 @@ function cancelChartEdit() {
   font-size: 12px;
   color: #92400e;
   line-height: 1.6;
-  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
   z-index: 100;
   text-align: left;
 }
@@ -1874,7 +1886,7 @@ function cancelChartEdit() {
     background: #292524;
     border-color: #78350f;
     color: #fde68a;
-    box-shadow: 0 4px 16px rgba(0,0,0,.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .4);
   }
 
   .reset-popup::before {
@@ -2929,6 +2941,17 @@ function cancelChartEdit() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.btn-refresh {
+  color: #fff;
+  background: #10B981;
+  border-color: #10B981;
+}
+
+.btn-refresh:hover {
+  background: #059669;
+  border-color: #059669;
 }
 
 .preview-filters {

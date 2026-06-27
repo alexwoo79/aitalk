@@ -511,23 +511,23 @@ var SmartboardRenderer = (function(exports) {
         if (!isNaN(v)) groups[key][m].push(v);
       }
     }
-    let labels = Object.keys(groups).sort();
+    let labelsH = Object.keys(groups).sort();
     if (sortOrder !== "none") {
       const aggFn = chart.metricAggs?.[metricCols[0]] || chart.agg || "sum";
-      const totals = labels.map((k) => {
+      const totals = labelsH.map((k) => {
         const arr = groups[k]?.[metricCols[0]] || [];
         return applyAgg(arr, aggFn);
       });
-      const idx = labels.map((l, i) => ({ l, v: totals[i] }));
+      const idx = labelsH.map((l, i) => ({ l, v: totals[i] }));
       idx.sort((a, b) => sortOrder === "desc" ? b.v - a.v : a.v - b.v);
-      labels = idx.map((x) => x.l);
+      labelsH = idx.map((x) => x.l);
     }
-    const series = metricCols.map((m, mi) => {
+    const seriesH = metricCols.map((m, mi) => {
       const aggFn = chart.metricAggs?.[m] || chart.agg || "sum";
       return {
         name: m,
         type: "bar",
-        data: labels.map((k) => {
+        data: labelsH.map((k) => {
           const arr = groups[k]?.[m] || [];
           return applyAgg(arr, aggFn);
         }),
@@ -538,7 +538,7 @@ var SmartboardRenderer = (function(exports) {
         }
       };
     });
-    const estLabelWidth = labels.reduce((m, l) => {
+    const estLabelWidth = labelsH.reduce((m, l) => {
       let w = 0;
       for (const ch of l) w += ch.charCodeAt(0) > 127 ? 12 : 7;
       return Math.max(m, w);
@@ -565,10 +565,10 @@ var SmartboardRenderer = (function(exports) {
       },
       yAxis: {
         type: "category",
-        data: labels,
+        data: labelsH,
         axisLabel: { fontSize: 11 }
       },
-      series
+      series: seriesH
     };
   }
   function buildDoughnutOption(chart, rows, showLabel = true) {
@@ -699,6 +699,8 @@ var SmartboardRenderer = (function(exports) {
   function buildLineOption(chart, rows, areaFill = true, smooth = true) {
     const metricCols = chart.metrics || (chart.metric ? [chart.metric] : []);
     if (metricCols.length === 0) return {};
+    const dimCol = chart.dateColumn || chart.dimension || "";
+    if (!dimCol) return {};
     let labels = [];
     let seriesData = {};
     if (chart.dateColumn) {

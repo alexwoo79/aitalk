@@ -395,26 +395,26 @@ export function buildHorizontalBarOption(
       if (!isNaN(v)) groups[key][m].push(v)
     }
   }
-  let labels = Object.keys(groups).sort()
+  let labelsH = Object.keys(groups).sort()
 
   // Sort by first metric's aggregated value
   if (sortOrder !== 'none') {
     const aggFn = chart.metricAggs?.[metricCols[0]] || chart.agg || 'sum'
-    const totals = labels.map(k => {
+    const totals = labelsH.map(k => {
       const arr = groups[k]?.[metricCols[0]] || []
       return applyAgg(arr, aggFn)
     })
-    const idx = labels.map((l, i) => ({ l, v: totals[i] }))
+    const idx = labelsH.map((l, i) => ({ l, v: totals[i] }))
     idx.sort((a, b) => sortOrder === 'desc' ? b.v - a.v : a.v - b.v)
-    labels = idx.map(x => x.l)
+    labelsH = idx.map(x => x.l)
   }
 
-  const series = metricCols.map((m, mi) => {
+  const seriesH = metricCols.map((m, mi) => {
     const aggFn = chart.metricAggs?.[m] || chart.agg || 'sum'
     return {
       name: m,
       type: 'bar' as const,
-      data: labels.map((k) => {
+      data: labelsH.map((k) => {
         const arr = groups[k]?.[m] || []
         return applyAgg(arr, aggFn)
       }),
@@ -428,7 +428,7 @@ export function buildHorizontalBarOption(
     }
   })
 
-  const estLabelWidth = labels.reduce((m, l) => {
+  const estLabelWidth = labelsH.reduce((m, l) => {
     let w = 0
     for (const ch of l) w += ch.charCodeAt(0) > 127 ? 12 : 7
     return Math.max(m, w)
@@ -456,10 +456,10 @@ export function buildHorizontalBarOption(
     },
     yAxis: {
       type: 'category' as const,
-      data: labels,
+      data: labelsH,
       axisLabel: { fontSize: 11 },
     },
-    series,
+    series: seriesH,
   }
 }
 
@@ -630,6 +630,9 @@ export function buildLineOption(
   const metricCols = chart.metrics || (chart.metric ? [chart.metric] : [])
   if (metricCols.length === 0) return {}
 
+  const dimCol = chart.dateColumn || chart.dimension || ''
+  if (!dimCol) return {}
+
   let labels: string[] = []
   let seriesData: Record<string, Record<string, number[]>> = {}
 
@@ -651,7 +654,7 @@ export function buildLineOption(
     }
     labels = Array.from(monthsSet).sort()
   } else if (chart.dimension) {
-    // Dimension mode: group by categorical dimension (like bar chart)
+    // Dimension mode: group by categorical dimension
     for (const row of rows) {
       const key = String(row[chart.dimension] || '未知')
       if (!seriesData[key]) seriesData[key] = {}
@@ -675,18 +678,18 @@ export function buildLineOption(
       const arr = seriesData[l]?.[mc] || []
       const aggFn = chart.metricAggs?.[mc] || chart.agg || 'sum'
       return applyAgg(arr, aggFn)
-    }),
-    smooth,
-    lineStyle: { color: COLORS[mi % COLORS.length], width: 2 },
-    itemStyle: { color: COLORS[mi % COLORS.length] },
-    markPoint: {
-      data: [
-        { type: 'max', name: '最大', symbolSize: 36, itemStyle: { color: '#EF4444' }, label: { show: false } },
-        { type: 'min', name: '最小', symbolSize: 30, itemStyle: { color: '#3B82F6' }, label: { show: false } },
-      ],
-    },
-    areaStyle: areaFill ? { color: COLORS[mi % COLORS.length] + '22' } : undefined,
-  }))
+      }),
+      smooth,
+      lineStyle: { color: COLORS[mi % COLORS.length], width: 2 },
+      itemStyle: { color: COLORS[mi % COLORS.length] },
+      markPoint: {
+        data: [
+          { type: 'max', name: '最大', symbolSize: 36, itemStyle: { color: '#EF4444' }, label: { show: false } },
+          { type: 'min', name: '最小', symbolSize: 30, itemStyle: { color: '#3B82F6' }, label: { show: false } },
+        ],
+      },
+      areaStyle: areaFill ? { color: COLORS[mi % COLORS.length] + '22' } : undefined,
+    }))
 
   return {
     _mf: chart.metricFormats || {},
