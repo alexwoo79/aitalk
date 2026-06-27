@@ -7,14 +7,14 @@
     <div v-if="!spec" class="no-data">
       <p>{{ t('dashboard.noData') }}</p>
       <button class="btn btn-sm btn-primary" @click="$router.push('/config')">{{ t('dashboard.backToConfigText')
-        }}</button>
+      }}</button>
     </div>
 
     <template v-else>
       <!-- 工具栏 -->
       <div class="dashboard-toolbar">
         <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← {{ t('dashboard.backToConfigText')
-          }}</button>
+        }}</button>
         <h2 class="dashboard-title">{{ spec.title }}</h2>
         <span class="layout-size">{{ layoutW }} × {{ layoutH }}</span>
       </div>
@@ -58,7 +58,7 @@
           <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
         </div>
         <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
-          }}</span>
+        }}</span>
       </div>
 
       <!-- 日期范围 -->
@@ -108,38 +108,37 @@
 
         <!-- 图表（流式懒加载：仅渲染视口内可见的图表） -->
         <div v-if="spec.charts?.length" class="charts-wrap">
-          <div v-for="(chart, i) in spec.charts" :key="'chart-' + i"
-            :ref="(el) => setCardRef(i, el as HTMLElement)"
-            :data-chart-index="i"
-            :class="['chart-card', { 'chart-card-full': isAnalysisChart(chart) }]" :data-chart-key="'chart-' + i">
+          <div v-for="(chart, i) in spec.charts" :key="'chart-' + i" :ref="(el) => setCardRef(i, el as HTMLElement)"
+            :data-chart-index="i" :class="['chart-card', { 'chart-card-full': isAnalysisChart(chart) }]"
+            :data-chart-key="'chart-' + i">
             <div class="rs-handle rs-handle-e" @pointerdown.prevent="onResizeStart($event, 'e')"></div>
             <div class="rs-handle rs-handle-s" @pointerdown.prevent="onResizeStart($event, 's')"></div>
             <div class="rs-handle rs-handle-se" @pointerdown.prevent="onResizeStart($event, 'se')"></div>
             <SkeletonChart v-if="!isChartVisible(i)" />
             <template v-else>
-            <TimeseriesChart v-if="chart.type === 'timeseries'" :rows="filteredChartRows(chart)"
-              :date-column="chart.dateColumn || spec.dateRange?.column || ''"
-              :metric="chart.metric || spec.primaryMetric || ''"
-              :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title"
-              :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
-            <DecileChart v-else-if="chart.type === 'decile'" :rows="filteredChartRows(chart)"
-              :metric="chart.metric || spec.primaryMetric || ''"
-              :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title"
-              :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
-            <ClusterChart v-else-if="chart.type === 'cluster'" :rows="filteredChartRows(chart)"
-              :metrics="chart.clusterMetrics || chart.metrics || (spec.primaryMetric ? [spec.primaryMetric] : [])"
-              :k="chart.k" :title="chart.title" :metric-formats="chart.metricFormats || {}"
-              :metric-ags="chart.metricAggs || {}" />
-            <BarChartComponent v-else-if="chart.type === 'bar'" :chart="chart as any" :rows="filteredChartRows(chart)"
-              :available-metrics="allMetricCols" />
-            <HorizontalBarChart v-else-if="chart.type === 'horizontal_bar'" :chart="chart as any"
-              :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            <DoughnutChart v-else-if="chart.type === 'doughnut'" :chart="chart as any" :rows="filteredChartRows(chart)"
-              :available-metrics="allMetricCols" />
-            <HistogramChart v-else-if="chart.type === 'histogram'" :chart="chart as any"
-              :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
-            <LineChartComponent v-else-if="chart.type === 'line'" :chart="chart as any" :rows="filteredChartRows(chart)"
-              :available-metrics="allMetricCols" />
+              <TimeseriesChart v-if="chart.type === 'timeseries'" :rows="filteredChartRows(chart)"
+                :date-column="chart.dateColumn || spec.dateRange?.column || ''"
+                :metric="chart.metric || spec.primaryMetric || ''"
+                :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title"
+                :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
+              <DecileChart v-else-if="chart.type === 'decile'" :rows="filteredChartRows(chart)"
+                :metric="chart.metric || spec.primaryMetric || ''"
+                :metrics="chart.metrics?.length ? chart.metrics : allMetricCols" :title="chart.title"
+                :metric-formats="chart.metricFormats || {}" :metric-ags="chart.metricAggs || {}" />
+              <ClusterChart v-else-if="chart.type === 'cluster'" :rows="filteredChartRows(chart)"
+                :metrics="chart.clusterMetrics || chart.metrics || (spec.primaryMetric ? [spec.primaryMetric] : [])"
+                :k="chart.k" :title="chart.title" :metric-formats="chart.metricFormats || {}"
+                :metric-ags="chart.metricAggs || {}" />
+              <BarChartComponent v-else-if="chart.type === 'bar'" :chart="chart as any" :rows="filteredChartRows(chart)"
+                :available-metrics="allMetricCols" />
+              <HorizontalBarChart v-else-if="chart.type === 'horizontal_bar'" :chart="chart as any"
+                :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+              <DoughnutChart v-else-if="chart.type === 'doughnut'" :chart="chart as any"
+                :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+              <HistogramChart v-else-if="chart.type === 'histogram'" :chart="chart as any"
+                :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
+              <LineChartComponent v-else-if="chart.type === 'line'" :chart="chart as any"
+                :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
             </template>
           </div>
         </div>
@@ -179,7 +178,7 @@
                 <div class="picker-panel">
                   <div class="picker-actions">
                     <button class="btn-link" @click="activeColumns = allColumns.slice()">{{ t('common.selectAll')
-                    }}</button>
+                      }}</button>
                     <button class="btn-link" @click="activeColumns = []">{{ t('common.clearAll') }}</button>
                   </div>
                   <div class="picker-chips">
@@ -239,6 +238,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import zhCN from '@/i18n/zh-CN'
 import enUS from '@/i18n/en-US'
@@ -326,6 +326,8 @@ function onResizeEnd() {
 const configStore = useConfigStore()
 const { t, locale } = useI18n()
 const previewStore = usePreviewStore()
+const { filteredRows: storeFilteredRows } = storeToRefs(previewStore)
+const { dataSet: storeDataSet } = storeToRefs(dataStore)
 
 const spec = computed(() => previewStore.buildSpec())
 
@@ -1041,30 +1043,57 @@ const hasSummaryRow = computed(() => {
   return aggs && Object.keys(aggs).length > 0
 })
 
-const summaryValues = computed(() => {
-  // 合计行基于全量数据（不受表格内搜索/条件过滤影响）
-  const rows = dataStore.dataSet?.rows ?? []
-  const result: Record<string, number> = {}
-  const aggs = spec.value?.table?.summaryAggs || {}
-  for (const col of Object.keys(aggs)) {
-    const agg = aggs[col]
-    if (agg === 'unique_count') {
-      const raw = rows.map(r => String(r[col] ?? '')).filter(v => v !== '')
-      result[col] = new Set(raw).size
-      continue
+const summaryValues = ref<Record<string, number>>({})
+
+// 使用 watch 强制在 filteredRows / summaryAggs / 表格搜索条件变化时重新计算合计行
+watch(
+  [storeFilteredRows, () => spec.value?.table?.summaryAggs, tableSearch, tableCondition],
+  () => {
+    let rows = storeFilteredRows.value.length > 0
+      ? [...storeFilteredRows.value]
+      : (storeDataSet.value?.rows ?? [])
+
+    // 同步表格自身的搜索过滤
+    const q = tableSearch.value.trim().toLowerCase()
+    if (q) {
+      const cols = activeColumns.value.length > 0 ? activeColumns.value : allColumns.value
+      rows = rows.filter((row) =>
+        cols.some((col) => {
+          const v = row[col]
+          if (v == null || v === '') return false
+          return String(v).toLowerCase().includes(q)
+        }),
+      )
     }
-    const vals = rows.map(r => getNumericVal(r[col])).filter(v => !isNaN(v))
-    if (vals.length === 0) { result[col] = 0; continue }
-    switch (agg) {
-      case 'sum': result[col] = vals.reduce((a, b) => a + b, 0); break
-      case 'avg': result[col] = vals.reduce((a, b) => a + b, 0) / vals.length; break
-      case 'count': result[col] = vals.length; break
-      case 'min': result[col] = Math.min(...vals); break
-      case 'max': result[col] = Math.max(...vals); break
+
+    // 同步表格自身的条件筛选
+    if (tableCondition.value.trim()) {
+      rows = applyFilter(rows, undefined, tableCondition.value)
     }
-  }
-  return result
-})
+
+    const result: Record<string, number> = {}
+    const aggs = spec.value?.table?.summaryAggs || {}
+    for (const col of Object.keys(aggs)) {
+      const agg = aggs[col]
+      if (agg === 'unique_count') {
+        const raw = rows.map(r => String(r[col] ?? '')).filter(v => v !== '')
+        result[col] = new Set(raw).size
+        continue
+      }
+      const vals = rows.map(r => getNumericVal(r[col])).filter(v => !isNaN(v))
+      if (vals.length === 0) { result[col] = 0; continue }
+      switch (agg) {
+        case 'sum': result[col] = vals.reduce((a, b) => a + b, 0); break
+        case 'avg': result[col] = vals.reduce((a, b) => a + b, 0) / vals.length; break
+        case 'count': result[col] = vals.length; break
+        case 'min': result[col] = Math.min(...vals); break
+        case 'max': result[col] = Math.max(...vals); break
+      }
+    }
+    summaryValues.value = result
+  },
+  { immediate: true, deep: true },
+)
 
 function formatSummaryValue(col: string): string {
   const val = summaryValues.value[col]
