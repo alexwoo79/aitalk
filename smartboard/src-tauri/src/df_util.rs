@@ -14,12 +14,96 @@ use crate::types::{ChartPayload, ColumnInfo, DatasetSemantics, RowMap};
 /// Default preview row limit.
 pub const PREVIEW_LIMIT: usize = 200;
 
-/// Default chart data row limit.
-pub const CHART_LIMIT: usize = 5_000;
+/// Dashboard data row limit (sent to frontend for display).
+pub const CHART_LIMIT: usize = 10_000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Build a DataFrame from a list of Polars Columns.
+pub fn dataframe_from_columns(columns: Vec<Column>) -> polars::prelude::PolarsResult<DataFrame> {
+    let height = columns.first().map(|c| c.len()).unwrap_or(0);
+    DataFrame::new(height, columns)
+}
+
+/// Convert millisecond Unix timestamps in numeric columns to date strings.
+///
+/// Detects columns where values are in the 13-digit millisecond range
+/// (2001-2100) and converts them to YYYY-MM-DD format.
+pub fn convert_ms_timestamps(df: &DataFrame) -> DataFrame {
+    // Time range: 2001-01-01 to 2100-01-01 as ms timestamps
+    const MS_MIN: i64 = 978_307_200_000;  // 2001-01-01
+    const MS_MAX: i64 = 4_102_444_800_000; // 2100-01-01
+
+    let n_rows = df.height();
+    if n_rows == 0 {
+        return df.clone();
+    }
+
+    let cols: Vec<Column> = df
+        .columns()
+        .iter()
+        .map(|s| {
+            let dtype = s.dtype();
+            // Only check integer columns
+            let is_int = matches!(dtype, DataType::Int64 | DataType::Int32 | DataType::UInt32 | DataType::UInt64);
+            if !is_int {
+                return s.clone().into();
+            }
+
+            // Sample up to 20 values to check if this looks like a ms timestamp column
+            let sample_n = n_rows.min(20);
+            let mut ms_count = 0usize;
+            let mut total = 0usize;
+            for i in 0..sample_n {
+                if let Ok(AnyValue::Int64(v)) = s.get(i) {
+                    total += 1;
+                    if v >= MS_MIN && v <= MS_MAX {
+                        ms_count += 1;
+                    }
+                } else if let Ok(AnyValue::Int32(v)) = s.get(i) {
+                    total += 1;
+                    let v = v as i64;
+                    if v >= MS_MIN && v <= MS_MAX {
+                        ms_count += 1;
+                    }
+                } else if let Ok(AnyValue::UInt32(v)) = s.get(i) {
+                    total += 1;
+                    let v = v as i64;
+                    if v >= MS_MIN && v <= MS_MAX {
+                        ms_count += 1;
+                    }
+                }
+            }
+
+            // If >60% of sampled non-null values are in ms range, convert the column
+            if total > 0 && (ms_count as f64 / total as f64) > 0.6 {
+                let date_strings: Vec<Option<String>> = (0..n_rows)
+                    .map(|i| {
+                        let ms = match s.get(i) {
+                            Ok(AnyValue::Int64(v)) => v,
+                            Ok(AnyValue::Int32(v)) => v as i64,
+                            Ok(AnyValue::UInt32(v)) => v as i64,
+                            _ => return None,
+                        };
+                        let secs = ms / 1000;
+                        let nanos = ((ms % 1000) * 1_000_000) as u32;
+                        DateTime::from_timestamp(secs, nanos).map(|dt| {
+                            dt.naive_utc().format("%Y-%m-%d").to_string()
+                        })
+                    })
+                    .collect();
+                Column::new(s.name().clone(), date_strings).into()
+            } else {
+                s.clone().into()
+            }
+        })
+        .collect();
+
+    DataFrame::new_with_broadcast(n_rows, cols)
+        .unwrap_or_else(|_| df.clone())
+}
 
 /// Convert a Polars DataFrame into a ChartPayload for frontend consumption.
 pub fn df_to_payload(df: &DataFrame, limit: Option<usize>) -> Result<ChartPayload> {

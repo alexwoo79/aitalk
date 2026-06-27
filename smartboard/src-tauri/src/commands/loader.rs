@@ -9,7 +9,7 @@ use calamine::{open_workbook_auto, Data as XlDataType, Reader};
 use polars::prelude::*;
 use std::path::Path;
 
-use crate::df_util::{df_to_payload, PREVIEW_LIMIT};
+use crate::df_util::{df_to_payload, CHART_LIMIT};
 use crate::state::{register_dataset, replace_active_dataframe, GLOBAL_DF};
 use crate::types::{ApiResult, ChartPayload};
 
@@ -69,7 +69,7 @@ pub async fn load_file(
     let normalized = normalize_file_path(&path);
     match load_file_impl(&normalized, skip_head, skip_tail, header_row, header_locked) {
         Ok(df) => {
-            let payload = df_to_payload(&df, Some(PREVIEW_LIMIT));
+            let payload = df_to_payload(&df, Some(CHART_LIMIT));
             replace_active_dataframe(&df, true);
             let file_name = Path::new(&normalized)
                 .file_stem()
@@ -106,7 +106,7 @@ pub async fn load_files(paths: Vec<String>) -> ApiResult<Vec<ChartPayload>> {
                     replace_active_dataframe(&df, false);
                 }
 
-                match df_to_payload(&df, Some(PREVIEW_LIMIT)) {
+                match df_to_payload(&df, Some(CHART_LIMIT)) {
                     Ok(p) => results.push(p),
                     Err(e) => return ApiResult::failure(e.to_string()),
                 }
@@ -127,7 +127,7 @@ pub async fn get_dataframe_info() -> ApiResult<ChartPayload> {
             Some(df) => df.clone(),
         }
     };
-    df_to_payload(&df, Some(PREVIEW_LIMIT))
+    df_to_payload(&df, Some(CHART_LIMIT))
         .map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
 }
 
@@ -248,10 +248,14 @@ fn load_csv(path: &Path, skip_head: usize, skip_tail: usize) -> Result<DataFrame
         .with_has_header(true)
         .with_skip_rows(skip_head)
         .with_skip_rows_after_header(0)
-        .with_infer_schema_length(Some(1000))
-        .map_parse_options(|opts| opts.with_truncate_ragged_lines(true))
+        .with_infer_schema_length(None)
+        .map_parse_options(|opts| {
+            opts.with_truncate_ragged_lines(true)
+        })
         .try_into_reader_with_file_path(Some(path.to_path_buf()))?
         .finish()?;
+
+    let df = crate::df_util::convert_ms_timestamps(&df);
 
     // Use Polars lazy API for skip_tail
     if skip_tail > 0 {

@@ -8,7 +8,7 @@ import { parseNumeric } from '@/core/numeric'
 import { readTextFile, readFile, stat } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-dialog'
 // Rust bridge — 在 Tauri 环境下优先使用 Rust 后端
-import { isTauri, listExcelSheets, loadExcelSheet, loadFile as rustLoadFile } from '@/composables/use-rust-bridge'
+import { isTauri, listExcelSheets, loadExcelSheet, loadFile as rustLoadFile, loadJsonFile, loadParquetFile } from '@/composables/use-rust-bridge'
 
 /** 生成唯一 ID */
 function uid(): string {
@@ -55,7 +55,7 @@ export const useDataStore = defineStore('data', () => {
     const selected = await open({
       multiple: true,
       filters: [
-        { name: '数据文件', extensions: ['csv', 'xlsx', 'xls'] },
+        { name: '数据文件', extensions: ['csv', 'xlsx', 'xls', 'json', 'parquet'] },
         { name: '所有文件', extensions: ['*'] },
       ],
     })
@@ -120,6 +120,56 @@ export const useDataStore = defineStore('data', () => {
           } else {
             throw new Error('Excel 文件没有可读取的工作表')
           }
+        } else if (ext === 'json') {
+          // JSON：使用 Rust 后端
+          const result = await loadJsonFile(filePath)
+          if (!result.ok || !result.data) {
+            throw new Error(result.error || 'JSON 加载失败')
+          }
+          const payload: ChartPayload = result.data
+          xlsxSheetNames.value = []
+          _xlsxRawData = null
+          _xlsxFilePath = null
+
+          const headers = payload.columns.map(c => c.name)
+          const toVal = (v: unknown): string | number => {
+            if (typeof v === 'string' || typeof v === 'number') return v
+            return v != null ? String(v) : ''
+          }
+          const rows: Record<string, string | number>[] = payload.rows.map(row => {
+            const obj: Record<string, string | number> = {}
+            for (const h of headers) obj[h] = toVal(row[h])
+            return obj
+          })
+          const rawRows: (string | number)[][] = payload.rows.map(row =>
+            headers.map(h => toVal(row[h]))
+          )
+          parsed = { headers, rows, rawRows }
+        } else if (ext === 'parquet') {
+          // Parquet：使用 Rust 后端
+          const result = await loadParquetFile(filePath)
+          if (!result.ok || !result.data) {
+            throw new Error(result.error || 'Parquet 加载失败')
+          }
+          const payload: ChartPayload = result.data
+          xlsxSheetNames.value = []
+          _xlsxRawData = null
+          _xlsxFilePath = null
+
+          const headers = payload.columns.map(c => c.name)
+          const toVal = (v: unknown): string | number => {
+            if (typeof v === 'string' || typeof v === 'number') return v
+            return v != null ? String(v) : ''
+          }
+          const rows: Record<string, string | number>[] = payload.rows.map(row => {
+            const obj: Record<string, string | number> = {}
+            for (const h of headers) obj[h] = toVal(row[h])
+            return obj
+          })
+          const rawRows: (string | number)[][] = payload.rows.map(row =>
+            headers.map(h => toVal(row[h]))
+          )
+          parsed = { headers, rows, rawRows }
         } else {
           // CSV：直接加载
           const result = await rustLoadFile(filePath, 0, 0, -1, false)
@@ -160,6 +210,24 @@ export const useDataStore = defineStore('data', () => {
           xlsxSheetNames.value = sheetNames.map((n, i) => ({ name: n, index: i, rows: 0, cols: 0 }))
           activeSheetIndex.value = 0
           parsed = parseXLSXSheet(data, 0)
+        } else if (ext === 'json') {
+          const text = await readTextFile(filePath)
+          const jsonData = JSON.parse(text)
+          const arr = Array.isArray(jsonData) ? jsonData : (jsonData.data ?? jsonData.rows ?? [jsonData])
+          if (arr.length > 0) {
+            const keys = Object.keys(arr[0])
+            const csvLines = [keys.join(','), ...arr.map((r: any) => keys.map((k: string) => {
+              const v = r[k]
+              if (v === null || v === undefined) return ''
+              const s = String(v)
+              return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+            }).join(','))]
+            parsed = parseFile(fileName, csvLines.join('\n'))
+          } else {
+            throw new Error('JSON 数据为空')
+          }
+        } else if (ext === 'parquet') {
+          throw new Error('Parquet 格式仅在桌面应用中支持')
         } else {
           xlsxSheetNames.value = []
           _xlsxRawData = null
@@ -602,6 +670,46 @@ export const useDataStore = defineStore('data', () => {
     pendingSheetSelection.value = null
   }
 
+  /** 从 Rust ChartPayload 直接注册为 DataSet（多数据源接入用） */
+  function loadFromPayload(payload: ChartPayload, sourceName: string) {
+    const headers = payload.columns.map(c => c.name)
+    const toVal = (v: unknown): string | number => {
+      if (typeof v === 'string' || typeof v === 'number') return v
+      return v != null ? String(v) : ''
+    }
+    const rows: Record<string, string | number>[] = payload.rows.map(row => {
+      const obj: Record<string, string | number> = {}
+      for (const h of headers) obj[h] = toVal(row[h])
+      return obj
+    })
+    const rawRows: (string | number)[][] = payload.rows.map(row =>
+      headers.map(h => toVal(row[h]))
+    )
+
+    const classifications = classifyAllColumns(headers, rows)
+    const primaryMetric = selectPrimaryMetric(headers, classifications)
+    const chartDimensions = selectChartDimensions(headers, classifications)
+    const dataQuality = buildDataQuality(headers, rows, classifications)
+
+    const dsId = uid()
+    const ds: DataSet = {
+      id: dsId,
+      headers,
+      rows,
+      rawRows,
+      classifications,
+      primaryMetric,
+      chartDimensions,
+      filePath: '',
+      fileName: sourceName,
+      dataQuality,
+    }
+
+    tables.value[dsId] = ds
+    activeTableId.value = dsId
+    dataSet.value = ds
+  }
+
   return {
     // 多表状态
     tables,
@@ -633,6 +741,7 @@ export const useDataStore = defineStore('data', () => {
     loadFileContent,
     loadSelectedSheets,
     cancelSheetSelection,
+    loadFromPayload,
     clearData,
     toggleExcludeColumn,
     clearExcluded,

@@ -37,7 +37,27 @@
           {{ t('upload.dataTips.gotIt') }}
         </button>
       </div>
-      <FileUploader @loaded="onFileLoaded" />
+
+      <!-- 导入方式 Tab 栏 -->
+      <div class="method-tabs">
+        <button
+          v-for="mtab in methodTabs"
+          :key="mtab.key"
+          class="method-tab"
+          :class="{ active: activeMethod === mtab.key }"
+          @click="activeMethod = mtab.key"
+        >
+          {{ mtab.label }}
+        </button>
+      </div>
+
+      <!-- 各导入方式面板 -->
+      <div class="method-panel">
+        <FileUploader v-if="activeMethod === 'file'" @loaded="onFileLoaded" />
+        <PasteZone v-if="activeMethod === 'paste'" />
+        <UrlImport v-if="activeMethod === 'url'" />
+        <DatabaseImport v-if="activeMethod === 'database'" />
+      </div>
     </div>
 
     <!-- 加载 / 错误状态 -->
@@ -62,11 +82,15 @@
           @click="switchTable(table.id)"
         >
           <span class="tab-table-name">{{ table.name }}</span>
-          <button
+          <span
             class="tab-remove"
+            role="button"
+            tabindex="0"
             :title="t('upload.removeTable')"
             @click.stop="dataStore.removeTable(table.id)"
-          >✕</button>
+            @keydown.enter.stop="dataStore.removeTable(table.id)"
+            @keydown.space.prevent.stop="dataStore.removeTable(table.id)"
+          >✕</span>
         </button>
         <button
           v-if="dataStore.tableCount > 1"
@@ -106,7 +130,11 @@ import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { isTauri } from '@/composables/use-rust-bridge'
 import FileUploader from '@/components/upload/FileUploader.vue'
+import PasteZone from '@/components/upload/PasteZone.vue'
+import UrlImport from '@/components/upload/UrlImport.vue'
+import DatabaseImport from '@/components/upload/DatabaseImport.vue'
 import DataPreview from '@/components/upload/DataPreview.vue'
 import RelationConfig from '@/components/upload/RelationConfig.vue'
 import SheetSelector from '@/components/upload/SheetSelector.vue'
@@ -115,6 +143,22 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
+
+// ── 导入方式 Tab ──
+type MethodKey = 'file' | 'paste' | 'url' | 'database'
+const activeMethod = ref<MethodKey>('file')
+
+const methodTabs = computed(() => {
+  const tabs: { key: MethodKey; label: string }[] = [
+    { key: 'file', label: '📂 ' + t('upload.methodFile') },
+    { key: 'paste', label: '📋 ' + t('upload.methodPaste') },
+    { key: 'url', label: '🌐 ' + t('upload.methodUrl') },
+  ]
+  if (isTauri()) {
+    tabs.push({ key: 'database', label: '🗄️ ' + t('upload.methodDatabase') })
+  }
+  return tabs
+})
 
 // Tab state: 默认预览，多表时可切换到「关联」
 const activeTab = ref<'data' | 'relation'>('data')
@@ -341,7 +385,44 @@ async function downloadSample() {
 }
 
 
-/* ── Tab 栏 ── */
+/* ── 导入方式 Tab 栏 ── */
+.method-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 16px;
+  margin-top: 16px;
+}
+
+.method-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 10px 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.method-tab:hover {
+  color: var(--text-primary);
+}
+
+.method-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+.method-panel {
+  min-height: 80px;
+}
+
+/* ── Table Tab 栏 ── */
 .table-tabs {
   display: flex;
   align-items: center;

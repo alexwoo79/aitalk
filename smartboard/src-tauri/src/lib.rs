@@ -27,6 +27,14 @@ pub fn run() {
             commands::merge::concat_datasets,
             // ── 聚合计算 ──
             commands::groupby::groupby_agg,
+            // ── 多数据源接入 ──
+            commands::datasource::paste_from_clipboard,
+            commands::datasource::load_json_file,
+            commands::datasource::load_parquet_file,
+            commands::datasource::fetch_from_url,
+            commands::datasource::list_sqlite_tables,
+            commands::datasource::load_sqlite_table,
+            commands::datasource::execute_sqlite_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

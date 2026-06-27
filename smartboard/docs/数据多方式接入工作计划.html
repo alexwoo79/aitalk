@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>quarto-inputc0aa56cc1da0c712</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="数据多方式接入工作计划_files/libs/clipboard/clipboard.min.js"></script>
+<script src="数据多方式接入工作计划_files/libs/quarto-html/quarto.js"></script>
+<script src="数据多方式接入工作计划_files/libs/quarto-html/popper.min.js"></script>
+<script src="数据多方式接入工作计划_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="数据多方式接入工作计划_files/libs/quarto-html/anchor.min.js"></script>
+<link href="数据多方式接入工作计划_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="数据多方式接入工作计划_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="数据多方式接入工作计划_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="数据多方式接入工作计划_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="数据多方式接入工作计划_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<section id="smartboard-数据多方式接入-工作计划" class="level1">
+<h1>SmartBoard 数据多方式接入 — 工作计划</h1>
+<blockquote class="blockquote">
+<p>日期：2026-06-27 | 状态：规划中</p>
+</blockquote>
+<section id="一现状诊断" class="level2">
+<h2 class="anchored" data-anchor-id="一现状诊断">一、现状诊断</h2>
+<section id="前后端能力对照" class="level3">
+<h3 class="anchored" data-anchor-id="前后端能力对照">1.1 前后端能力对照</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>数据接入方式</th>
+<th>后端 (Rust/Tauri)</th>
+<th>前端 UI 入口</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>📂 本地文件对话框 (CSV/Excel/ODS)</td>
+<td>✅ <code>load_file</code></td>
+<td>✅ <code>FileUploader.vue</code> 按钮</td>
+<td>已上线</td>
+</tr>
+<tr class="even">
+<td>📂 Tauri 原生拖放</td>
+<td>✅ 同 <code>load_file</code></td>
+<td>✅ <code>FileUploader.vue</code> 事件监听</td>
+<td>已上线</td>
+</tr>
+<tr class="odd">
+<td>🌐 浏览器 HTML5 拖放</td>
+<td>❌ (纯前端解析)</td>
+<td>✅ <code>FileUploader.vue</code> fallback</td>
+<td>已上线</td>
+</tr>
+<tr class="even">
+<td>📄 Excel 多 Sheet 选择</td>
+<td>✅ <code>list_excel_sheets</code> + <code>load_excel_sheet</code></td>
+<td>✅ <code>SheetSelector.vue</code> 弹窗</td>
+<td>已上线</td>
+</tr>
+<tr class="odd">
+<td>📋 剪贴板粘贴</td>
+<td>❌ 未实现</td>
+<td>❌ 无入口</td>
+<td><strong>缺失</strong></td>
+</tr>
+<tr class="even">
+<td>🌐 URL/API 拉取</td>
+<td>❌ 未实现</td>
+<td>❌ 无入口</td>
+<td><strong>缺失</strong></td>
+</tr>
+<tr class="odd">
+<td>🗄️ 数据库直连 (SQLite)</td>
+<td>❌ 未实现</td>
+<td>❌ 无入口</td>
+<td><strong>缺失</strong></td>
+</tr>
+<tr class="even">
+<td>📄 JSON 数据导入</td>
+<td>❌ 未实现</td>
+<td>❌ 无入口</td>
+<td><strong>缺失</strong></td>
+</tr>
+<tr class="odd">
+<td>📊 Parquet 导入</td>
+<td>⚠️ Polars 已编译 feature</td>
+<td>❌ 无入口</td>
+<td><strong>缺失</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="结论" class="level3">
+<h3 class="anchored" data-anchor-id="结论">1.2 结论</h3>
+<blockquote class="blockquote">
+<p><strong>后端并没有”先加了但前端没入口”的情况。</strong> 当前前后端能力一一对应，都仅支持 CSV/Excel 文件加载。需要前后端同步新增多种数据接入方式。</p>
+</blockquote>
+<hr>
+</section>
+</section>
+<section id="二总体策略" class="level2">
+<h2 class="anchored" data-anchor-id="二总体策略">二、总体策略</h2>
+<p>分 4 个 Phase，按<strong>实现成本从低到高、用户价值从高到低</strong>排序：</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 13%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 18%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Phase</th>
+<th>方式</th>
+<th>后端工作量</th>
+<th>前端工作量</th>
+<th>优先级</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Phase 1</td>
+<td>📋 剪贴板粘贴</td>
+<td>小（新增 1 个 command）</td>
+<td>中（新增 PasteZone 组件）</td>
+<td>⭐⭐⭐</td>
+</tr>
+<tr class="even">
+<td>Phase 2</td>
+<td>📄 JSON / Parquet</td>
+<td>小（扩展现有 loader）</td>
+<td>小（扩展文件过滤）</td>
+<td>⭐⭐</td>
+</tr>
+<tr class="odd">
+<td>Phase 3</td>
+<td>🌐 URL / API 拉取</td>
+<td>中（新增 reqwest 依赖）</td>
+<td>中（新增 URL 输入组件）</td>
+<td>⭐⭐</td>
+</tr>
+<tr class="even">
+<td>Phase 4</td>
+<td>🗄️ SQLite 直连</td>
+<td>大（新增 rusqlite 依赖）</td>
+<td>大（新增数据库配置 UI）</td>
+<td>⭐</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="phase-1-剪贴板粘贴导入" class="level2">
+<h2 class="anchored" data-anchor-id="phase-1-剪贴板粘贴导入">Phase 1: 📋 剪贴板粘贴导入</h2>
+<p><strong>目标</strong>：用户从 Excel/WPS/Google Sheets 复制表格数据，Ctrl+V 粘贴到 SmartBoard，自动解析为 DataFrame。</p>
+<section id="后端-rust" class="level3">
+<h3 class="anchored" data-anchor-id="后端-rust">1.1 后端 (Rust)</h3>
+<section id="新增-tauri-command-paste_from_clipboard" class="level4">
+<h4 class="anchored" data-anchor-id="新增-tauri-command-paste_from_clipboard">新增 Tauri Command: <code>paste_from_clipboard</code></h4>
+<div class="sourceCode" id="cb1"><pre class="sourceCode rust code-with-copy"><code class="sourceCode rust"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">// src-tauri/src/commands/clipboard.rs (新文件)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span><span class="pp">tauri::</span>command<span class="at">]</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> paste_from_clipboard(</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    text<span class="op">:</span> <span class="dt">String</span><span class="op">,</span>       <span class="co">// 剪贴板原始文本（TSV 格式）</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    has_header<span class="op">:</span> <span class="dt">bool</span><span class="op">,</span>   <span class="co">// 第一行是否为表头</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> ApiResult<span class="op">&lt;</span>ChartPayload<span class="op">&gt;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong>实现要点</strong>： - 使用 Polars <code>CsvReader</code> 以 <code>\t</code> 为分隔符解析 TSV - 支持 <code>has_header</code> 参数（用户可切换首行是否为表头） - 自动调用 <code>auto_cast_numeric</code> 做数值类型推断 - 注册为活跃数据集</p>
+<p><strong>依赖</strong>：无需新增 Rust 依赖（复用现有 Polars）</p>
+<p><strong>文件变更</strong>： - 新增 <code>src-tauri/src/commands/clipboard.rs</code> (~50 行) - 修改 <code>src-tauri/src/lib.rs</code> 注册命令</p>
+</section>
+</section>
+<section id="前端-vue" class="level3">
+<h3 class="anchored" data-anchor-id="前端-vue">1.2 前端 (Vue)</h3>
+<section id="新增组件-pastezone.vue" class="level4">
+<h4 class="anchored" data-anchor-id="新增组件-pastezone.vue">新增组件: <code>PasteZone.vue</code></h4>
+<p><strong>位置</strong>：<code>src/components/upload/PasteZone.vue</code></p>
+<p><strong>UI 设计</strong>：</p>
+<pre><code>┌─────────────────────────────────────────┐
+│  📋 粘贴数据                              │
+│                                         │
+│  ┌─────────────────────────────────┐    │
+│  │                                 │    │
+│  │   从 Excel / WPS 复制表格数据     │    │
+│  │   Ctrl+V 粘贴到此区域             │    │
+│  │                                 │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+│  ☑ 首行为表头                            │
+│                                         │
+│  [清空]              [识别并导入 →]      │
+└─────────────────────────────────────────┘</code></pre>
+<p><strong>交互流程</strong>： 1. 用户 focus 到粘贴区域 → 显示引导文案 2. Ctrl+V → <code>navigator.clipboard.readText()</code> 或监听 <code>paste</code> 事件 3. 前端预处理：将粘贴文本中的 <code>\t</code> 分隔符保留，检测行数/列数 4. 显示预览（前 5 行）让用户确认 5. 用户点击「识别并导入」→ 调用 <code>paste_from_clipboard</code> command 6. 如果 Tauri 不可用 → fallback 到纯前端 <code>parser.ts</code> 解析</p>
+<p><strong>文件变更</strong>： - 新增 <code>src/components/upload/PasteZone.vue</code> (~150 行) - 修改 <code>src/composables/use-rust-bridge.ts</code> 新增 <code>pasteFromClipboard()</code> 函数 - 修改 <code>src/views/UploadView.vue</code> 嵌入 PasteZone 组件 - 修改 <code>src/stores/data-store.ts</code> 新增 <code>loadFromClipboard()</code> action</p>
+</section>
+</section>
+<section id="多语言" class="level3">
+<h3 class="anchored" data-anchor-id="多语言">1.3 多语言</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 26%">
+<col style="width: 36%">
+<col style="width: 36%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>zh-CN</th>
+<th>en-US</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>upload.pasteTitle</code></td>
+<td>粘贴数据</td>
+<td>Paste Data</td>
+</tr>
+<tr class="even">
+<td><code>upload.pasteHint</code></td>
+<td>从 Excel / WPS 复制表格数据，Ctrl+V 粘贴到此区域</td>
+<td>Copy table data from Excel/WPS, Ctrl+V to paste here</td>
+</tr>
+<tr class="odd">
+<td><code>upload.pasteFirstRowHeader</code></td>
+<td>首行为表头</td>
+<td>First row is header</td>
+</tr>
+<tr class="even">
+<td><code>upload.pasteRecognize</code></td>
+<td>识别并导入</td>
+<td>Recognize &amp; Import</td>
+</tr>
+<tr class="odd">
+<td><code>upload.pastePreview</code></td>
+<td>数据预览（前5行）</td>
+<td>Data Preview (first 5 rows)</td>
+</tr>
+<tr class="even">
+<td><code>upload.pasteRowsCols</code></td>
+<td>{rows} 行 × {cols} 列</td>
+<td>{rows} rows × {cols} cols</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+</section>
+<section id="phase-2-json-parquet-文件导入" class="level2">
+<h2 class="anchored" data-anchor-id="phase-2-json-parquet-文件导入">Phase 2: 📄 JSON / Parquet 文件导入</h2>
+<p><strong>目标</strong>：扩展现有文件加载能力，支持 <code>.json</code>（数组或行-oriented）和 <code>.parquet</code> 格式。</p>
+<section id="后端-rust-1" class="level3">
+<h3 class="anchored" data-anchor-id="后端-rust-1">2.1 后端 (Rust)</h3>
+<section id="扩展现有-load_file_impl-支持-json" class="level4">
+<h4 class="anchored" data-anchor-id="扩展现有-load_file_impl-支持-json">扩展现有 <code>load_file_impl</code> 支持 JSON</h4>
+<div class="sourceCode" id="cb3"><pre class="sourceCode rust code-with-copy"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// 在 load_file_impl 中增加格式判断</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="cf">match</span> ext <span class="op">{</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"csv"</span> <span class="op">|</span> <span class="st">"tsv"</span> <span class="op">|</span> <span class="st">"txt"</span> <span class="op">=&gt;</span> <span class="op">{</span> <span class="co">/* 现有 CSV 逻辑 */</span> <span class="op">}</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"xlsx"</span> <span class="op">|</span> <span class="st">"xls"</span> <span class="op">|</span> <span class="st">"xlsm"</span> <span class="op">|</span> <span class="st">"ods"</span> <span class="op">=&gt;</span> <span class="op">{</span> <span class="co">/* 现有 Excel 逻辑 */</span> <span class="op">}</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"json"</span> <span class="op">=&gt;</span> <span class="op">{</span> <span class="co">/* 新增 */</span> load_json(path) <span class="op">}</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"parquet"</span> <span class="op">=&gt;</span> <span class="op">{</span> <span class="co">/* 新增 */</span> load_parquet(path) <span class="op">}</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong>JSON 加载</strong>： - 使用 <code>serde_json</code> 读取为 <code>Vec&lt;serde_json::Value&gt;</code> - 自动展平嵌套对象（<code>a.b.c</code> → 列名） - 数组类型自动 join 为字符串 - 转换为 Polars DataFrame</p>
+<p><strong>Parquet 加载</strong>： - Polars 已编译 <code>parquet</code> feature，直接使用 <code>ParquetReader</code> - 无需额外依赖</p>
+<p><strong>文件变更</strong>： - 修改 <code>src-tauri/src/commands/loader.rs</code> (~30 行新增)</p>
+</section>
+</section>
+<section id="前端" class="level3">
+<h3 class="anchored" data-anchor-id="前端">2.2 前端</h3>
+<p><strong>文件变更</strong>： - 修改 <code>FileUploader.vue</code> 文件过滤器增加 <code>.json</code>, <code>.parquet</code> - 修改 <code>UploadView.vue</code> 支持文案增加 JSON/Parquet - 纯前端 <code>parser.ts</code> 增加 <code>parseJSON()</code> 函数（fallback 用）</p>
+</section>
+<section id="多语言-1" class="level3">
+<h3 class="anchored" data-anchor-id="多语言-1">2.3 多语言</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 26%">
+<col style="width: 36%">
+<col style="width: 36%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>zh-CN</th>
+<th>en-US</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>upload.supportedFormats</code></td>
+<td>支持 CSV, Excel, JSON, Parquet 格式</td>
+<td>Supports CSV, Excel, JSON, Parquet formats</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+</section>
+<section id="phase-3-url-api-数据拉取" class="level2">
+<h2 class="anchored" data-anchor-id="phase-3-url-api-数据拉取">Phase 3: 🌐 URL / API 数据拉取</h2>
+<p><strong>目标</strong>：用户输入一个 URL，SmartBoard 自动拉取 CSV/JSON 数据。</p>
+<section id="后端-rust-2" class="level3">
+<h3 class="anchored" data-anchor-id="后端-rust-2">3.1 后端 (Rust)</h3>
+<section id="新增依赖" class="level4">
+<h4 class="anchored" data-anchor-id="新增依赖">新增依赖</h4>
+<div class="sourceCode" id="cb4"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Cargo.toml</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">reqwest</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">version</span><span class="op"> =</span> <span class="st">"0.12"</span><span class="op">, </span><span class="dt">features</span><span class="op"> =</span> <span class="op">[</span><span class="st">"rustls-tls"</span><span class="op">] }</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="新增-tauri-command-fetch_from_url" class="level4">
+<h4 class="anchored" data-anchor-id="新增-tauri-command-fetch_from_url">新增 Tauri Command: <code>fetch_from_url</code></h4>
+<div class="sourceCode" id="cb5"><pre class="sourceCode rust code-with-copy"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// src-tauri/src/commands/remote.rs (新文件)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span><span class="pp">tauri::</span>command<span class="at">]</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> fetch_from_url(</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    url<span class="op">:</span> <span class="dt">String</span><span class="op">,</span>            <span class="co">// 数据 URL</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    format<span class="op">:</span> <span class="dt">String</span><span class="op">,</span>         <span class="co">// "csv" | "json" | "auto"</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    has_header<span class="op">:</span> <span class="dt">bool</span><span class="op">,</span>       <span class="co">// CSV 首行是否为表头</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> ApiResult<span class="op">&lt;</span>ChartPayload<span class="op">&gt;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong>实现要点</strong>： - 使用 <code>reqwest::get(url)</code> 拉取数据 - 根据 <code>Content-Type</code> 或 <code>format</code> 参数选择解析器 - 超时 30 秒，超时返回友好错误 - 支持 <code>file://</code> 本地路径（兼容现有逻辑） - 注册为活跃数据集</p>
+<p><strong>文件变更</strong>： - 修改 <code>src-tauri/Cargo.toml</code> 添加 reqwest - 新增 <code>src-tauri/src/commands/remote.rs</code> (~80 行) - 修改 <code>src-tauri/src/lib.rs</code> 注册命令</p>
+</section>
+</section>
+<section id="前端-1" class="level3">
+<h3 class="anchored" data-anchor-id="前端-1">3.2 前端</h3>
+<section id="新增组件-urlimport.vue" class="level4">
+<h4 class="anchored" data-anchor-id="新增组件-urlimport.vue">新增组件: <code>UrlImport.vue</code></h4>
+<p><strong>位置</strong>：<code>src/components/upload/UrlImport.vue</code></p>
+<p><strong>UI 设计</strong>：</p>
+<pre><code>┌─────────────────────────────────────────┐
+│  🌐 从 URL 导入                          │
+│                                         │
+│  ┌─────────────────────────────────┐    │
+│  │ https://example.com/data.csv  │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+│  格式： [自动检测 ▼]                     │
+│  ☑ 首行为表头                            │
+│                                         │
+│  [拉取并导入 →]                          │
+│                                         │
+│  状态：⬤ 空闲 | ⬤ 请求中... | ✓ 成功    │
+└─────────────────────────────────────────┘</code></pre>
+<p><strong>交互流程</strong>： 1. 用户粘贴 URL → 自动 trim 2. 选择格式（auto/csv/json）或自动检测 3. 点击「拉取并导入」→ 显示加载动画 4. 成功 → 显示行/列数并导入 5. 失败 → 显示错误信息（网络错误/格式错误/超时）</p>
+<p><strong>文件变更</strong>： - 新增 <code>src/components/upload/UrlImport.vue</code> (~120 行) - 修改 <code>src/composables/use-rust-bridge.ts</code> 新增 <code>fetchFromUrl()</code> - 修改 <code>src/views/UploadView.vue</code> 嵌入 UrlImport 组件 - 修改 <code>src/stores/data-store.ts</code> 新增 <code>loadFromUrl()</code> action</p>
+</section>
+</section>
+<section id="多语言-2" class="level3">
+<h3 class="anchored" data-anchor-id="多语言-2">3.3 多语言</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 26%">
+<col style="width: 36%">
+<col style="width: 36%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>zh-CN</th>
+<th>en-US</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>upload.urlTitle</code></td>
+<td>从 URL 导入</td>
+<td>Import from URL</td>
+</tr>
+<tr class="even">
+<td><code>upload.urlPlaceholder</code></td>
+<td>输入数据文件 URL…</td>
+<td>Enter data file URL…</td>
+</tr>
+<tr class="odd">
+<td><code>upload.urlFormat</code></td>
+<td>格式</td>
+<td>Format</td>
+</tr>
+<tr class="even">
+<td><code>upload.urlAutoDetect</code></td>
+<td>自动检测</td>
+<td>Auto Detect</td>
+</tr>
+<tr class="odd">
+<td><code>upload.urlFetch</code></td>
+<td>拉取并导入</td>
+<td>Fetch &amp; Import</td>
+</tr>
+<tr class="even">
+<td><code>upload.urlFetching</code></td>
+<td>请求中…</td>
+<td>Fetching…</td>
+</tr>
+<tr class="odd">
+<td><code>upload.urlSuccess</code></td>
+<td>导入成功</td>
+<td>Import successful</td>
+</tr>
+<tr class="even">
+<td><code>upload.urlError</code></td>
+<td>拉取失败</td>
+<td>Fetch failed</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+</section>
+<section id="phase-4-sqlite-数据库直连" class="level2">
+<h2 class="anchored" data-anchor-id="phase-4-sqlite-数据库直连">Phase 4: 🗄️ SQLite 数据库直连</h2>
+<p><strong>目标</strong>：用户选择本地 <code>.db</code> / <code>.sqlite</code> 文件，选择表导入。</p>
+<section id="后端-rust-3" class="level3">
+<h3 class="anchored" data-anchor-id="后端-rust-3">4.1 后端 (Rust)</h3>
+<section id="新增依赖-1" class="level4">
+<h4 class="anchored" data-anchor-id="新增依赖-1">新增依赖</h4>
+<div class="sourceCode" id="cb7"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Cargo.toml</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">rusqlite</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">version</span><span class="op"> =</span> <span class="st">"0.31"</span><span class="op">, </span><span class="dt">features</span><span class="op"> =</span> <span class="op">[</span><span class="st">"bundled"</span><span class="op">] }</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="新增-tauri-commands" class="level4">
+<h4 class="anchored" data-anchor-id="新增-tauri-commands">新增 Tauri Commands</h4>
+<div class="sourceCode" id="cb8"><pre class="sourceCode rust code-with-copy"><code class="sourceCode rust"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">// src-tauri/src/commands/database.rs (新文件)</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co">/// 列出 SQLite 数据库中的所有表</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span><span class="pp">tauri::</span>command<span class="at">]</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> list_sqlite_tables(</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    path<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> ApiResult<span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span>TableInfo<span class="op">&gt;&gt;</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co">/// 从 SQLite 加载指定表</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span><span class="pp">tauri::</span>command<span class="at">]</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> load_sqlite_table(</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    path<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    table_name<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> ApiResult<span class="op">&lt;</span>ChartPayload<span class="op">&gt;</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="co">/// 执行自定义 SQL 查询</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span><span class="pp">tauri::</span>command<span class="at">]</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> execute_sql_query(</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    path<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    query<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> ApiResult<span class="op">&lt;</span>ChartPayload<span class="op">&gt;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong>实现要点</strong>： - <code>list_sqlite_tables</code>：查询 <code>sqlite_master</code> 获取所有用户表 - <code>load_sqlite_table</code>：<code>SELECT * FROM {table}</code> 加载全表 - <code>execute_sql_query</code>：允许高级用户自定义 SQL（安全考虑：仅允许 SELECT） - 使用 <code>bundled</code> feature 避免系统 SQLite 版本依赖</p>
+<p><strong>文件变更</strong>： - 修改 <code>src-tauri/Cargo.toml</code> 添加 rusqlite - 新增 <code>src-tauri/src/commands/database.rs</code> (~120 行) - 修改 <code>src-tauri/src/lib.rs</code> 注册命令</p>
+</section>
+</section>
+<section id="前端-2" class="level3">
+<h3 class="anchored" data-anchor-id="前端-2">4.2 前端</h3>
+<section id="新增组件-databaseimport.vue" class="level4">
+<h4 class="anchored" data-anchor-id="新增组件-databaseimport.vue">新增组件: <code>DatabaseImport.vue</code></h4>
+<p><strong>位置</strong>：<code>src/components/upload/DatabaseImport.vue</code></p>
+<p><strong>UI 设计</strong>：</p>
+<pre><code>┌─────────────────────────────────────────┐
+│  🗄️ 从 SQLite 导入                       │
+│                                         │
+│  数据库文件：[选择 .db 文件...]           │
+│                                         │
+│  ┌─────────────────────────────────┐    │
+│  │ ☐ users        (1,234 行)       │    │
+│  │ ☐ orders       (5,678 行)       │    │
+│  │ ☐ products     (890 行)         │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+│  [全选] [清空]                           │
+│                                         │
+│  ── 高级选项 ──                          │
+│  自定义 SQL：                            │
+│  ┌─────────────────────────────────┐    │
+│  │ SELECT * FROM orders WHERE ...  │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+│  [执行并导入]                            │
+└─────────────────────────────────────────┘</code></pre>
+<p><strong>交互流程</strong>： 1. 用户点击「选择 .db 文件」→ Tauri 文件对话框（过滤 <code>.db</code>, <code>.sqlite</code>, <code>.sqlite3</code>） 2. 自动调用 <code>list_sqlite_tables</code> 显示所有表及行数 3. 用户勾选需要的表（支持多选） 4. （可选）用户在「自定义 SQL」区域编写高级查询 5. 点击「执行并导入」→ 加载数据</p>
+<p><strong>文件变更</strong>： - 新增 <code>src/components/upload/DatabaseImport.vue</code> (~200 行) - 修改 <code>src/composables/use-rust-bridge.ts</code> 新增数据库相关函数 - 修改 <code>src/views/UploadView.vue</code> 嵌入 DatabaseImport 组件 - 修改 <code>src/stores/data-store.ts</code> 新增 <code>loadFromDatabase()</code> action</p>
+</section>
+</section>
+<section id="多语言-3" class="level3">
+<h3 class="anchored" data-anchor-id="多语言-3">4.3 多语言</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 26%">
+<col style="width: 36%">
+<col style="width: 36%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>zh-CN</th>
+<th>en-US</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>upload.dbTitle</code></td>
+<td>从 SQLite 导入</td>
+<td>Import from SQLite</td>
+</tr>
+<tr class="even">
+<td><code>upload.dbSelectFile</code></td>
+<td>选择数据库文件</td>
+<td>Select database file</td>
+</tr>
+<tr class="odd">
+<td><code>upload.dbTables</code></td>
+<td>数据库表</td>
+<td>Database Tables</td>
+</tr>
+<tr class="even">
+<td><code>upload.dbCustomSql</code></td>
+<td>自定义 SQL</td>
+<td>Custom SQL</td>
+</tr>
+<tr class="odd">
+<td><code>upload.dbExecute</code></td>
+<td>执行并导入</td>
+<td>Execute &amp; Import</td>
+</tr>
+<tr class="even">
+<td><code>upload.dbSqlPlaceholder</code></td>
+<td>SELECT * FROM table WHERE …</td>
+<td>SELECT * FROM table WHERE …</td>
+</tr>
+<tr class="odd">
+<td><code>upload.dbNoTables</code></td>
+<td>未找到数据表</td>
+<td>No tables found</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+</section>
+<section id="五uploadview-布局重构" class="level2">
+<h2 class="anchored" data-anchor-id="五uploadview-布局重构">五、UploadView 布局重构</h2>
+<p>所有导入方式统一集成到 <code>UploadView.vue</code>，采用 <strong>Tab 切换</strong> 布局：</p>
+<pre><code>┌──────────────────────────────────────────────────┐
+│  SmartBoard                          [语言切换]   │
+│                                                  │
+│  ┌──────────────────────────────────────────────┐ │
+│  │ [📂 文件] [📋 粘贴] [🌐 URL] [🗄️ 数据库]     │ │
+│  └──────────────────────────────────────────────┘ │
+│                                                  │
+│  ┌──────────────────────────────────────────────┐ │
+│  │                                              │ │
+│  │         (当前 Tab 对应的导入组件)              │ │
+│  │                                              │ │
+│  └──────────────────────────────────────────────┘ │
+│                                                  │
+│  ── 已导入数据表 ──                               │
+│  ┌──────────────────────────────────────────────┐ │
+│  │ 📊 收入台账     200行×12列  [预览] [删除]     │ │
+│  │ 📊 支出合同     150行×8列   [预览] [删除]     │ │
+│  └──────────────────────────────────────────────┘ │
+│                                                  │
+│  [下载示例数据]                    [下一步：配置 →] │
+└──────────────────────────────────────────────────┘</code></pre>
+<section id="tab-可见性策略" class="level3">
+<h3 class="anchored" data-anchor-id="tab-可见性策略">Tab 可见性策略</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Tab</th>
+<th>始终可见</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>📂 文件</td>
+<td>✅</td>
+<td>默认激活，核心功能</td>
+</tr>
+<tr class="even">
+<td>📋 粘贴</td>
+<td>✅</td>
+<td>无依赖，始终可用</td>
+</tr>
+<tr class="odd">
+<td>🌐 URL</td>
+<td>✅</td>
+<td>Tauri 环境用 Rust，浏览器用 fetch fallback</td>
+</tr>
+<tr class="even">
+<td>🗄️ 数据库</td>
+<td>⚠️ Tauri 环境</td>
+<td>浏览器环境隐藏（无法访问本地文件系统）</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="文件变更" class="level3">
+<h3 class="anchored" data-anchor-id="文件变更">文件变更</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>文件</th>
+<th>变更类型</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>src/views/UploadView.vue</code></td>
+<td>🔧 重构为 Tab 布局</td>
+</tr>
+<tr class="even">
+<td><code>src/components/upload/FileUploader.vue</code></td>
+<td>🔧 微调适配 Tab</td>
+</tr>
+<tr class="odd">
+<td><code>src/components/upload/PasteZone.vue</code></td>
+<td>✨ 新增</td>
+</tr>
+<tr class="even">
+<td><code>src/components/upload/UrlImport.vue</code></td>
+<td>✨ 新增</td>
+</tr>
+<tr class="odd">
+<td><code>src/components/upload/DatabaseImport.vue</code></td>
+<td>✨ 新增</td>
+</tr>
+<tr class="even">
+<td><code>src/composables/use-rust-bridge.ts</code></td>
+<td>🔧 新增 4 个函数</td>
+</tr>
+<tr class="odd">
+<td><code>src/stores/data-store.ts</code></td>
+<td>🔧 新增 3 个 action</td>
+</tr>
+<tr class="even">
+<td><code>src/i18n/zh-CN.ts</code></td>
+<td>🔧 新增 ~20 个 key</td>
+</tr>
+<tr class="odd">
+<td><code>src/i18n/en-US.ts</code></td>
+<td>🔧 新增 ~20 个 key</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+</section>
+<section id="六实施时间估算" class="level2">
+<h2 class="anchored" data-anchor-id="六实施时间估算">六、实施时间估算</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Phase</th>
+<th>内容</th>
+<th>后端</th>
+<th>前端</th>
+<th>总计</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Phase 1</td>
+<td>剪贴板粘贴</td>
+<td>1h</td>
+<td>3h</td>
+<td><strong>4h</strong></td>
+</tr>
+<tr class="even">
+<td>Phase 2</td>
+<td>JSON/Parquet</td>
+<td>1h</td>
+<td>1h</td>
+<td><strong>2h</strong></td>
+</tr>
+<tr class="odd">
+<td>Phase 3</td>
+<td>URL/API 拉取</td>
+<td>2h</td>
+<td>3h</td>
+<td><strong>5h</strong></td>
+</tr>
+<tr class="even">
+<td>Phase 4</td>
+<td>SQLite 直连</td>
+<td>3h</td>
+<td>4h</td>
+<td><strong>7h</strong></td>
+</tr>
+<tr class="odd">
+<td>布局重构</td>
+<td>UploadView Tab 化</td>
+<td>—</td>
+<td>2h</td>
+<td><strong>2h</strong></td>
+</tr>
+<tr class="even">
+<td><strong>合计</strong></td>
+<td></td>
+<td><strong>7h</strong></td>
+<td><strong>13h</strong></td>
+<td><strong>20h</strong></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="七风险与注意事项" class="level2">
+<h2 class="anchored" data-anchor-id="七风险与注意事项">七、风险与注意事项</h2>
+<ol type="1">
+<li><strong>剪贴板权限</strong>：浏览器环境需要用户授权 <code>clipboard-read</code> 权限，HTTPS 环境下才可用。Tauri 环境可直接通过 <code>paste</code> 事件获取。</li>
+<li><strong>大文件 URL 拉取</strong>：<code>reqwest</code> 默认全量下载到内存，超大文件（&gt;100MB）需后续增加流式处理。</li>
+<li><strong>SQL 注入</strong>：Phase 4 的自定义 SQL 功能仅允许 <code>SELECT</code> 语句，需在 Rust 侧做 SQL 白名单校验。</li>
+<li><strong>JSON 嵌套展平</strong>：深层嵌套 JSON 展平策略需与用户确认（如 <code>{a: {b: 1}}</code> → 列名 <code>a.b</code>）。</li>
+</ol>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

@@ -124,3 +124,70 @@ export async function groupbyAgg(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export { isTauri }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 多数据源接入 (Phase 1-4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Phase 1: 粘贴剪贴板 TSV 数据 */
+export async function pasteFromClipboard(
+  text: string,
+  hasHeader: boolean,
+): Promise<ApiResult<ChartPayload>> {
+  if (!isTauri()) throw new Error('pasteFromClipboard 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartPayload>>('paste_from_clipboard', { text, hasHeader })
+}
+
+/** Phase 2: 加载 JSON 文件 */
+export async function loadJsonFile(path: string): Promise<ApiResult<ChartPayload>> {
+  if (!isTauri()) throw new Error('loadJsonFile 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartPayload>>('load_json_file', { path })
+}
+
+/** Phase 2: 加载 Parquet 文件 */
+export async function loadParquetFile(path: string): Promise<ApiResult<ChartPayload>> {
+  if (!isTauri()) throw new Error('loadParquetFile 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartPayload>>('load_parquet_file', { path })
+}
+
+/** Phase 3: 从 URL 拉取数据 */
+export async function fetchFromUrl(
+  url: string,
+  format: 'csv' | 'json' | 'auto' = 'auto',
+  hasHeader = true,
+): Promise<ApiResult<ChartPayload>> {
+  if (!isTauri()) throw new Error('fetchFromUrl 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartPayload>>('fetch_from_url', { url, format, hasHeader })
+}
+
+/** Phase 4: SQLite 表信息 */
+export interface SqliteTableInfo {
+  name: string
+  row_count: number
+  column_count: number
+  columns: string[]
+}
+
+/** Phase 4: 列出 SQLite 数据库中的所有表 */
+export async function listSqliteTables(path: string): Promise<ApiResult<SqliteTableInfo[]>> {
+  if (!isTauri()) throw new Error('listSqliteTables 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<SqliteTableInfo[]>>('list_sqlite_tables', { path })
+}
+
+/** Phase 4: 加载 SQLite 数据库中的指定表 */
+export async function loadSqliteTable(
+  path: string,
+  tableName: string,
+): Promise<ApiResult<ChartPayload>> {
+  if (!isTauri()) throw new Error('loadSqliteTable 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartPayload>>('load_sqlite_table', { path, tableName })
+}
+
+/** Phase 4: 执行自定义 SQL 查询 */
+export async function executeSqliteQuery(
+  path: string,
+  query: string,
+): Promise<ApiResult<ChartPayload>> {
+  if (!isTauri()) throw new Error('executeSqliteQuery 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartPayload>>('execute_sqlite_query', { path, query })
+}

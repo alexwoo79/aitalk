@@ -47,7 +47,7 @@ export default {
   // Upload view
   upload: {
     title: '上传数据文件',
-    subtitle: '支持 CSV 和 XLSX 格式，系统将自动分析列结构',
+    subtitle: '支持 CSV、Excel、JSON、Parquet 格式，支持粘贴/URL/SQLite 导入',
     parsing: '正在解析文件...',
     dropHint: '拖拽 CSV 或 XLSX 文件到此处',
     clickHint: '或点击按钮选择文件',
@@ -70,18 +70,18 @@ export default {
     dataQuality: '数据质量',
     dataTips: {
       toggle: '💡 数据质量要求',
-      title: '为保证分析质量，请确保上传的数据符合以下要求：',
-      format: '📄 文件格式：支持 CSV（逗号分隔）和 XLSX（Excel 工作簿）',
-      header: '📋 必须有表头行（仅1行），用于识别各列含义',
+      title: '为保证分析质量，请确保导入的数据符合以下要求：',
+      format: '📄 支持格式：CSV、Excel (XLSX/XLS)、JSON、Parquet；支持粘贴表格数据、URL 拉取、SQLite 数据库导入',
+      header: '📋 数据应有表头行，用于识别各列含义（粘贴时可切换首行是否为表头）',
       uniqueNames: '🏷️ 各列名称不得重复，确保列名唯一',
       consistentType: '🔤 每列数据格式保持一致（如同一列都是数字、日期或文本）',
       noEmpty: '🚫 数据中不要有空值，缺失值请补全或删除该行',
-      cleanTips: '✨ 数据清洁建议：',
-      tip1: '删除首行之前的空行和无关说明文字',
-      tip2: '避免合并单元格，保持标准二维表结构',
-      tip3: '日期列建议使用 YYYY-MM-DD 或 YYYY/MM/DD 格式',
-      tip4: '数值列不要包含单位文字（如「万元」「%」），仅保留纯数字',
-      tip5: '分类列的值尽量规范化（如统一「北京」「北京市」）',
+      cleanTips: '✨ 各导入方式注意事项：',
+      tip1: '📂 文件：CSV 用逗号分隔，避免合并单元格，保持标准二维表',
+      tip2: '📋 粘贴：从 Excel/WPS 复制后 Ctrl+V 粘贴，列间自动按 Tab 识别',
+      tip3: '🌐 URL：支持 CSV/JSON 直链和 Google Sheets 分享链接',
+      tip4: '📄 JSON：数据应为对象数组 [{"列1":值,"列2":值},...]',
+      tip5: '🗄️ SQLite：仅支持 SELECT 查询，文件路径需在本地可访问',
       gotIt: '知道了',
     },
     // 多表支持（Phase 2）
@@ -120,6 +120,34 @@ export default {
     // Excel 工作表选择
     selectSheets: '选择工作表',
     selectSheetsHint: '文件 "{name}" 包含多个工作表，请选择要导入的表：',
+    // 导入方式 Tab
+    methodFile: '文件',
+    methodPaste: '粘贴',
+    methodUrl: 'URL',
+    methodDatabase: '数据库',
+    // 粘贴导入
+    pasteTitle: '粘贴数据',
+    pasteHint: '从 Excel / WPS 复制表格数据，Ctrl+V 粘贴到此区域',
+    pasteFirstRowHeader: '首行为表头',
+    pasteRecognize: '识别并导入',
+    pastePreview: '数据预览（前5行）',
+    // URL 导入
+    urlTitle: '从 URL 导入',
+    urlPlaceholder: '输入数据文件 URL（CSV / JSON / Google Sheets）...',
+    urlFormat: '格式',
+    urlAutoDetect: '自动检测',
+    urlFetch: '拉取并导入',
+    urlFetching: '请求中...',
+    urlSuccess: '✅ 导入成功',
+    urlError: '拉取失败',
+    // 数据库导入
+    dbTitle: '从 SQLite 导入',
+    dbSelectFile: '选择数据库文件...',
+    dbTables: '数据库表',
+    dbCustomSql: '自定义 SQL（高级）',
+    dbSqlPlaceholder: 'SELECT * FROM table WHERE ...',
+    dbExecute: '执行并导入',
+    dbNoTables: '未找到数据表',
   },
 
   // Classification labels

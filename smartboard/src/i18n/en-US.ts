@@ -44,7 +44,7 @@ export default {
 
   upload: {
     title: 'Upload Data File',
-    subtitle: 'Supports CSV and XLSX. The system will auto-analyze column structure.',
+    subtitle: 'Supports CSV, Excel, JSON, Parquet. Paste/URL/SQLite import available.',
     parsing: 'Parsing file...',
     dropHint: 'Drag CSV or XLSX file here',
     clickHint: 'or click to browse',
@@ -68,17 +68,17 @@ export default {
     dataTips: {
       toggle: '💡 Data Quality Tips',
       title: 'To ensure analysis quality, please make sure your data meets the following:',
-      format: '📄 File Format: CSV (comma-separated) and XLSX (Excel workbook) supported',
-      header: '📋 Must have a header row (only 1 row) to identify column meanings',
+      format: '📄 Supported formats: CSV, Excel (XLSX/XLS), JSON, Parquet. Also supports paste, URL fetch, and SQLite import.',
+      header: '📋 Data should have a header row to identify column meanings (toggle first-row-as-header for paste)',
       uniqueNames: '🏷️ Column names must be unique — no duplicates',
       consistentType: '🔤 Each column must have consistent data types (e.g., all numbers, dates, or text)',
       noEmpty: '🚫 No empty/missing values — fill them in or remove the row',
-      cleanTips: '✨ Clean Data Tips:',
-      tip1: 'Remove empty rows and explanatory text before the header',
-      tip2: 'Avoid merged cells — keep a standard 2D table structure',
-      tip3: 'Use YYYY-MM-DD or YYYY/MM/DD format for date columns',
-      tip4: 'Numeric columns should contain only numbers (no units like "10K" or "%")',
-      tip5: 'Normalize category values (e.g., unify "NYC" and "New York")',
+      cleanTips: '✨ Notes by import method:',
+      tip1: '📂 File: CSV uses comma delimiter; avoid merged cells, keep standard 2D table',
+      tip2: '📋 Paste: Copy from Excel/WPS then Ctrl+V — columns auto-detected via Tab',
+      tip3: '🌐 URL: Supports direct CSV/JSON links and Google Sheets share links',
+      tip4: '📄 JSON: Data should be an object array [{"col1":val,"col2":val},...]',
+      tip5: '🗄️ SQLite: Only SELECT queries allowed; file must be locally accessible',
       gotIt: 'Got it',
     },
     // Multi-table (Phase 2)
@@ -117,6 +117,34 @@ export default {
     // Excel sheet selection
     selectSheets: 'Select Sheets',
     selectSheetsHint: 'File "{name}" has multiple sheets. Choose which to import:',
+    // Import method tabs
+    methodFile: 'File',
+    methodPaste: 'Paste',
+    methodUrl: 'URL',
+    methodDatabase: 'Database',
+    // Paste import
+    pasteTitle: 'Paste Data',
+    pasteHint: 'Copy table data from Excel/WPS, Ctrl+V to paste here',
+    pasteFirstRowHeader: 'First row is header',
+    pasteRecognize: 'Recognize & Import',
+    pastePreview: 'Data Preview (first 5 rows)',
+    // URL import
+    urlTitle: 'Import from URL',
+    urlPlaceholder: 'Enter data file URL (CSV / JSON / Google Sheets)...',
+    urlFormat: 'Format',
+    urlAutoDetect: 'Auto Detect',
+    urlFetch: 'Fetch & Import',
+    urlFetching: 'Fetching...',
+    urlSuccess: '✅ Import successful',
+    urlError: 'Fetch failed',
+    // Database import
+    dbTitle: 'Import from SQLite',
+    dbSelectFile: 'Select database file...',
+    dbTables: 'Database Tables',
+    dbCustomSql: 'Custom SQL (Advanced)',
+    dbSqlPlaceholder: 'SELECT * FROM table WHERE ...',
+    dbExecute: 'Execute & Import',
+    dbNoTables: 'No tables found',
   },
 
   classification: {
