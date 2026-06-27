@@ -106,13 +106,17 @@
           </div>
         </div>
 
-        <!-- 图表 -->
+        <!-- 图表（流式懒加载：仅渲染视口内可见的图表） -->
         <div v-if="spec.charts?.length" class="charts-wrap">
           <div v-for="(chart, i) in spec.charts" :key="'chart-' + i"
+            :ref="(el) => setCardRef(i, el as HTMLElement)"
+            :data-chart-index="i"
             :class="['chart-card', { 'chart-card-full': isAnalysisChart(chart) }]" :data-chart-key="'chart-' + i">
             <div class="rs-handle rs-handle-e" @pointerdown.prevent="onResizeStart($event, 'e')"></div>
             <div class="rs-handle rs-handle-s" @pointerdown.prevent="onResizeStart($event, 's')"></div>
             <div class="rs-handle rs-handle-se" @pointerdown.prevent="onResizeStart($event, 'se')"></div>
+            <SkeletonChart v-if="!isChartVisible(i)" />
+            <template v-else>
             <TimeseriesChart v-if="chart.type === 'timeseries'" :rows="filteredChartRows(chart)"
               :date-column="chart.dateColumn || spec.dateRange?.column || ''"
               :metric="chart.metric || spec.primaryMetric || ''"
@@ -136,6 +140,7 @@
               :rows="filteredChartRows(chart)" :available-metrics="allMetricCols" />
             <LineChartComponent v-else-if="chart.type === 'line'" :chart="chart as any" :rows="filteredChartRows(chart)"
               :available-metrics="allMetricCols" />
+            </template>
           </div>
         </div>
 
@@ -260,7 +265,9 @@ import { useConfigStore } from '@/stores/config-store'
 import { usePreviewStore } from '@/stores/preview-store'
 import type { ChartSpec, KpiSpec } from '@/types/spec'
 import { useTheme } from '@/composables/use-theme'
+import { useLazyRender } from '@/composables/use-lazy-render'
 import { applyFilter } from '@/core/filter'
+import SkeletonChart from '@/components/common/SkeletonChart.vue'
 
 use([
   CanvasRenderer, BarChart, PieChart, LineChart, ScatterChart,
@@ -321,6 +328,9 @@ const { t, locale } = useI18n()
 const previewStore = usePreviewStore()
 
 const spec = computed(() => previewStore.buildSpec())
+
+// 流式懒加载：仅渲染视口内可见的图表
+const { isVisible: isChartVisible, setCardRef } = useLazyRender(spec.value?.charts?.length ?? 0)
 
 // Layout size tracker (for display and save)
 const layoutW = ref(0)

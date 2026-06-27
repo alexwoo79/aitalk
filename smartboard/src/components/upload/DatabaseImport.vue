@@ -7,7 +7,6 @@
       <button class="mode-btn" :class="{ active: dbMode === 'remote' }" @click="dbMode = 'remote'">MySQL / PG</button>
     </div>
     <template v-if="dbMode === 'sqlite'">
-      <p class="import-sub">{{ selectedFile ? selectedFileName : t('upload.dbSelectFile') }}</p>
       <button class="btn btn-sm card-btn" @click="selectFile" :disabled="loading">{{ selectedFile ? t('common.edit') + '...' : t('upload.selectFile') }}</button>
     </template>
     <template v-if="dbMode === 'remote'">
@@ -47,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
@@ -63,6 +62,12 @@ const isSqlite = computed(() => dbMode.value === 'sqlite')
 const selectedFile = ref('')
 const selectedFileName = computed(() => selectedFile.value ? selectedFile.value.replace(/^.*[/\\]/, '') : '')
 const connString = ref('')
+
+// localStorage 暂存
+onMounted(() => {
+  connString.value = localStorage.getItem('sb_db_conn_string') || ''
+})
+watch(connString, (v) => { localStorage.setItem('sb_db_conn_string', v) })
 
 interface TableItem { name: string; row_count?: number; column_count?: number }
 const tables = ref<TableItem[]>([])

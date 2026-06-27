@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
@@ -44,6 +44,15 @@ const configStore = useConfigStore()
 const url = ref('')
 const format = ref<'csv' | 'json' | 'auto'>('auto')
 const loading = ref(false)
+
+// localStorage 暂存
+onMounted(() => {
+  url.value = localStorage.getItem('sb_url_import') || ''
+  const fmt = localStorage.getItem('sb_url_format')
+  if (fmt === 'csv' || fmt === 'json' || fmt === 'auto') format.value = fmt
+})
+watch(url, (v) => { localStorage.setItem('sb_url_import', v) })
+watch(format, (v) => { localStorage.setItem('sb_url_format', v) })
 const cancelled = ref(false)
 const statusText = ref('')
 const error = ref('')

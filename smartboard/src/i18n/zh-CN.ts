@@ -143,7 +143,7 @@ export default {
     urlSuccess: '✅ 导入成功',
     urlError: '拉取失败',
     // 数据库导入
-    dbTitle: '从 SQLite 导入',
+    dbTitle: '从数据库导入',
     dbSelectFile: '选择数据库文件...',
     dbTables: '数据库表',
     dbCustomSql: '自定义 SQL（高级）',

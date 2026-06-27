@@ -140,7 +140,7 @@ export default {
     urlSuccess: '✅ Import successful',
     urlError: 'Fetch failed',
     // Database import
-    dbTitle: 'Import from SQLite',
+    dbTitle: 'Import from Database',
     dbSelectFile: 'Select database file...',
     dbTables: 'Database Tables',
     dbCustomSql: 'Custom SQL (Advanced)',

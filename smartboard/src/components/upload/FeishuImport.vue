@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
@@ -85,6 +85,16 @@ const baseUrl = ref('')
 const tables = ref<FeishuTableInfo[]>([])
 const selectedTable = ref('')
 const loading = ref(false)
+
+// localStorage 暂存
+onMounted(() => {
+  appId.value = localStorage.getItem('sb_feishu_app_id') || ''
+  appSecret.value = localStorage.getItem('sb_feishu_app_secret') || ''
+  baseUrl.value = localStorage.getItem('sb_feishu_base_url') || ''
+})
+watch(appId, (v) => { localStorage.setItem('sb_feishu_app_id', v) })
+watch(appSecret, (v) => { localStorage.setItem('sb_feishu_app_secret', v) })
+watch(baseUrl, (v) => { localStorage.setItem('sb_feishu_base_url', v) })
 const cancelled = ref(false)
 const statusText = ref('')
 const error = ref('')
