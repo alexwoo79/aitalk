@@ -65,3 +65,4 @@ logs/
 # ========================
 *.tgz
 *.tar.gz
+src-tauri/test_csv
