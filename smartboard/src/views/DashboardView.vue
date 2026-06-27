@@ -1032,7 +1032,8 @@ const hasSummaryRow = computed(() => {
 })
 
 const summaryValues = computed(() => {
-  const rows = tableRows.value
+  // 合计行基于全量数据（不受表格内搜索/条件过滤影响）
+  const rows = dataStore.dataSet?.rows ?? []
   const result: Record<string, number> = {}
   const aggs = spec.value?.table?.summaryAggs || {}
   for (const col of Object.keys(aggs)) {

@@ -120,6 +120,38 @@ export async function groupbyAgg(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Rust 全量聚合（KPI & 图表）— 替代前端 JS 循环
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface KpiSpecInput {
+  label: string
+  column: string
+  agg: string
+}
+export interface KpiValueOutput {
+  label: string
+  value: number
+}
+export interface ChartDataItem {
+  label: string
+  value: number
+}
+
+/** 批量计算 KPI 值（Rust 全量 DataFrame） */
+export async function computeKpiValues(kpis: KpiSpecInput[]): Promise<ApiResult<KpiValueOutput[]>> {
+  if (!isTauri()) throw new Error('computeKpiValues 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<KpiValueOutput[]>>('compute_kpi_values', { kpisJson: JSON.stringify(kpis) })
+}
+
+/** 图表分组聚合（Rust 全量 DataFrame） */
+export async function computeChartData(
+  dimCol: string, metricCol: string, aggFunc: string,
+): Promise<ApiResult<ChartDataItem[]>> {
+  if (!isTauri()) throw new Error('computeChartData 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartDataItem[]>>('compute_chart_data', { dimCol, metricCol, aggFunc })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 环境检测（供外部使用）
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -190,4 +222,72 @@ export async function executeSqliteQuery(
 ): Promise<ApiResult<ChartPayload>> {
   if (!isTauri()) throw new Error('executeSqliteQuery 仅在 Tauri 环境下可用')
   return invoke<ApiResult<ChartPayload>>('execute_sqlite_query', { path, query })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SQL 数据库（MySQL / PostgreSQL / SQLite 统一接口）
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface DbTableInfo {
+  name: string
+  columns: string[]
+}
+export interface DbTestResult {
+  driver: string
+  version: string
+  tables: DbTableInfo[]
+}
+
+export async function testDbConnection(connStr: string): Promise<ApiResult<DbTestResult>> {
+  if (!isTauri()) throw new Error('testDbConnection 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<DbTestResult>>('test_db_connection', { connectionString: connStr })
+}
+export async function executeDbQuery(
+  connStr: string, query: string, datasetName?: string,
+): Promise<ApiResult<ChartPayload>> {
+  if (!isTauri()) throw new Error('executeDbQuery 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartPayload>>('execute_db_query', { connectionString: connStr, query, datasetName })
+}
+export async function loadDbTable(
+  connStr: string, tableName: string,
+): Promise<ApiResult<ChartPayload>> {
+  if (!isTauri()) throw new Error('loadDbTable 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartPayload>>('load_db_table', { connectionString: connStr, tableName })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 飞书多维表格
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FeishuTableInfo {
+  table_id: string
+  name: string
+  fields: string[]
+}
+
+export interface FeishuTestResult {
+  ok: boolean
+  message: string
+  tables: FeishuTableInfo[]
+}
+
+/** 测试飞书连接，返回可用表格列表 */
+export async function testFeishuConnection(
+  appId: string, appSecret: string, baseUrl: string,
+): Promise<ApiResult<FeishuTestResult>> {
+  if (!isTauri()) throw new Error('testFeishuConnection 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<FeishuTestResult>>('test_feishu_connection', {
+    appId, appSecret, baseUrl,
+  })
+}
+
+/** 拉取飞书表格全部数据 */
+export async function loadFeishuTable(
+  appId: string, appSecret: string, baseUrl: string,
+  tableId: string, tableName?: string,
+): Promise<ApiResult<ChartPayload>> {
+  if (!isTauri()) throw new Error('loadFeishuTable 仅在 Tauri 环境下可用')
+  return invoke<ApiResult<ChartPayload>>('load_feishu_table', {
+    appId, appSecret, baseUrl, tableId, tableName,
+  })
 }

@@ -33,6 +33,7 @@ export default {
     remove: 'Remove',
     edit: 'Edit',
     searchEllipsis: 'Search...',
+    stop: 'Stop',
     unitShort: { wan: 'W', yi: 'Yi' },
   },
 
@@ -44,7 +45,7 @@ export default {
 
   upload: {
     title: 'Upload Data File',
-    subtitle: 'Supports CSV, Excel, JSON, Parquet. Paste/URL/SQLite import available.',
+    subtitle: 'CSV / Excel / JSON / Parquet · Paste · URL · Google Sheets · Feishu · SQLite / MySQL / PG',
     parsing: 'Parsing file...',
     dropHint: 'Drag CSV or XLSX file here',
     clickHint: 'or click to browse',
@@ -68,7 +69,7 @@ export default {
     dataTips: {
       toggle: '💡 Data Quality Tips',
       title: 'To ensure analysis quality, please make sure your data meets the following:',
-      format: '📄 Supported formats: CSV, Excel (XLSX/XLS), JSON, Parquet. Also supports paste, URL fetch, and SQLite import.',
+      format: '📄 Supports CSV / Excel / JSON / Parquet / Paste / URL / Google Sheets / Feishu / SQLite / MySQL / PostgreSQL',
       header: '📋 Data should have a header row to identify column meanings (toggle first-row-as-header for paste)',
       uniqueNames: '🏷️ Column names must be unique — no duplicates',
       consistentType: '🔤 Each column must have consistent data types (e.g., all numbers, dates, or text)',
@@ -76,9 +77,9 @@ export default {
       cleanTips: '✨ Notes by import method:',
       tip1: '📂 File: CSV uses comma delimiter; avoid merged cells, keep standard 2D table',
       tip2: '📋 Paste: Copy from Excel/WPS then Ctrl+V — columns auto-detected via Tab',
-      tip3: '🌐 URL: Supports direct CSV/JSON links and Google Sheets share links',
-      tip4: '📄 JSON: Data should be an object array [{"col1":val,"col2":val},...]',
-      tip5: '🗄️ SQLite: Only SELECT queries allowed; file must be locally accessible',
+      tip3: '🌐 URL: CSV/JSON direct links · Google Sheets (must be publicly visible)',
+      tip4: '📄 JSON / Parquet: JSON as object array; Parquet desktop only',
+      tip5: '📊 Feishu / SQL: Feishu needs App ID+Secret; SQL supports MySQL/PG/SQLite',
       gotIt: 'Got it',
     },
     // Multi-table (Phase 2)
@@ -122,6 +123,7 @@ export default {
     methodPaste: 'Paste',
     methodUrl: 'URL',
     methodDatabase: 'Database',
+    methodFeishu: 'Feishu',
     // Paste import
     pasteTitle: 'Paste Data',
     pasteHint: 'Copy table data from Excel/WPS, Ctrl+V to paste here',
@@ -145,6 +147,21 @@ export default {
     dbSqlPlaceholder: 'SELECT * FROM table WHERE ...',
     dbExecute: 'Execute & Import',
     dbNoTables: 'No tables found',
+    dbFile: 'File',
+    dbConnPlaceholder: 'Connection string (e.g. mysql://user:pass@host/db)',
+    dbTestConn: 'Test Connection',
+    // Feishu Bitable
+    feishuTitle: 'Feishu Bitable',
+    feishuSubtitle: 'Pull Bitable data via Feishu Open API',
+    feishuAppId: 'App ID',
+    feishuAppSecret: 'App Secret',
+    feishuBaseUrl: 'Bitable URL (e.g. https://xxx.feishu.cn/base/XXX)',
+    feishuTest: 'Test Connection',
+    feishuTesting: 'Testing...',
+    feishuImport: 'Import Data',
+    feishuTables: 'Available Tables',
+    feishuSuccess: 'Import successful',
+    feishuError: 'Feishu connection failed, check credentials and URL',
   },
 
   classification: {

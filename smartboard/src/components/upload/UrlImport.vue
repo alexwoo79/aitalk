@@ -19,11 +19,13 @@
       </select>
     </div>
 
-    <button class="btn btn-sm btn-primary card-btn" @click="doFetch" :disabled="loading || !url.trim()">
-      {{ loading ? t('upload.urlFetching') : t('upload.urlFetch') }}
-    </button>
+    <div class="card-btn-row">
+      <button class="btn btn-sm btn-primary" @click="doFetch" :disabled="loading || !url.trim()">
+        {{ loading ? t('upload.urlFetching') : t('upload.urlFetch') }}
+      </button>
+      <button v-if="loading" class="btn btn-sm btn-stop" @click="cancel">{{ t('common.stop') }}</button>
+    </div>
 
-    <div v-if="statusText" class="card-status" :class="statusClass">{{ statusText }}</div>
     <div v-if="error" class="card-error">{{ error }}</div>
   </div>
 </template>
@@ -42,6 +44,7 @@ const configStore = useConfigStore()
 const url = ref('')
 const format = ref<'csv' | 'json' | 'auto'>('auto')
 const loading = ref(false)
+const cancelled = ref(false)
 const statusText = ref('')
 const error = ref('')
 const success = ref(false)
@@ -57,12 +60,14 @@ async function doFetch() {
   if (!trimmed) return
 
   loading.value = true
+  cancelled.value = false
   statusText.value = t('upload.urlFetching')
   error.value = ''
   success.value = false
 
   try {
     const result = await fetchFromUrl(trimmed, format.value, true)
+    if (cancelled.value) return
     if (result.ok && result.data) {
       dataStore.loadFromPayload(result.data, url.value.trim())
       configStore.generateAutoConfig()
@@ -74,6 +79,7 @@ async function doFetch() {
       statusText.value = ''
     }
   } catch (e: any) {
+    if (cancelled.value) return
     // Browser fallback: try fetch + parse locally
     try {
       const resp = await fetch(trimmed)
@@ -110,6 +116,12 @@ async function doFetch() {
   } finally {
     loading.value = false
   }
+}
+
+function cancel() {
+  cancelled.value = true
+  loading.value = false
+  statusText.value = ''
 }
 </script>
 
@@ -180,6 +192,17 @@ async function doFetch() {
 .card-btn {
   margin-top: 2px;
 }
+.card-btn-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.btn-stop {
+  background: var(--bg-primary);
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+}
+.btn-stop:hover { background: #fef2f2; }
 .card-status {
   font-size: 13px;
 }

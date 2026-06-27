@@ -372,7 +372,7 @@ export const usePreviewStore = defineStore('preview', () => {
     return [...unique].sort()
   }
 
-  // 聚合数据（图表用）
+  // 聚合数据（图表用）— 数据来自全量 rows[]，筛选时用 filteredRows
   function getAggData(dimCol: string, metricCol: string, agg: string = 'sum') {
     const rows = filteredRows.value.length > 0 ? filteredRows.value : (dataStore.dataSet?.rows ?? [])
     return aggregate(rows, dimCol, metricCol, agg as any)

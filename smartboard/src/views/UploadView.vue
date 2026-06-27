@@ -1,42 +1,45 @@
 <template>
   <div class="upload-view">
+    <!-- 右上角操作按钮 -->
+    <div class="tips-actions">
+      <button class="tips-toggle" @click="showTips = !showTips">
+        {{ t('upload.dataTips.toggle') }}
+        <span class="tips-arrow">{{ showTips ? '▲' : '▼' }}</span>
+      </button>
+      <span class="sample-download" role="button" tabindex="0"
+        @click="downloadSample"
+        @keydown.enter="downloadSample"
+        @keydown.space.prevent="downloadSample">
+        {{ t('upload.sampleDownload') }}
+      </span>
+    </div>
+
+    <div v-if="showTips" class="tips-panel">
+      <p class="tips-title">{{ t('upload.dataTips.title') }}</p>
+      <ul class="tips-list">
+        <li>{{ t('upload.dataTips.format') }}</li>
+        <li>{{ t('upload.dataTips.header') }}</li>
+        <li>{{ t('upload.dataTips.uniqueNames') }}</li>
+        <li>{{ t('upload.dataTips.consistentType') }}</li>
+        <li>{{ t('upload.dataTips.noEmpty') }}</li>
+      </ul>
+      <p class="tips-subtitle">{{ t('upload.dataTips.cleanTips') }}</p>
+      <ul class="tips-list tips-list-secondary">
+        <li>{{ t('upload.dataTips.tip1') }}</li>
+        <li>{{ t('upload.dataTips.tip2') }}</li>
+        <li>{{ t('upload.dataTips.tip3') }}</li>
+        <li>{{ t('upload.dataTips.tip4') }}</li>
+        <li>{{ t('upload.dataTips.tip5') }}</li>
+      </ul>
+      <button class="btn btn-sm btn-primary tips-got-it" @click="showTips = false">
+        {{ t('upload.dataTips.gotIt') }}
+      </button>
+    </div>
+
     <!-- 上传区域（始终可见） -->
     <div class="upload-section">
       <h2>{{ t('upload.title') }}</h2>
       <p class="subtitle">{{ t('upload.subtitle') }}</p>
-      <div class="tips-actions">
-        <button class="tips-toggle" @click="showTips = !showTips">
-          {{ t('upload.dataTips.toggle') }}
-          <span class="tips-arrow">{{ showTips ? '▲' : '▼' }}</span>
-        </button>
-        <span class="sample-download" role="button" tabindex="0"
-          @click="downloadSample"
-          @keydown.enter="downloadSample"
-          @keydown.space.prevent="downloadSample">
-          {{ t('upload.sampleDownload') }}
-        </span>
-      </div>
-      <div v-if="showTips" class="tips-panel">
-        <p class="tips-title">{{ t('upload.dataTips.title') }}</p>
-        <ul class="tips-list">
-          <li>{{ t('upload.dataTips.format') }}</li>
-          <li>{{ t('upload.dataTips.header') }}</li>
-          <li>{{ t('upload.dataTips.uniqueNames') }}</li>
-          <li>{{ t('upload.dataTips.consistentType') }}</li>
-          <li>{{ t('upload.dataTips.noEmpty') }}</li>
-        </ul>
-        <p class="tips-subtitle">{{ t('upload.dataTips.cleanTips') }}</p>
-        <ul class="tips-list tips-list-secondary">
-          <li>{{ t('upload.dataTips.tip1') }}</li>
-          <li>{{ t('upload.dataTips.tip2') }}</li>
-          <li>{{ t('upload.dataTips.tip3') }}</li>
-          <li>{{ t('upload.dataTips.tip4') }}</li>
-          <li>{{ t('upload.dataTips.tip5') }}</li>
-        </ul>
-        <button class="btn btn-sm btn-primary tips-got-it" @click="showTips = false">
-          {{ t('upload.dataTips.gotIt') }}
-        </button>
-      </div>
 
       <!-- 导入方式 Tab 栏 -->
       <div class="method-tabs">
@@ -57,6 +60,7 @@
         <PasteZone v-if="activeMethod === 'paste'" />
         <UrlImport v-if="activeMethod === 'url'" />
         <DatabaseImport v-if="activeMethod === 'database'" />
+        <FeishuImport v-if="activeMethod === 'feishu'" />
       </div>
     </div>
 
@@ -135,6 +139,7 @@ import FileUploader from '@/components/upload/FileUploader.vue'
 import PasteZone from '@/components/upload/PasteZone.vue'
 import UrlImport from '@/components/upload/UrlImport.vue'
 import DatabaseImport from '@/components/upload/DatabaseImport.vue'
+import FeishuImport from '@/components/upload/FeishuImport.vue'
 import DataPreview from '@/components/upload/DataPreview.vue'
 import RelationConfig from '@/components/upload/RelationConfig.vue'
 import SheetSelector from '@/components/upload/SheetSelector.vue'
@@ -145,7 +150,7 @@ const dataStore = useDataStore()
 const configStore = useConfigStore()
 
 // ── 导入方式 Tab ──
-type MethodKey = 'file' | 'paste' | 'url' | 'database'
+type MethodKey = 'file' | 'paste' | 'url' | 'database' | 'feishu'
 const activeMethod = ref<MethodKey>('file')
 
 const methodTabs = computed(() => {
@@ -153,6 +158,7 @@ const methodTabs = computed(() => {
     { key: 'file', label: '📂 ' + t('upload.methodFile') },
     { key: 'paste', label: '📋 ' + t('upload.methodPaste') },
     { key: 'url', label: '🌐 ' + t('upload.methodUrl') },
+    { key: 'feishu', label: '📊 ' + t('upload.methodFeishu') },
   ]
   if (isTauri()) {
     tabs.push({ key: 'database', label: '🗄️ ' + t('upload.methodDatabase') })
@@ -357,7 +363,7 @@ async function downloadSample() {
 
 .subtitle {
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 /* ── 加载 / 错误 ── */
@@ -505,12 +511,13 @@ async function downloadSample() {
 }
 
 /* ── 提示面板 ── */
+.upload-view { position: relative; }
 .tips-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .tips-toggle {
@@ -521,9 +528,7 @@ async function downloadSample() {
   cursor: pointer;
 }
 
-.tips-arrow {
-  font-size: 10px;
-}
+.tips-arrow { font-size: 10px; }
 
 .sample-download {
   font-size: 13px;
@@ -532,14 +537,15 @@ async function downloadSample() {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-
-.sample-download:hover {
-  color: var(--primary);
-}
+.sample-download:hover { color: var(--primary); }
 
 .tips-panel {
-  max-width: 560px;
-  margin: 0 auto 16px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 32px;
+  width: 560px;
+  max-width: 90vw;
   padding: 14px 18px;
   background: #fffbeb;
   border: 1px solid #fcd34d;
@@ -547,6 +553,8 @@ async function downloadSample() {
   font-size: 12px;
   color: #92400e;
   text-align: left;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
 }
 
 :root[data-theme="dark"] .tips-panel {

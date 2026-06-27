@@ -78,6 +78,7 @@ export const useDataStore = defineStore('data', () => {
       const ext = fileName.toLowerCase().split('.').pop()!
 
       let parsed: ParsedFile
+      let totalRowsFromPayload: number | undefined
 
       // ═══════════════════════════════════════════════════════════════════
       // Tauri 环境：Rust/Polars 后端解析（CSV + Excel 统一处理）
@@ -103,6 +104,7 @@ export const useDataStore = defineStore('data', () => {
               throw new Error(result.error || 'Rust 加载失败')
             }
             const payload: ChartPayload = result.data
+            totalRowsFromPayload = payload.total_rows
             const headers = payload.columns.map(c => c.name)
             const toVal = (v: unknown): string | number => {
               if (typeof v === 'string' || typeof v === 'number') return v
@@ -127,6 +129,7 @@ export const useDataStore = defineStore('data', () => {
             throw new Error(result.error || 'JSON 加载失败')
           }
           const payload: ChartPayload = result.data
+          totalRowsFromPayload = payload.total_rows
           xlsxSheetNames.value = []
           _xlsxRawData = null
           _xlsxFilePath = null
@@ -152,6 +155,7 @@ export const useDataStore = defineStore('data', () => {
             throw new Error(result.error || 'Parquet 加载失败')
           }
           const payload: ChartPayload = result.data
+          totalRowsFromPayload = payload.total_rows
           xlsxSheetNames.value = []
           _xlsxRawData = null
           _xlsxFilePath = null
@@ -177,6 +181,7 @@ export const useDataStore = defineStore('data', () => {
             throw new Error(result.error || 'Rust 加载失败')
           }
           const payload: ChartPayload = result.data
+          totalRowsFromPayload = payload.total_rows
           xlsxSheetNames.value = []
           _xlsxRawData = null
           _xlsxFilePath = null
@@ -270,6 +275,7 @@ export const useDataStore = defineStore('data', () => {
         fileModified,
         fileHash,
         dataQuality,
+        totalRows: totalRowsFromPayload,
       }
 
       // 注册到多表 Map
@@ -308,6 +314,7 @@ export const useDataStore = defineStore('data', () => {
         filePath: '',
         fileName,
         dataQuality,
+        totalRows: parsed.rows.length,
       }
 
       tables.value[dsId] = ds
@@ -393,10 +400,12 @@ export const useDataStore = defineStore('data', () => {
     try {
       // ⭐ 如果 Tauri 环境，尝试用 Rust 加载指定 sheet（使用原始 calamine 索引）
       let parsed
+      let totalRows: number | undefined
       if (isTauri() && _xlsxFilePath) {
         const result = await loadExcelSheet(_xlsxFilePath, info.index)
         if (result.ok && result.data) {
           const payload = result.data
+          totalRows = payload.total_rows
           // 将 ChartPayload 转为 ParsedFile 格式
           const headers = payload.columns.map(c => c.name)
           const rows = payload.rows.map(r => {
@@ -436,6 +445,7 @@ export const useDataStore = defineStore('data', () => {
         dataQuality,
         sheetName,
         sheetIndex: index,
+        totalRows: totalRows ?? parsed.rows.length,
       }
 
       tables.value[dsId] = ds
@@ -508,7 +518,7 @@ export const useDataStore = defineStore('data', () => {
     return Array.from(Object.entries(tables.value)).map(([id, ds]) => ({
       id,
       name: ds.fileName || ds.sheetName || '未命名',
-      rows: ds.rows.length,
+      rows: ds.totalRows ?? ds.rows.length,
       cols: ds.headers.length,
       isActive: id === activeTableId.value,
       isMain: id === mainTableId.value,
@@ -652,6 +662,7 @@ export const useDataStore = defineStore('data', () => {
           dataQuality,
           sheetName: info?.name,
           sheetIndex: calamineIdx,
+          totalRows: payload.total_rows,
         }
 
         tables.value[dsId] = ds
@@ -703,6 +714,7 @@ export const useDataStore = defineStore('data', () => {
       filePath: '',
       fileName: sourceName,
       dataQuality,
+      totalRows: payload.total_rows,
     }
 
     tables.value[dsId] = ds

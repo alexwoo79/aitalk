@@ -14,8 +14,9 @@ use crate::types::{ChartPayload, ColumnInfo, DatasetSemantics, RowMap};
 /// Default preview row limit.
 pub const PREVIEW_LIMIT: usize = 200;
 
-/// Dashboard data row limit (sent to frontend for display).
-pub const CHART_LIMIT: usize = 10_000;
+/// Display row limit for detail tables (frontend-side only).
+/// Backend sends ALL rows; frontend truncates for rendering.
+pub const DISPLAY_LIMIT: usize = 10_000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API

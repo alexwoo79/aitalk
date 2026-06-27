@@ -9,7 +9,7 @@
 use anyhow::{bail, Result};
 use polars::prelude::*;
 
-use crate::df_util::{df_to_payload, CHART_LIMIT};
+use crate::df_util::df_to_payload;
 use crate::state::{get_active_df, get_dataset_by_id, register_dataset, replace_active_dataframe};
 use crate::types::{ApiResult, ChartPayload};
 
@@ -49,7 +49,7 @@ pub async fn join_datasets(
         Ok(result) => {
             replace_active_dataframe(&result, false);
             let _ = register_dataset(&result, "JOIN结果".to_string(), "join_datasets".to_string());
-            match df_to_payload(&result, Some(CHART_LIMIT)) {
+            match df_to_payload(&result, None) {
                 Ok(p) => ApiResult::success(p),
                 Err(e) => ApiResult::failure(e.to_string()),
             }
@@ -80,7 +80,7 @@ pub async fn concat_datasets(right_dataset_id: String) -> ApiResult<ChartPayload
             replace_active_dataframe(&result, false);
             let _ =
                 register_dataset(&result, "CONCAT结果".to_string(), "concat_datasets".to_string());
-            match df_to_payload(&result, Some(CHART_LIMIT)) {
+            match df_to_payload(&result, None) {
                 Ok(p) => ApiResult::success(p),
                 Err(e) => ApiResult::failure(e.to_string()),
             }

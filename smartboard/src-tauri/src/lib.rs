@@ -25,8 +25,13 @@ pub fn run() {
             // ── 数据合并 ──
             commands::merge::join_datasets,
             commands::merge::concat_datasets,
-            // ── 聚合计算 ──
+            // ── SQL 数据库 ──
+            commands::database::test_db_connection,
+            commands::database::execute_db_query,
+            commands::database::load_db_table,
             commands::groupby::groupby_agg,
+            commands::groupby::compute_kpi_values,
+            commands::groupby::compute_chart_data,
             // ── 多数据源接入 ──
             commands::datasource::paste_from_clipboard,
             commands::datasource::load_json_file,
@@ -35,6 +40,9 @@ pub fn run() {
             commands::datasource::list_sqlite_tables,
             commands::datasource::load_sqlite_table,
             commands::datasource::execute_sqlite_query,
+            // ── 飞书多维表格 ──
+            commands::feishu::test_feishu_connection,
+            commands::feishu::load_feishu_table,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

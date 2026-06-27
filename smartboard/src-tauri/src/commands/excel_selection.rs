@@ -10,7 +10,7 @@ use polars::prelude::*;
 use std::path::Path;
 
 use crate::commands::loader::{auto_cast_numeric, cell_to_string, is_date_column_name};
-use crate::df_util::{df_to_payload, CHART_LIMIT};
+use crate::df_util::df_to_payload;
 use crate::state::{register_dataset, replace_active_dataframe};
 use crate::types::{ApiResult, ChartPayload, SheetInfo};
 
@@ -37,7 +37,7 @@ pub async fn load_excel_sheet(path: String, sheet_index: usize) -> ApiResult<Cha
             let sheet_name = get_sheet_name_impl(&normalized, sheet_index)
                 .unwrap_or_else(|| format!("Sheet_{}", sheet_index + 1));
 
-            let payload = df_to_payload(&df, Some(CHART_LIMIT));
+            let payload = df_to_payload(&df, None);
             replace_active_dataframe(&df, true);
             let _ = register_dataset(&df, sheet_name, "excel_sheet".to_string());
 

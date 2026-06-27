@@ -55,6 +55,8 @@ export interface DataSet {
   /** 如果是 Excel 工作表，记录所属工作簿和 sheet 名 */
   sheetName?: string
   sheetIndex?: number
+  /** 实际总行数（后端传入，可能大于 rows.length） */
+  totalRows?: number
 }
 
 /** 解析原始文件结果（解析后、分类前） */

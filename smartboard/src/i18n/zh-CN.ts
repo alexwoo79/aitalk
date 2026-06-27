@@ -34,6 +34,7 @@ export default {
     remove: '移除',
     edit: '编辑',
     searchEllipsis: '搜索...',
+    stop: '停止',
     unitShort: { wan: '万', yi: '亿' },
   },
 
@@ -47,7 +48,7 @@ export default {
   // Upload view
   upload: {
     title: '上传数据文件',
-    subtitle: '支持 CSV、Excel、JSON、Parquet 格式，支持粘贴/URL/SQLite 导入',
+    subtitle: 'CSV / Excel / JSON / Parquet · 粘贴 · URL · Google Sheets · 飞书 · SQLite / MySQL / PG',
     parsing: '正在解析文件...',
     dropHint: '拖拽 CSV 或 XLSX 文件到此处',
     clickHint: '或点击按钮选择文件',
@@ -71,7 +72,7 @@ export default {
     dataTips: {
       toggle: '💡 数据质量要求',
       title: '为保证分析质量，请确保导入的数据符合以下要求：',
-      format: '📄 支持格式：CSV、Excel (XLSX/XLS)、JSON、Parquet；支持粘贴表格数据、URL 拉取、SQLite 数据库导入',
+      format: '📄 支持 CSV / Excel / JSON / Parquet / 粘贴 / URL / Google Sheets / 飞书多维表格 / SQLite / MySQL / PostgreSQL',
       header: '📋 数据应有表头行，用于识别各列含义（粘贴时可切换首行是否为表头）',
       uniqueNames: '🏷️ 各列名称不得重复，确保列名唯一',
       consistentType: '🔤 每列数据格式保持一致（如同一列都是数字、日期或文本）',
@@ -79,9 +80,9 @@ export default {
       cleanTips: '✨ 各导入方式注意事项：',
       tip1: '📂 文件：CSV 用逗号分隔，避免合并单元格，保持标准二维表',
       tip2: '📋 粘贴：从 Excel/WPS 复制后 Ctrl+V 粘贴，列间自动按 Tab 识别',
-      tip3: '🌐 URL：支持 CSV/JSON 直链和 Google Sheets 分享链接',
-      tip4: '📄 JSON：数据应为对象数组 [{"列1":值,"列2":值},...]',
-      tip5: '🗄️ SQLite：仅支持 SELECT 查询，文件路径需在本地可访问',
+      tip3: '🌐 URL：CSV/JSON 直链 · Google Sheets 分享链接（需公开可见）',
+      tip4: '📄 JSON / Parquet：JSON 为对象数组；Parquet 仅桌面版支持',
+      tip5: '📊 飞书 / SQL：飞书需 App ID+Secret；SQL 支持 MySQL/PG/SQLite',
       gotIt: '知道了',
     },
     // 多表支持（Phase 2）
@@ -125,6 +126,7 @@ export default {
     methodPaste: '粘贴',
     methodUrl: 'URL',
     methodDatabase: '数据库',
+    methodFeishu: '飞书',
     // 粘贴导入
     pasteTitle: '粘贴数据',
     pasteHint: '从 Excel / WPS 复制表格数据，Ctrl+V 粘贴到此区域',
@@ -148,6 +150,21 @@ export default {
     dbSqlPlaceholder: 'SELECT * FROM table WHERE ...',
     dbExecute: '执行并导入',
     dbNoTables: '未找到数据表',
+    dbFile: '文件',
+    dbConnPlaceholder: '连接字符串（如 mysql://user:pass@host/db）',
+    dbTestConn: '测试连接',
+    // 飞书多维表格
+    feishuTitle: '飞书多维表格',
+    feishuSubtitle: '通过飞书开放 API 拉取 Bitable 数据',
+    feishuAppId: 'App ID',
+    feishuAppSecret: 'App Secret',
+    feishuBaseUrl: '多维表格链接（如 https://xxx.feishu.cn/base/XXX）',
+    feishuTest: '连接测试',
+    feishuTesting: '测试中...',
+    feishuImport: '导入数据',
+    feishuTables: '可用表格',
+    feishuSuccess: '导入成功',
+    feishuError: '飞书连接失败，请检查凭证和链接',
   },
 
   // Classification labels

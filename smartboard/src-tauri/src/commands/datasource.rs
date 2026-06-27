@@ -12,7 +12,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::commands::loader::load_file_impl;
-use crate::df_util::{df_to_payload, CHART_LIMIT};
+use crate::df_util::df_to_payload;
 use crate::state::{register_dataset, replace_active_dataframe};
 use crate::types::{ApiResult, ChartPayload};
 
@@ -30,7 +30,7 @@ fn now_ts_secs() -> u64 {
 /// Register the DataFrame as the active dataset and return a ChartPayload.
 fn set_loaded_df(df: DataFrame, dataset_name: String, source: &str) -> ApiResult<ChartPayload> {
     let df = crate::df_util::convert_ms_timestamps(&df);
-    let payload = df_to_payload(&df, Some(CHART_LIMIT));
+    let payload = df_to_payload(&df, None);
     replace_active_dataframe(&df, true);
     if let Err(e) = register_dataset(&df, dataset_name, source.to_string()) {
         eprintln!("register_dataset failed: {e}");
