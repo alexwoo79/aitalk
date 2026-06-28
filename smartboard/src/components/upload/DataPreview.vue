@@ -67,11 +67,11 @@
           <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.unique') }}</span>{{ colTooltip.unique }}
           </div>
           <div v-if="colTooltip.type === 'numeric'" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.min')
-              }}</span>{{ colTooltip.min }}</div>
+          }}</span>{{ colTooltip.min }}</div>
           <div v-if="colTooltip.type === 'numeric'" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.max')
-              }}</span>{{ colTooltip.max }}</div>
+          }}</span>{{ colTooltip.max }}</div>
           <div v-if="colTooltip.type === 'numeric'" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.avg')
-              }}</span>{{ colTooltip.avg }}</div>
+          }}</span>{{ colTooltip.avg }}</div>
           <div v-if="colTooltip.dirtyCount" class="ctt-row ctt-dirty"><span class="ctt-label">⚠️ {{
             t('upload.tooltip.dirty') }}</span>{{ colTooltip.dirtyCount }}</div>
           <div v-if="colTooltip.samples.length" class="ctt-samples">
@@ -321,6 +321,7 @@ function truncate(val: string | number | undefined): string {
   cursor: pointer;
   font-size: 12px;
   padding: 1px 4px;
+  color: var(--text-secondary);
   opacity: 0.5;
   transition: opacity 0.15s;
   white-space: nowrap;
