@@ -15,6 +15,7 @@ export const usePreviewStore = defineStore('preview', () => {
   const searchText = ref('')
   const conditionFilter = ref('')
   const dashboardResult = ref<ComputeResponse | null>(null)
+  const filtersApplied = ref(false)  // 区分"未筛选"与"筛选后无匹配"
   let _cachedEffectiveDS: import('@/types/data').DataSet | null = null
   const dataStore = useDataStore()
   const configStore = useConfigStore()
@@ -22,6 +23,7 @@ export const usePreviewStore = defineStore('preview', () => {
   watch(() => dataStore.dataSet, () => {
     _cachedEffectiveDS = null
     _filterOptionsCache.clear()
+    filtersApplied.value = false
   })
 
   function safeFormula(f: any): any {
@@ -76,7 +78,9 @@ export const usePreviewStore = defineStore('preview', () => {
       const mf: Record<string, any> = {}; for (const m of am) { const d = defs[m]; if (!d || (d.sections && !d.sections.includes('chart'))) continue; mf[m] = { format: d.format || '', unit: d.unit, prefix: d.prefix || '', decimals: d.decimals } }
       return { type: c.type, title: c.title, dimension: c.dimension, metric: c.metric, metrics: c.metrics, dateColumn: c.dateColumn, agg: c.agg, k: c.k, clusterMetrics: c.clusterMetrics, filter: c.filter, format: undefined, unit: undefined, metricFormats: Object.keys(mf).length > 0 ? mf : undefined, metricAggs: c.metricAggs }
     })
-    const tbl: TableSpec = { columns: cfg.table.columns.length > 0 ? cfg.table.columns : e.headers.filter(h => !ex.has(h)), sortBy: cfg.table.sortBy || '', summaryAggs: cfg.table.summaryAggs, columnColors: cfg.table.columnColors, columnTextColors: cfg.table.columnTextColors, columnTextRules: cfg.table.columnTextRules, rowConditionColors: cfg.table.rowConditionColors }
+    const tbl: TableSpec | null = cfg.table.columns.length > 0
+      ? { columns: cfg.table.columns, sortBy: cfg.table.sortBy || '', summaryAggs: cfg.table.summaryAggs, columnColors: cfg.table.columnColors, columnTextColors: cfg.table.columnTextColors, columnTextRules: cfg.table.columnTextRules, rowConditionColors: cfg.table.rowConditionColors, columnOrder: cfg.table.columnOrder, computedColumns: cfg.table.computedColumns }
+      : null
     let drs: DashboardSpec['dateRange']; const adc = e.headers.filter(h => e.classifications[h]?.type === 'date' && !ex.has(h))
     const cd = cfg.dateColumns?.length ? cfg.dateColumns : adc; const dc = cd.length > 0 ? cd[0] : undefined
     if (dc) { const dts = e.rows.reduce((acc: {min: string, max: string}, r) => { const d = String(r[dc] ?? ''); if (!d) return acc; return { min: !acc.min || d < acc.min ? d : acc.min, max: !acc.max || d > acc.max ? d : acc.max }; }, {min: '', max: ''}); if (dts.min) drs = { column: dc, min: dts.min, max: dts.max } }
@@ -87,6 +91,12 @@ export const usePreviewStore = defineStore('preview', () => {
     const ds = dataStore.dataSet; if (!ds) { filteredRows.value = []; return }
     const e = dataStore.hasRelations ? buildEffectiveDS(ds) : ds
 
+    // 先追加计算列，使筛选条件可以引用计算列的值
+    const hasCompCols = (configStore.config.table.computedColumns || []).some(
+      c => c.selected !== false && c.name && c.expression
+    )
+    const rowsWithCC = hasCompCols ? augmentRows(e.rows) : e.rows
+
     // 预收集筛选参数，合并为单次遍历
     const dimEntries = Object.entries(filterValues.value).filter(([, v]) => v && v !== '__all__')
     const dc = (dateRange.value.start && dateRange.value.end)
@@ -96,14 +106,16 @@ export const usePreviewStore = defineStore('preview', () => {
     const de = dc ? dateRange.value.end : ''
     const q = searchText.value.trim().toLowerCase() || null
 
-    let rows = e.rows.filter(r => {
+    let rows = rowsWithCC.filter(r => {
       for (const [c, v] of dimEntries) { if (String(r[c] ?? '').trim() !== v) return false }
       if (dc) { const d = String(r[dc] ?? ''); if (d < ds2 || d > de) return false }
       if (q && !Object.values(r).some(v2 => String(v2).toLowerCase().includes(q))) return false
       return true
     })
     if (conditionFilter.value.trim()) rows = applyFilter(rows, undefined, conditionFilter.value)
-    filteredRows.value = rows; _cachedEffectiveDS = dataStore.hasRelations ? buildEffectiveDS(ds) : null; refreshDashboard()
+    filteredRows.value = rows
+    filtersApplied.value = true
+    _cachedEffectiveDS = dataStore.hasRelations ? buildEffectiveDS(ds) : null; refreshDashboard()
   }
 
   async function refreshDashboard() {
@@ -119,8 +131,17 @@ export const usePreviewStore = defineStore('preview', () => {
     const sm = spec.table?.summaryAggs || {}
     if (isTauri() && dataStore.dataSet) {
       try {
+        // 计算列：将定义传给 Rust，由 Rust 用 Polars 求值
+        const computedColumns = (configStore.config.table.computedColumns || [])
+          .filter(c => c.selected !== false && c.name && c.expression)
+          .map(c => ({
+            name: c.name,
+            variables: c.variables.map(v => ({ alias: v.alias, column: v.column, filter: v.filter || '' })),
+            expression: c.expression,
+            filter: c.filter || '',
+          }))
         const dc = activeDateColumn.value || spec.dateRange?.column || ''
-        const res = await computeDashboard({ dimensionFilters: df, dateColumn: dc, dateStart: dateRange.value.start, dateEnd: dateRange.value.end, searchText: searchText.value, condition: conditionFilter.value, kpis, charts: ci, summary: sm })
+        const res = await computeDashboard({ dimensionFilters: df, dateColumn: dc, dateStart: dateRange.value.start, dateEnd: dateRange.value.end, searchText: searchText.value, condition: conditionFilter.value, kpis, charts: ci, summary: sm, computedColumns })
         if (res.ok && res.data) { dashboardResult.value = res.data; return }
       } catch (e) { console.warn('[Dashboard] Rust:', e) }
     }
@@ -133,8 +154,48 @@ export const usePreviewStore = defineStore('preview', () => {
     return computeSimpleKpi(kpi)
   }
 
+  /** 为行数据追加计算列的值（支持计算列相互引用、变量筛选、共享筛选） */
+  function augmentRows(rows: Record<string, string | number>[]): Record<string, string | number>[] {
+    const cc = configStore.config.table.computedColumns?.filter(c => c.selected !== false && c.name && c.expression)
+    if (!cc?.length) return rows
+    return rows.map(row => {
+      const aug = { ...row }
+      for (const c of cc) {
+        try {
+          // 共享筛选：行不满足条件则跳过
+          if (c.filter && applyFilter([row], undefined, c.filter).length === 0) {
+            aug[c.name] = ''
+            continue
+          }
+          let expr = c.expression
+          for (const v of c.variables || []) {
+            // 变量筛选：不满足条件则该变量值为 0
+            let val: number
+            if (v.filter && applyFilter([row], undefined, v.filter).length === 0) {
+              val = 0
+            } else {
+              val = Number(aug[v.column] ?? row[v.column])
+            }
+            expr = expr.replace(new RegExp('\\b' + v.alias + '\\b', 'g'), isNaN(val) ? '0' : String(val))
+          }
+          const result = new Function('"use strict"; return (' + expr + ')')()
+          aug[c.name] = typeof result === 'number' && isFinite(result) ? result : ''
+        } catch { aug[c.name] = '' }
+      }
+      return aug
+    })
+  }
+
+  /** 获取当前有效行（应用筛选后，并追加计算列） */
+  function getEffectiveRows(): Record<string, string | number>[] {
+    const ds = dataStore.dataSet
+    if (!ds) return []
+    const base = filtersApplied.value ? filteredRows.value : (dataStore.hasRelations ? buildEffectiveDS(ds).rows : ds.rows)
+    return augmentRows(base)
+  }
+
   function computeFormulaKpi(kpi: KpiSpec): number {
-    const ds = dataStore.dataSet; const rows = filteredRows.value.length > 0 ? filteredRows.value : (ds ? (dataStore.hasRelations ? buildEffectiveDS(ds).rows : ds.rows) : [])
+    const rows = getEffectiveRows()
     if (!kpi.formula) return 0
     const resolved = kpi.formula.variables.map((v: any) => { if (v.column.startsWith('🔢')) { const rk = buildSpec()?.kpis.find(r => r.label === v.column.slice(2)); if (rk) return { alias: v.alias, value: computeKpiValue(rk) } } return { alias: v.alias, column: v.column } })
     let expr = kpi.formula.expression; const active: { alias: string; column: string }[] = []
@@ -145,7 +206,7 @@ export const usePreviewStore = defineStore('preview', () => {
   }
 
   function computeSimpleKpi(kpi: KpiSpec): number {
-    const rows = filteredRows.value.length > 0 ? filteredRows.value : (dataStore.dataSet?.rows ?? [])
+    const rows = getEffectiveRows()
     const f = applyFilter(rows, kpi.filter)
     if (kpi.agg === 'count') return f.length
     if ((kpi.agg as string) === 'unique_count') return new Set(f.map(r => String(r[kpi.column] ?? '').trim()).filter(s => s !== '')).size
@@ -158,7 +219,10 @@ export const usePreviewStore = defineStore('preview', () => {
   function getFilterOptions(column: string): string[] {
     if (_filterOptionsCache.has(column)) return _filterOptionsCache.get(column)!
     const ds = dataStore.dataSet; if (!ds) return []
-    const opts = [...new Set(ds.rows.map(r => String(r[column] ?? '').trim()).filter(v => v))].sort()
+    // 计算列：从增强行中获取可选值
+    const isCompCol = configStore.config.table.computedColumns?.some(c => c.name === column && c.selected !== false)
+    const rows = isCompCol ? getEffectiveRows() : ds.rows
+    const opts = [...new Set(rows.map(r => String(r[column] ?? '').trim()).filter(v => v))].sort()
     _filterOptionsCache.set(column, opts)
     return opts
   }
@@ -166,13 +230,13 @@ export const usePreviewStore = defineStore('preview', () => {
   function getAggData(dimCol: string, metricCol: string, agg: string = 'sum') {
     const key = `${dimCol}:${metricCol}:${agg}`
     if (dashboardResult.value?.chart_data?.[key]) return dashboardResult.value.chart_data[key].map(d => ({ label: d.label, value: d.value }))
-    const rows = filteredRows.value.length > 0 ? filteredRows.value : (dataStore.dataSet?.rows ?? [])
+    const rows = getEffectiveRows()
     const groups = new Map<string, number[]>(); for (const row of rows) { const k = String(row[dimCol] || '未知'); if (!groups.has(k)) groups.set(k, []); const v = Number(row[metricCol]); if (!isNaN(v)) groups.get(k)!.push(v) }
     return [...groups.entries()].map(([l, vs]) => { let v: number; switch (agg) { case 'sum': v = vs.reduce((a, b) => a + b, 0); break; case 'avg': v = vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : 0; break; case 'count': v = vs.length; break; case 'min': v = vs.reduce((a, b) => a < b ? a : b, Infinity); break; case 'max': v = vs.reduce((a, b) => a > b ? a : b, -Infinity); break; default: v = vs.reduce((a, b) => a + b, 0) } return { label: l, value: v } }).sort((a, b) => b.value - a.value)
   }
 
-  const rowCount = computed(() => dashboardResult.value?.row_count ?? (filteredRows.value.length || (dataStore.dataSet?.rows.length ?? 0)))
+  const rowCount = computed(() => dashboardResult.value?.row_count ?? (filtersApplied.value ? filteredRows.value.length : (dataStore.dataSet?.rows.length ?? 0)))
   const effectiveHeaders = computed<string[]>(() => dataStore.effectiveHeaders)
 
-  return { filteredRows, filterValues, dateRange, activeDateColumn, searchText, conditionFilter, rowCount, effectiveHeaders, dashboardResult, buildSpec, applyFilters, computeKpiValue, getFilterOptions, getAggData }
+  return { filteredRows, filtersApplied, filterValues, dateRange, activeDateColumn, searchText, conditionFilter, rowCount, effectiveHeaders, dashboardResult, buildSpec, applyFilters, computeKpiValue, getFilterOptions, getAggData }
 })

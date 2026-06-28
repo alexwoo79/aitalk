@@ -74,9 +74,12 @@
         <button v-for="table in dataStore.tableList" :key="table.id" class="table-tab"
           :class="{ active: table.isActive }" @click="switchTable(table.id)">
           <!-- 编辑模式 -->
-          <input v-if="editingTabId === table.id" ref="renameInput" v-model="editName" class="tab-rename-input"
-            maxlength="60" @keydown.enter="confirmRename" @keydown.escape="cancelRename" @blur="confirmRename"
-            @click.stop />
+          <span v-if="editingTabId === table.id" class="tab-rename-wrap" @click.stop>
+            <input ref="renameInput" v-model="editName" class="tab-rename-input" maxlength="60"
+              @keydown.enter="confirmRename" @keydown.escape="cancelRename" />
+            <button class="tab-rename-ok" @click.stop="confirmRename" :title="t('common.confirm')">✓</button>
+            <button class="tab-rename-cancel" @click.stop="cancelRename" :title="t('common.cancel')">✕</button>
+          </span>
           <!-- 显示模式 -->
           <span v-else class="tab-table-name" :title="t('upload.doubleClickToRename')"
             @dblclick.stop="startRename(table)">{{ table.name }}</span>
@@ -86,6 +89,7 @@
         </button>
         <button v-if="dataStore.tableCount > 1" class="table-tab" :class="{ active: activeTab === 'relation' }"
           @click="activeTab = 'relation'">{{ t('upload.tabRelation') }}</button>
+        <span class="tab-rename-hint" :title="t('upload.doubleClickToRename')">💡 {{ t('upload.renameHint') }}</span>
       </div>
 
       <!-- 关联 Tab 内容 -->
@@ -526,13 +530,57 @@ async function downloadSample() {
 }
 
 .table-tab:hover .tab-remove {
-  opacity: 0.6;
+  opacity: 0.7;
+  color: var(--error);
 }
 
 .tab-remove:hover {
   opacity: 1 !important;
-  color: var(--error);
-  background: var(--bg-error);
+  color: #fff !important;
+  background: var(--error);
+}
+
+.tab-rename-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tab-rename-ok,
+.tab-rename-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.tab-rename-ok:hover {
+  background: #10B981;
+  color: #fff;
+}
+
+.tab-rename-cancel:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+.tab-rename-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-left: 4px;
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* ── Tab 内容 ── */

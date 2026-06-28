@@ -6,7 +6,7 @@ import i18n from '@/i18n'
 
 const t = i18n.global.t
 
-export type ConfigSection = 'title' | 'filters' | 'dateColumn' | 'kpis' | 'charts' | 'table' | 'metricDefaults'
+export type ConfigSection = 'title' | 'filters' | 'dateColumn' | 'kpis' | 'charts' | 'table' | 'metricDefaults' | 'computedCols'
 
 export const useConfigStore = defineStore('config', () => {
   const config = ref<DashboardConfig>({
@@ -146,6 +146,7 @@ export const useConfigStore = defineStore('config', () => {
       sortBy: (ds.primaryMetric && !excluded.has(ds.primaryMetric) ? ds.primaryMetric : metricCols[0]) || '',
       columns: cols,
       summaryAggs: summaryAggs as Record<string, 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max'>,
+      computedColumns: [],
     }
   }
 
@@ -276,6 +277,49 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
+  /** 拖拽调整表格列顺序 */
+  function reorderTableColumns(fromIndex: number, toIndex: number) {
+    if (!config.value.table.columnOrder) {
+      const ds = dataStore.dataSet
+      if (!ds) return
+      const headers = dataStore.hasRelations
+        ? dataStore.effectiveHeaders
+        : ds.headers
+      config.value.table.columnOrder = [...headers]
+    }
+    const arr = [...config.value.table.columnOrder]
+    const [item] = arr.splice(fromIndex, 1)
+    arr.splice(toIndex, 0, item)
+    config.value.table.columnOrder = arr
+  }
+
+  /** 添加计算列 */
+  function addComputedCol() {
+    if (!config.value.table.computedColumns) {
+      config.value.table.computedColumns = []
+    }
+    const alias = String.fromCharCode(65 + config.value.table.computedColumns.length)
+    config.value.table.computedColumns.push({
+      name: '',
+      variables: [],
+      expression: '',
+      selected: true,
+    })
+  }
+
+  /** 移除计算列 */
+  function removeComputedCol(index: number) {
+    const cols = config.value.table.computedColumns
+    if (!cols) return
+    const name = cols[index]?.name
+    cols.splice(index, 1)
+    // 清理 columns 列表
+    if (name) {
+      const ci = config.value.table.columns.indexOf(name)
+      if (ci !== -1) config.value.table.columns.splice(ci, 1)
+    }
+  }
+
   /** 设置/清除列背景色 */
   function setColumnColor(column: string, color: string) {
     if (!config.value.table.columnColors) {
@@ -370,6 +414,7 @@ export const useConfigStore = defineStore('config', () => {
     charts: () => JSON.parse(JSON.stringify(config.value.charts)),
     table: () => JSON.parse(JSON.stringify(config.value.table)),
     metricDefaults: () => config.value.metricDefaults ? JSON.parse(JSON.stringify(config.value.metricDefaults)) : {},
+    computedCols: () => config.value.table.computedColumns ? JSON.parse(JSON.stringify(config.value.table.computedColumns)) : [],
   }
 
   const sectionSetters: Record<ConfigSection, (data: any) => void> = {
@@ -380,6 +425,7 @@ export const useConfigStore = defineStore('config', () => {
     charts: (v) => { config.value.charts = v },
     table: (v) => { config.value.table = v },
     metricDefaults: (v) => { config.value.metricDefaults = Object.keys(v).length > 0 ? v : undefined },
+    computedCols: (v) => { config.value.table.computedColumns = v && v.length > 0 ? v : [] },
   }
 
   const sectionAutoGens: Record<ConfigSection, () => void> = {
@@ -390,6 +436,7 @@ export const useConfigStore = defineStore('config', () => {
     charts: generateAutoCharts,
     table: generateAutoTable,
     metricDefaults: () => { config.value.metricDefaults = undefined },
+    computedCols: () => { config.value.table.computedColumns = [] },
   }
 
   /** 保存/解除单个区域（toggle） */
@@ -425,7 +472,7 @@ export const useConfigStore = defineStore('config', () => {
 
   /** 全部保存/解除 */
   function saveAll() {
-    const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'metricDefaults']
+    const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'metricDefaults', 'computedCols']
     if (sections.every((s) => isSectionSaved(s))) {
       // 全部已保存 → 全部解除
       sectionSnapshots.value = {}
@@ -531,6 +578,9 @@ export const useConfigStore = defineStore('config', () => {
     toggleChartSelected,
     toggleFilter,
     toggleTableColumn,
+    reorderTableColumns,
+    addComputedCol,
+    removeComputedCol,
     setColumnColor,
     setColumnTextColor,
     setColumnTextRule,

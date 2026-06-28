@@ -7,14 +7,14 @@
     <div v-if="!spec" class="no-data">
       <p>{{ t('dashboard.noData') }}</p>
       <button class="btn btn-sm btn-primary" @click="$router.push('/config')">{{ t('dashboard.backToConfigText')
-        }}</button>
+      }}</button>
     </div>
 
     <template v-else>
       <!-- 工具栏 -->
       <div class="dashboard-toolbar">
         <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← {{ t('dashboard.backToConfigText')
-          }}</button>
+        }}</button>
         <h2 class="dashboard-title">{{ spec.title }}</h2>
         <span class="layout-size">{{ layoutW }} × {{ layoutH }}</span>
       </div>
@@ -33,11 +33,20 @@
         </div>
         <div class="filter-item filter-search-group">
           <label>{{ t('common.search') }}</label>
-          <input type="text" v-model="previewStore.searchText" class="input input-sm search-input"
-            :placeholder="t('dashboard.searchPlaceholder')" />
+          <span class="input-wrap">
+            <input type="text" v-model="filterSearchInput" class="input input-sm search-input"
+              :placeholder="t('dashboard.searchPlaceholder')" @keyup.enter="commitFilterInputs" />
+            <button v-if="filterSearchInput" class="input-clear" @click="filterSearchInput = ''"
+              tabindex="-1">✕</button>
+          </span>
           <label>{{ t('common.condition') }}</label>
-          <input type="text" v-model="previewStore.conditionFilter" class="input input-sm condition-input"
-            list="condition-cols" :placeholder="t('dashboard.conditionPlaceholder')" />
+          <span class="input-wrap">
+            <input type="text" v-model="filterConditionInput" class="input input-sm condition-input"
+              list="condition-cols" :placeholder="t('dashboard.conditionPlaceholder')"
+              @keyup.enter="commitFilterInputs" />
+            <button v-if="filterConditionInput" class="input-clear" @click="filterConditionInput = ''"
+              tabindex="-1">✕</button>
+          </span>
           <datalist id="condition-cols">
             <template v-for="col in allHeaders" :key="col">
               <option :value="col + ' = '" />
@@ -48,14 +57,19 @@
               <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
             </template>
           </datalist>
-          <button class="btn btn-sm btn-apply" @click="onFilterChange">{{ t('dashboard.applyFilter') }}</button>
+          <button v-if="!reactiveFilterMode" class="btn btn-sm btn-apply" @click="commitFilterInputs">{{
+            t('dashboard.applyFilter') }}</button>
+          <button class="btn btn-sm btn-mode-toggle" :class="{ active: reactiveFilterMode }"
+            @click="reactiveFilterMode = !reactiveFilterMode" :title="t('dashboard.filterModeHint')">
+            {{ reactiveFilterMode ? '⚡' : '🖱️' }}
+          </button>
         </div>
         <button class="btn btn-sm btn-reset" @click="resetFilters">{{ t('dashboard.resetFilter') }}</button>
         <button class="btn btn-sm btn-clear" @click="clearDashboard">Clear</button>
         <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
       </div>
       <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
-        }}</span>
+      }}</span>
 
       <!-- 日期范围 -->
       <div v-if="dateColWarn" class="date-col-warn">
@@ -152,14 +166,20 @@
             <div class="table-controls">
               <div class="control-group table-search-group">
                 <label>{{ t('common.search') }}</label>
-                <input type="text" v-model="tableSearchInput" class="input input-xs table-search"
-                  :placeholder="t('dashboard.tableSearchPlaceholder')" @keyup.enter="applyTableFilter" />
-                <button v-if="tableSearchInput" class="search-clear"
-                  @click="tableSearchInput = ''; tableConditionInput = ''; applyTableFilter()">✕</button>
+                <span class="input-wrap">
+                  <input type="text" v-model="tableSearchInput" class="input input-xs table-search"
+                    :placeholder="t('dashboard.tableSearchPlaceholder')" @keyup.enter="commitTableInputs" />
+                  <button v-if="tableSearchInput" class="input-clear sm" @click="tableSearchInput = ''"
+                    tabindex="-1">✕</button>
+                </span>
                 <label>{{ t('common.condition') }}</label>
-                <input type="text" v-model="tableConditionInput" class="input input-xs table-cond"
-                  list="table-cond-cols" :placeholder="t('dashboard.conditionPlaceholderShort')"
-                  @keyup.enter="applyTableFilter" />
+                <span class="input-wrap">
+                  <input type="text" v-model="tableConditionInput" class="input input-xs table-cond"
+                    list="table-cond-cols" :placeholder="t('dashboard.conditionPlaceholderShort')"
+                    @keyup.enter="commitTableInputs" />
+                  <button v-if="tableConditionInput" class="input-clear sm" @click="tableConditionInput = ''"
+                    tabindex="-1">✕</button>
+                </span>
                 <datalist id="table-cond-cols">
                   <template v-for="col in allHeaders" :key="col">
                     <option :value="col + ' = '" />
@@ -170,13 +190,18 @@
                     <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
                   </template>
                 </datalist>
-                <button class="btn btn-sm btn-apply" @click="applyTableFilter">{{ t('dashboard.applyFilter') }}</button>
+                <button v-if="!reactiveFilterMode" class="btn btn-sm btn-apply" @click="commitTableInputs">{{
+                  t('dashboard.applyFilter') }}</button>
+                <button class="btn btn-sm btn-mode-toggle" :class="{ active: reactiveFilterMode }"
+                  @click="reactiveFilterMode = !reactiveFilterMode" :title="t('dashboard.filterModeHint')">
+                  {{ reactiveFilterMode ? '⚡' : '🖱️' }}
+                </button>
               </div>
               <div class="control-group col-picker" v-if="showColPicker">
                 <div class="picker-panel">
                   <div class="picker-actions">
                     <button class="btn-link" @click="activeColumns = allColumns.slice()">{{ t('common.selectAll')
-                      }}</button>
+                    }}</button>
                     <button class="btn-link" @click="activeColumns = []">{{ t('common.clearAll') }}</button>
                   </div>
                   <div class="picker-chips">
@@ -210,10 +235,22 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, i) in tableRows" :key="i" :style="getRowColorStyle(row)">
+                <tr v-for="(row, i) in visibleRows" :key="i" :style="getRowColorStyle(row)">
                   <td class="row-num">{{ i + 1 }}</td>
                   <td v-for="col in activeColumns" :key="col" :style="getColumnCellStyle(col, row[col])">
-                    {{ formatCellValue(row[col], col) }}
+                    {{ cachedFormatCellValue(row[col], col) }}
+                  </td>
+                </tr>
+                <!-- 哨兵行：触发自动加载更多 -->
+                <tr v-if="visibleRows.length < tableRows.length" ref="tableSentinel" class="sentinel-row">
+                  <td :colspan="activeColumns.length + 1" class="sentinel-cell">
+                    <span class="sentinel-text">{{ t('dashboard.showingRows', {
+                      shown: visibleRows.length, total:
+                        tableRows.length
+                    }) }}</span>
+                    <button class="btn btn-sm btn-primary sentinel-btn" @click="loadAllRows">{{ t('dashboard.showAll')
+                      }} ({{
+                        tableRows.length }})</button>
                   </td>
                 </tr>
               </tbody>
@@ -235,7 +272,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import zhCN from '@/i18n/zh-CN'
 import enUS from '@/i18n/en-US'
@@ -349,10 +386,55 @@ const tableCondition = ref('')
 // 输入框绑定本地 ref，点击"应用"后才更新到 tableSearch/tableCondition
 const tableSearchInput = ref('')
 const tableConditionInput = ref('')
+// 筛选栏也使用本地缓冲（用于即时/手动切换模式）
+const filterSearchInput = ref('')
+const filterConditionInput = ref('')
+// 交互模式：true=即时防抖 / false=按钮确认
+const reactiveFilterMode = ref(true)
+// 防抖定时器
+let _filterDebounce: ReturnType<typeof setTimeout> | null = null
+let _tableDebounce: ReturnType<typeof setTimeout> | null = null
+const DEBOUNCE_MS = 350
 
-function applyTableFilter() {
+function commitFilterInputs() {
+  if (_filterDebounce) { clearTimeout(_filterDebounce); _filterDebounce = null }
+  // 同步本地缓冲到 store，然后执行筛选
+  previewStore.searchText = filterSearchInput.value
+  previewStore.conditionFilter = filterConditionInput.value
+  onFilterChange()
+}
+
+function commitTableInputs() {
+  if (_tableDebounce) { clearTimeout(_tableDebounce); _tableDebounce = null }
   tableSearch.value = tableSearchInput.value
   tableCondition.value = tableConditionInput.value
+}
+
+// 即时模式：防抖监听筛选栏输入
+watch([filterSearchInput, filterConditionInput], () => {
+  if (!reactiveFilterMode.value) return
+  if (_filterDebounce) clearTimeout(_filterDebounce)
+  _filterDebounce = setTimeout(() => commitFilterInputs(), DEBOUNCE_MS)
+})
+
+// 即时模式：防抖监听表格搜索输入
+watch([tableSearchInput, tableConditionInput], () => {
+  if (!reactiveFilterMode.value) return
+  if (_tableDebounce) clearTimeout(_tableDebounce)
+  _tableDebounce = setTimeout(() => commitTableInputs(), DEBOUNCE_MS)
+})
+
+// 渐进式行渲染：初始只渲染 200 行
+const displayRowCount = ref(200)
+const tableSentinel = ref<HTMLElement | null>(null)
+let _tableObserver: IntersectionObserver | null = null
+
+// 格式化缓存：避免每单元格重复调用 formatCellValue
+let _formatCacheGen = 0
+const _cellStrCache: Record<string, string> = {}
+function cachedFormatCellValue(val: string | number | undefined, col: string): string {
+  const key = `${col}\x00${val}`
+  return (_cellStrCache[key] ??= formatCellValue(val, col))
 }
 
 // Available columns from the dataset (includes merged cross-table columns when relations exist)
@@ -363,6 +445,7 @@ const allColumns = computed(() => {
 
 /** 判断列是否为数值类型（数值列用 > <，非数值列用 in ~） */
 function isNumericCol(col: string): boolean {
+  if (spec.value?.table?.computedColumns?.some(c => c.name === col && c.selected !== false)) return true
   return (dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col])?.type === 'numeric'
 }
 
@@ -370,7 +453,21 @@ function isNumericCol(col: string): boolean {
 function initTableState() {
   const s = spec.value
   if (s?.table) {
-    activeColumns.value = s.table.columns.slice()
+    let cols = s.table.columns.slice()
+    // 追加计算列名称
+    const cc = s.table.computedColumns?.filter(c => c.selected !== false)
+    if (cc?.length) {
+      for (const c of cc) {
+        if (!cols.includes(c.name)) cols.push(c.name)
+      }
+    }
+    // 按配置页的 columnOrder 排序
+    const order = s.table.columnOrder
+    if (order && order.length > 0) {
+      const rank = new Map(order.map((c, i) => [c, i]))
+      cols.sort((a, b) => (rank.get(a) ?? Infinity) - (rank.get(b) ?? Infinity))
+    }
+    activeColumns.value = cols
     sortCol.value = s.table.sortBy || ''
   }
 }
@@ -459,9 +556,27 @@ onMounted(() => {
   }
   previewStore.applyFilters()
   initTableState()
+  // 等待 DOM 渲染后设置表格哨兵观察器
+  nextTick(() => setupTableObserver())
+})
+
+onUnmounted(() => {
+  _tableObserver?.disconnect()
+  _tableObserver = null
+})
+
+// 表格重新出现时重新设置观察器
+watch(() => spec.value?.table, (tbl) => {
+  if (tbl) {
+    displayRowCount.value = 200
+    nextTick(() => setupTableObserver())
+  }
 })
 
 function onFilterChange() {
+  // 取消挂起的防抖，避免重复触发
+  if (_filterDebounce) { clearTimeout(_filterDebounce); _filterDebounce = null }
+  // 直接使用 store 中已确认的值执行筛选（不触碰本地缓冲）
   previewStore.applyFilters()
 }
 
@@ -487,6 +602,8 @@ function resetFilters() {
   }
   previewStore.searchText = ''
   previewStore.conditionFilter = ''
+  filterSearchInput.value = ''
+  filterConditionInput.value = ''
   if (spec.value?.dateRange) {
     previewStore.dateRange.start = spec.value.dateRange.min
     previewStore.dateRange.end = spec.value.dateRange.max
@@ -542,12 +659,12 @@ async function saveDashboard() {
       metricFormats: c.metricFormats || {},
       metricAggs: c.metricAggs || {},
     }))
-  const tblCols = s.table.columns
-  const tblSort = s.table.sortBy || ''
-  const tblRowLimit = s.table.rowLimit
-  const tblSummaryAggs = s.table.summaryAggs || {}
-  const tblColColors = s.table.columnColors || {}
-  const tblRowCondColors = s.table.rowConditionColors || []
+  const tblCols = s.table?.columns ?? []
+  const tblSort = s.table?.sortBy || ''
+  const tblRowLimit = s.table?.rowLimit
+  const tblSummaryAggs = s.table?.summaryAggs || {}
+  const tblColColors = s.table?.columnColors || {}
+  const tblRowCondColors = s.table?.rowConditionColors || []
   const date = new Date().toISOString().slice(0, 10)
   const i18nData = locale.value === 'zh-CN' ? zhCN : enUS
 
@@ -898,10 +1015,10 @@ function formatKpiValue(value: number, format: string, prefix: string, unit?: st
 function formatCellValue(val: string | number | undefined, col: string): string {
   if (val === undefined || val === null || val === '') return '—'
   const cls = dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col]
-  if (cls?.type === 'numeric' && cls.role === 'metric') {
+  const isCompCol = spec.value?.table?.computedColumns?.some(c => c.name === col && c.selected !== false)
+  if ((cls?.type === 'numeric' && cls.role === 'metric') || isCompCol) {
     const n = getNumericVal(val)
     if (!isNaN(n)) {
-      // Use global metric default if 'table' section is enabled
       const def = spec.value?.metricDefaults?.[col]
       if (def && (!def.sections || def.sections.includes('table')) && def.format) {
         return fmtByChart(n, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
@@ -1027,15 +1144,17 @@ function getRowColorStyle(row: Record<string, any>): Record<string, string> {
 // ====== Table rows with search + sorting ======
 // 共享的表格筛选结果（tableRows 和 summaryValues 共用，避免重复过滤）
 const tableFilteredRows = computed(() => {
-  const rows = previewStore.filteredRows.length > 0
+  const rows = previewStore.filtersApplied
     ? previewStore.filteredRows
     : (dataStore.dataSet?.rows ?? [])
 
-  let filtered = rows
+  // 追加计算列，使表格筛选可引用计算列
+  let filtered = augmentWithComputedCols(rows)
+
   const q = tableSearch.value.trim().toLowerCase()
   if (q) {
     const cols = activeColumns.value.length > 0 ? activeColumns.value : allColumns.value
-    filtered = rows.filter((row) =>
+    filtered = filtered.filter((row) =>
       cols.some((col) => {
         const v = row[col]
         if (v == null || v === '') return false
@@ -1049,8 +1168,42 @@ const tableFilteredRows = computed(() => {
   return filtered
 })
 
+/** 为行追加计算列值（纯函数，不依赖 computed） */
+function augmentWithComputedCols(rows: Record<string, any>[]): Record<string, any>[] {
+  const cc = spec.value?.table?.computedColumns?.filter(c => c.selected !== false && c.name && c.expression)
+  if (!cc?.length) return rows
+  return rows.map(row => {
+    const aug = { ...row }
+    for (const c of cc) {
+      try {
+        if (c.filter && applyFilter([row], undefined, c.filter).length === 0) {
+          aug[c.name] = ''; continue
+        }
+        let expr = c.expression
+        for (const v of c.variables || []) {
+          let val: number
+          if (v.filter && applyFilter([row], undefined, v.filter).length === 0) {
+            val = 0
+          } else {
+            val = Number(aug[v.column] ?? row[v.column])
+          }
+          expr = expr.replace(new RegExp('\\b' + v.alias + '\\b', 'g'), isNaN(val) ? '0' : String(val))
+        }
+        const result = new Function('"use strict"; return (' + expr + ')')()
+        aug[c.name] = typeof result === 'number' && isFinite(result) ? result : ''
+      } catch { aug[c.name] = '' }
+    }
+    return aug
+  })
+}
+
+/** 为每行追加计算列的值（排序/汇总用） */
+const augmentedRows = computed(() => {
+  return augmentWithComputedCols(tableFilteredRows.value)
+})
+
 const tableRows = computed(() => {
-  let sorted = [...tableFilteredRows.value]
+  let sorted = [...augmentedRows.value]
   if (sortCol.value) {
     const col = sortCol.value
     const dir = sortDir.value === 'desc' ? -1 : 1
@@ -1064,6 +1217,37 @@ const tableRows = computed(() => {
   return sorted
 })
 
+// 数据变更时清空格式化缓存
+watch(() => tableRows.value.length, () => {
+  for (const k of Object.keys(_cellStrCache)) delete _cellStrCache[k]
+})
+
+// 渐进式渲染：只取前 displayRowCount 行
+const visibleRows = computed(() => tableRows.value.slice(0, displayRowCount.value))
+
+function loadAllRows() {
+  displayRowCount.value = tableRows.value.length
+  _tableObserver?.disconnect()
+  _tableObserver = null
+}
+
+// 哨兵可见时自动加载更多
+function setupTableObserver() {
+  _tableObserver?.disconnect()
+  if (!tableSentinel.value) return
+  _tableObserver = new IntersectionObserver((entries) => {
+    if (entries[0]?.isIntersecting && displayRowCount.value < tableRows.value.length) {
+      displayRowCount.value = Math.min(displayRowCount.value + 200, tableRows.value.length)
+    }
+  }, { rootMargin: '400px 0px' })
+  _tableObserver.observe(tableSentinel.value)
+}
+
+// 排序/搜索变更时重置渲染行数
+watch([sortCol, sortDir, tableSearch, tableCondition], () => {
+  displayRowCount.value = 200
+}, { flush: 'sync' })
+
 // ====== Summary row (底部汇总行) ======
 const hasSummaryRow = computed(() => {
   const aggs = spec.value?.table?.summaryAggs
@@ -1076,7 +1260,7 @@ const summaryValues = computed(() => {
     return previewStore.dashboardResult.summary_values
   }
 
-  const rows = tableFilteredRows.value
+  const rows = augmentedRows.value
   const aggs = spec.value?.table?.summaryAggs || {}
   if (Object.keys(aggs).length === 0) return {}
 
@@ -1104,10 +1288,11 @@ const summaryValues = computed(() => {
 function formatSummaryValue(col: string): string {
   const val = summaryValues.value[col]
   if (val === undefined) return '—'
-  const cls = dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col]
   const agg = spec.value?.table?.summaryAggs?.[col]
   if (agg === 'count' || agg === 'unique_count') return String(val)
-  if (cls?.type === 'numeric') {
+  const cls = dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col]
+  const isCompCol = spec.value?.table?.computedColumns?.some(c => c.name === col && c.selected !== false)
+  if (cls?.type === 'numeric' || isCompCol) {
     const def = spec.value?.metricDefaults?.[col]
     if (def && (!def.sections || def.sections.includes('table')) && def.format) {
       return fmtByChart(val, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
@@ -1162,7 +1347,7 @@ async function downloadTableCsv() {
 
 // ====== Active rows (filtered or all) ======
 function getRows(): Record<string, string | number>[] {
-  return previewStore.filteredRows.length > 0
+  return previewStore.filtersApplied
     ? previewStore.filteredRows
     : (dataStore.dataSet?.rows ?? [])
 }
@@ -1177,10 +1362,23 @@ function filteredChartRows(chart: { filter?: string }): Record<string, string | 
 }
 
 const allHeaders = computed(() => {
-  if (dataStore.hasRelations) return previewStore.effectiveHeaders.filter((h) => !dataStore.excludedColumns.has(h))
-  const ds = dataStore.dataSet
-  if (!ds) return []
-  return ds.headers.filter((h) => !dataStore.excludedColumns.has(h))
+  let headers: string[] = []
+  if (dataStore.hasRelations) {
+    headers = previewStore.effectiveHeaders.filter((h) => !dataStore.excludedColumns.has(h))
+  } else {
+    const ds = dataStore.dataSet
+    if (ds) headers = ds.headers.filter((h) => !dataStore.excludedColumns.has(h))
+  }
+  // 追加已选中的计算列
+  const cc = configStore.config.table.computedColumns
+  if (cc) {
+    for (const c of cc) {
+      if (c.selected !== false && c.name && !headers.includes(c.name)) {
+        headers.push(c.name)
+      }
+    }
+  }
+  return headers
 })
 
 const allMetricCols = computed(() => {
@@ -1374,8 +1572,9 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 }
 
 .condition-input {
-  width: 220px;
+  width: 240px;
   height: 32px;
+  line-height: 1.4;
 }
 
 .filter-actions {
@@ -1393,6 +1592,35 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 .btn-apply:hover {
   background: #059669;
   border-color: #059669;
+}
+
+.btn-mode-toggle {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-mode-toggle.active {
+  background: #DBEAFE;
+  border-color: #3B82F6;
+  color: #1D4ED8;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.btn-mode-toggle:hover {
+  border-color: var(--primary);
 }
 
 .btn-reset {
@@ -1809,18 +2037,43 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   width: 200px;
 }
 
-.search-clear {
+/* 输入框包裹 + 内嵌清除按钮 */
+.input-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.input-wrap .input {
+  padding-right: 26px;
+}
+
+.input-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 13px;
-  padding: 0 4px;
-  margin-left: -4px;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 3px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
 }
 
-.search-clear:hover {
+.input-clear:hover {
+  opacity: 1;
   color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.input-clear.sm {
+  font-size: 10px;
+  right: 2px;
 }
 
 .col-picker {
@@ -1874,6 +2127,21 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+}
+
+.sentinel-cell {
+  text-align: center;
+  padding: 12px;
+  color: var(--text-secondary);
+}
+
+.sentinel-text {
+  margin-right: 12px;
+  font-size: 12px;
+}
+
+.sentinel-btn {
+  font-size: 12px;
 }
 
 .data-table th {

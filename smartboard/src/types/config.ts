@@ -46,6 +46,23 @@ export interface TableConfig {
   columnTextRules?: Record<string, ColumnTextRule[]>
   /** 行条件颜色：满足条件时整行着色 */
   rowConditionColors?: RowConditionColor[]
+  /** 列显示顺序（拖拽排序），未包含的列追加到末尾 */
+  columnOrder?: string[]
+  /** 计算列（公式生成的行内数据） */
+  computedColumns?: ComputedColumn[]
+}
+
+/** 计算列：基于已有列的公式生成新数据列 */
+export interface ComputedColumn {
+  name: string
+  /** 变量列表，alias(A/B/C…) 在 expression 中引用 */
+  variables: { alias: string; column: string; filter?: string }[]
+  /** 表达式，如 "A + B * C"，用 alias 引用 */
+  expression: string
+  /** 共享筛选（对所有变量生效） */
+  filter?: string
+  /** 是否显示在表格中 */
+  selected?: boolean
 }
 
 /** 画布布局项（拖拽位置/大小） */

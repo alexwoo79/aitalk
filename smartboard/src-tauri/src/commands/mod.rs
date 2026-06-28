@@ -8,6 +8,7 @@ pub mod compute;
 pub mod database;
 pub mod datasource;
 pub mod excel_selection;
+pub mod expr_parser;
 pub mod feishu;
 pub mod groupby;
 pub mod loader;

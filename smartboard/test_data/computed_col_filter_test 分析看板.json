@@ -1,0 +1,341 @@
+{
+  "version": 2,
+  "config": {
+    "title": "computed_col_filter_test 分析看板",
+    "kpis": [
+      {
+        "column": "销售额",
+        "label": "销售额",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      },
+      {
+        "column": "成本",
+        "label": "成本",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      }
+    ],
+    "filters": [
+      "区域",
+      "产品类别"
+    ],
+    "charts": [
+      {
+        "id": "f8a11d24-3140-4960-95e0-0fe0b49acda7",
+        "type": "doughnut",
+        "title": "区域 占比",
+        "dimension": "区域",
+        "metric": "count",
+        "selected": true
+      },
+      {
+        "id": "df5ad5a5-6a45-462d-8dff-3b339d6074e5",
+        "type": "bar",
+        "title": "区域 对比",
+        "dimension": "区域",
+        "metrics": [
+          "销售额"
+        ],
+        "selected": true
+      },
+      {
+        "id": "139485b6-ee0d-4a14-9cd1-f41edd886d8d",
+        "type": "doughnut",
+        "title": "产品类别 占比",
+        "dimension": "产品类别",
+        "metric": "count",
+        "selected": true
+      },
+      {
+        "id": "517dd2ae-15bf-4ae1-aacc-1bd36ca4bbb6",
+        "type": "bar",
+        "title": "产品类别 对比",
+        "dimension": "产品类别",
+        "metrics": [
+          "销售额"
+        ],
+        "selected": true
+      },
+      {
+        "id": "bad397c0-9053-4381-ae8c-3cb7810393fc",
+        "type": "histogram",
+        "title": "销售额 分布",
+        "metric": "销售额",
+        "selected": true
+      },
+      {
+        "id": "e1f9c8ca-b316-474a-9faf-3fab67847fca",
+        "type": "line",
+        "title": "销售额 月度趋势",
+        "dateColumn": "日期",
+        "metric": "销售额",
+        "selected": true
+      },
+      {
+        "id": "2f88140b-f8bc-4f74-8b5a-9e87d173a053",
+        "type": "timeseries",
+        "title": "销售额 时序分析",
+        "dateColumn": "日期",
+        "metric": "销售额",
+        "selected": true
+      },
+      {
+        "id": "73c00476-6f85-4a8c-97f8-4f6bcae787de",
+        "type": "decile",
+        "title": "销售额 十分位分析",
+        "metric": "销售额",
+        "selected": true
+      },
+      {
+        "id": "32f17cfb-8fa7-440a-bb1c-88e58aa6fc63",
+        "type": "cluster",
+        "title": "聚类分析",
+        "metrics": [
+          "销售额",
+          "成本"
+        ],
+        "clusterMetrics": [
+          "销售额",
+          "成本"
+        ],
+        "k": 3,
+        "selected": true
+      }
+    ],
+    "table": {
+      "sortBy": "销售额",
+      "columns": [
+        "日期",
+        "区域",
+        "产品类别",
+        "销售额",
+        "成本",
+        "销量",
+        "电子产品毛利",
+        "华东电子产品毛利",
+        "高利润销售额",
+        "电子产品利润率"
+      ],
+      "summaryAggs": {
+        "日期": "unique_count",
+        "区域": "unique_count",
+        "产品类别": "unique_count",
+        "销售额": "sum",
+        "成本": "sum",
+        "销量": "sum"
+      },
+      "computedColumns": [
+        {
+          "name": "电子产品毛利",
+          "variables": [
+            {
+              "alias": "A",
+              "column": "销售额",
+              "filter": "产品类别 = 电子产品"
+            },
+            {
+              "alias": "B",
+              "column": "成本",
+              "filter": "产品类别 = 电子产品"
+            }
+          ],
+          "expression": "A-B",
+          "selected": true
+        },
+        {
+          "name": "华东电子产品毛利",
+          "variables": [
+            {
+              "alias": "A",
+              "column": "销售额",
+              "filter": "产品类别 = 电子产品"
+            },
+            {
+              "alias": "B",
+              "column": "成本"
+            }
+          ],
+          "expression": "A-B",
+          "filter": "区域 = 华东",
+          "selected": true
+        },
+        {
+          "name": "高利润销售额",
+          "variables": [
+            {
+              "alias": "A",
+              "column": "销售额",
+              "filter": "销售额 > 100000"
+            },
+            {
+              "alias": "B",
+              "column": "成本",
+              "filter": "销售额 > 100000"
+            }
+          ],
+          "expression": "A-B",
+          "selected": true
+        },
+        {
+          "name": "电子产品利润率",
+          "variables": [
+            {
+              "alias": "A",
+              "column": "销售额",
+              "filter": "产品类别 = 电子产品"
+            },
+            {
+              "alias": "B",
+              "column": "成本",
+              "filter": "产品类别 = 电子产品"
+            },
+            {
+              "alias": "C",
+              "column": "销量",
+              "filter": "产品类别 = 电子产品"
+            }
+          ],
+          "expression": "(A-B) / A",
+          "filter": "区域 = 华东",
+          "selected": true
+        }
+      ]
+    },
+    "layout": [
+      {
+        "i": "kpi-0",
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "kpi-1",
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "chart-0",
+        "x": 0,
+        "y": 1,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-1",
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-2",
+        "x": 0,
+        "y": 5,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-3",
+        "x": 6,
+        "y": 5,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-4",
+        "x": 0,
+        "y": 9,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-5",
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-6",
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-7",
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-8",
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      }
+    ],
+    "metricDefaults": {
+      "电子产品利润率": {
+        "format": "percent",
+        "decimals": 2,
+        "sections": [
+          "table",
+          "chart",
+          "kpi"
+        ]
+      }
+    }
+  },
+  "relations": [],
+  "mainTableId": null,
+  "tableMeta": [
+    {
+      "id": "mqxhowht3189oo",
+      "name": "computed_col_filter_test.csv",
+      "filePath": "/Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/smartboard/test_data/computed_col_filter_test.csv",
+      "headers": [
+        "日期",
+        "区域",
+        "产品类别",
+        "销售额",
+        "成本",
+        "销量"
+      ],
+      "rows": 23
+    }
+  ],
+  "exportedAt": "2026-06-28T08:11:58.284Z"
+}

@@ -42,7 +42,7 @@
         <div v-for="col in dataSet.headers" :key="col" class="col-card" :class="[
           'role-' + dataSet.classifications[col]?.role,
           { excluded: dataStore.excludedColumns.has(col), dirty: isDirty(col) }
-        ]" @click="onToggleExclude(col)">
+        ]" @click="onToggleExclude(col)" @mouseenter="onColEnter(col, $event)" @mouseleave="onColLeave">
           <span class="col-icon">{{ roleIcon(effectiveRole(col)) }}</span>
           <div class="col-text">
             <span class="col-name">
@@ -56,6 +56,30 @@
           <span v-if="dataStore.excludedColumns.has(col)" class="col-exclude-mark">✕</span>
         </div>
       </div>
+
+      <!-- 列悬停数据报告 Tooltip -->
+      <Teleport to="body">
+        <div v-if="hoveredCol" class="col-tooltip" :style="{ top: tooltipY + 'px', left: tooltipX + 'px' }">
+          <div class="ctt-header">{{ hoveredCol }}</div>
+          <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.type') }}</span>{{ colTooltip.type }}</div>
+          <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.nonNull') }}</span>{{ colTooltip.nonNull }}
+            / {{ colTooltip.total }}</div>
+          <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.unique') }}</span>{{ colTooltip.unique }}
+          </div>
+          <div v-if="colTooltip.type === 'numeric'" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.min')
+              }}</span>{{ colTooltip.min }}</div>
+          <div v-if="colTooltip.type === 'numeric'" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.max')
+              }}</span>{{ colTooltip.max }}</div>
+          <div v-if="colTooltip.type === 'numeric'" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.avg')
+              }}</span>{{ colTooltip.avg }}</div>
+          <div v-if="colTooltip.dirtyCount" class="ctt-row ctt-dirty"><span class="ctt-label">⚠️ {{
+            t('upload.tooltip.dirty') }}</span>{{ colTooltip.dirtyCount }}</div>
+          <div v-if="colTooltip.samples.length" class="ctt-samples">
+            <div class="ctt-label ctt-samples-label">{{ t('upload.tooltip.samples') }}</div>
+            <div v-for="s in colTooltip.samples" :key="s" class="ctt-sample">{{ s }}</div>
+          </div>
+        </div>
+      </Teleport>
     </div>
 
     <!-- 指标摘要 -->
@@ -106,6 +130,54 @@ const emit = defineEmits<{ next: []; toggleExclude: [] }>()
 
 const dataStore = useDataStore()
 const showQualityDetail = ref(false)
+
+// ====== 列悬停 Tooltip ======
+const hoveredCol = ref('')
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+let _hoverTimer: ReturnType<typeof setTimeout> | null = null
+
+interface ColStats { type: string; total: number; nonNull: number; unique: number; min: string; max: string; avg: string; dirtyCount: number; samples: string[] }
+
+const colTooltip = computed((): ColStats => {
+  const col = hoveredCol.value
+  const ds = dataStore.dataSet
+  if (!col || !ds) return { type: '', total: 0, nonNull: 0, unique: 0, min: '', max: '', avg: '', dirtyCount: 0, samples: [] }
+  const cls = ds.classifications[col]
+  const typeLabels: Record<string, string> = { numeric: '数值', categorical: '分类', date: '日期', text: '文本' }
+  const type = typeLabels[cls?.type || ''] || cls?.type || '—'
+  const total = ds.rows.length
+  const vals = ds.rows.map(r => r[col])
+  const nonNull = vals.filter(v => v !== undefined && v !== null && v !== '').length
+  const unique = new Set(vals.filter(v => v !== undefined && v !== null && v !== '').map(String)).size
+  const dirtyCount = dirtyColumns.value.find(d => d.column === col)?.dirtyCount ?? 0
+  const sampleVals = vals.filter(v => v !== undefined && v !== null && v !== '').slice(0, 5).map(v => String(v).slice(0, 24))
+
+  let min = '—', max = '—', avg = '—'
+  if (cls?.type === 'numeric') {
+    const nums = vals.map(v => typeof v === 'number' ? v : Number(v)).filter(v => !isNaN(v))
+    if (nums.length > 0) {
+      min = Math.min(...nums).toLocaleString()
+      max = Math.max(...nums).toLocaleString()
+      avg = (nums.reduce((a, b) => a + b, 0) / nums.length).toLocaleString(undefined, { maximumFractionDigits: 2 })
+    }
+  }
+  return { type, total, nonNull, unique, min, max, avg, dirtyCount, samples: sampleVals }
+})
+
+function onColEnter(col: string, e: MouseEvent) {
+  if (_hoverTimer) clearTimeout(_hoverTimer)
+  _hoverTimer = setTimeout(() => {
+    hoveredCol.value = col
+    tooltipX.value = e.clientX + 12
+    tooltipY.value = e.clientY + 8
+  }, 300)
+}
+
+function onColLeave() {
+  if (_hoverTimer) { clearTimeout(_hoverTimer); _hoverTimer = null }
+  hoveredCol.value = ''
+}
 
 const excludedCount = computed(() => dataStore.excludedColumns.size)
 
@@ -507,5 +579,67 @@ function truncate(val: string | number | undefined): string {
 
 .sample-table tbody tr:hover {
   background: var(--bg-hover);
+}
+
+/* ── 列悬停 Tooltip ── */
+.col-tooltip {
+  position: fixed;
+  z-index: 9999;
+  min-width: 180px;
+  max-width: 260px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .14);
+  padding: 10px 12px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.ctt-header {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 4px;
+}
+
+.ctt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  color: var(--text-primary);
+}
+
+.ctt-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.ctt-dirty {
+  color: #e65100;
+  font-weight: 500;
+}
+
+.ctt-samples {
+  margin-top: 6px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 4px;
+}
+
+.ctt-samples-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.ctt-sample {
+  font-size: 11px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

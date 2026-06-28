@@ -1,6 +1,7 @@
 // 统一 Dashboard 计算 — 一次 IPC，全部结果
 // 前端传筛选条件 + 计算规格，Rust 计算后返回所有结果
 
+use crate::commands::expr_parser;
 use crate::state::with_active_df;
 use crate::types::ApiResult;
 use polars::prelude::*;
@@ -39,6 +40,26 @@ pub struct ChartInput {
     pub agg: String,
 }
 
+/// 计算列定义：前端传表达式 + 变量映射，Rust 端求值
+#[derive(Debug, serde::Deserialize)]
+pub struct ComputedColDef {
+    pub name: String,
+    pub variables: Vec<ComputedColVar>,
+    pub expression: String,
+    /// 共享筛选（对整列生效）
+    #[serde(default)]
+    pub filter: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ComputedColVar {
+    pub alias: String,
+    pub column: String,
+    /// 变量独立筛选条件
+    #[serde(default)]
+    pub filter: String,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct ComputeRequest {
     #[serde(default)]
@@ -49,6 +70,9 @@ pub struct ComputeRequest {
     pub charts: Vec<ChartInput>,
     #[serde(default)]
     pub summary: HashMap<String, String>,
+    /// 计算列定义：前端传表达式，Rust 端用 Polars 求值
+    #[serde(default)]
+    pub computed_columns: Vec<ComputedColDef>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -79,6 +103,54 @@ pub async fn compute_dashboard(request_json: String) -> ApiResult<ComputeRespons
             Err(e) => return ApiResult::failure(e.to_string()),
         };
         let row_count = filtered.height();
+
+        // 计算列：Rust 端解析表达式 → Polars Expr → 追加到 DataFrame
+        let df_cols: Vec<String> = filtered
+            .get_column_names()
+            .iter()
+            .map(|n| n.to_string())
+            .collect();
+        let mut computed_exprs: Vec<Expr> = Vec::new();
+        for cc in &req.computed_columns {
+            let mut var_map: HashMap<String, expr_parser::VarInfo> = HashMap::new();
+            for v in &cc.variables {
+                var_map.insert(
+                    v.alias.clone(),
+                    expr_parser::VarInfo {
+                        column: v.column.clone(),
+                        filter: if v.filter.is_empty() {
+                            None
+                        } else {
+                            Some(v.filter.clone())
+                        },
+                    },
+                );
+            }
+            match expr_parser::parse_to_expr_with_filters(&cc.expression, &var_map, &df_cols) {
+                Ok(expr) => {
+                    // 共享筛选 → when(shared_filter).then(expr).otherwise(0)
+                    let final_expr = if cc.filter.is_empty() {
+                        expr
+                    } else if let Some(fe) = parse_condition_expr(&cc.filter, &df_cols) {
+                        when(fe).then(expr).otherwise(lit(0.0))
+                    } else {
+                        expr
+                    };
+                    computed_exprs.push(final_expr.alias(&cc.name));
+                }
+                Err(e) => eprintln!("[compute] 计算列 '{}' 表达式解析失败: {}", cc.name, e),
+            }
+        }
+        let filtered = if computed_exprs.is_empty() {
+            filtered
+        } else {
+            let result = filtered
+                .clone()
+                .lazy()
+                .with_columns(computed_exprs)
+                .collect();
+            result.unwrap_or(filtered)
+        };
 
         let mut kpi_values = HashMap::new();
 
@@ -252,7 +324,7 @@ fn parse_one_cond(s: &str) -> Option<Cond> {
 }
 
 /// 解析完整条件表达式：& = AND组, | = OR组内
-fn parse_condition_expr(cond: &str, names: &[String]) -> Option<Expr> {
+pub fn parse_condition_expr(cond: &str, names: &[String]) -> Option<Expr> {
     let cond = cond.trim();
     if cond.is_empty() {
         return None;

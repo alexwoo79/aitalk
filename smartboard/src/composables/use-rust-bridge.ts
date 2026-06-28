@@ -110,11 +110,13 @@ export async function concatDatasets(
 export interface DimensionFilter { column: string; value: string }
 export interface KpiInput { label: string; column: string; agg: string; filter?: string }
 export interface ChartInput { key: string; dimCol: string; metricCol: string; agg: string }
+export interface ComputedColDef { name: string; variables: { alias: string; column: string }[]; expression: string }
 export interface ComputeRequest {
   dimensionFilters?: Record<string, string>
   dateColumn?: string; dateStart?: string; dateEnd?: string
   searchText?: string; condition?: string
   kpis?: KpiInput[]; charts?: ChartInput[]; summary?: Record<string, string>
+  computedColumns?: ComputedColDef[]
 }
 export interface ComputeResponse {
   row_count: number

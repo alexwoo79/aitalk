@@ -10,7 +10,7 @@ export interface DashboardSpec {
   kpis: KpiSpec[]
   charts: ChartSpec[]
   filters: FilterSpec[]
-  table: TableSpec
+  table: TableSpec | null
   analyses: Record<string, AnalysisResult>
   dateRange?: { column: string; min: string; max: string }
   /** 可用的时间列（展示页可切换） */
@@ -105,6 +105,10 @@ export interface TableSpec {
   columnTextColors?: Record<string, string>
   columnTextRules?: Record<string, ColumnTextRule[]>
   rowConditionColors?: RowConditionColor[]
+  /** 列显示顺序（来自配置页拖拽排序） */
+  columnOrder?: string[]
+  /** 计算列 */
+  computedColumns?: { name: string; variables: { alias: string; column: string; filter?: string }[]; expression: string; filter?: string; selected?: boolean }[]
 }
 
 /** 分析结果（时序/十分位/聚类） */
