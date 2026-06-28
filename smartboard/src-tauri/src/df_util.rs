@@ -110,7 +110,7 @@ pub fn convert_ms_timestamps(df: &DataFrame) -> DataFrame {
 /// Convert a Polars DataFrame into a ChartPayload for frontend consumption.
 pub fn df_to_payload(df: &DataFrame, limit: Option<usize>) -> Result<ChartPayload> {
     let total_rows = df.height();
-    let preview_n = limit.unwrap_or(total_rows).min(total_rows);
+    let preview_n = limit.unwrap_or(DISPLAY_LIMIT).min(total_rows);
 
     let columns: Vec<ColumnInfo> = df
         .columns()

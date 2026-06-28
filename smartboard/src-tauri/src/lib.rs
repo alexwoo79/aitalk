@@ -25,9 +25,12 @@ pub fn run() {
             // ── 数据合并 ──
             commands::merge::join_datasets,
             commands::merge::concat_datasets,
-            // ── SQL 数据库 ──
+            // ── SQL 数据库（仅桌面端）──
+            #[cfg(not(target_os = "ios"))]
             commands::database::test_db_connection,
+            #[cfg(not(target_os = "ios"))]
             commands::database::execute_db_query,
+            #[cfg(not(target_os = "ios"))]
             commands::database::load_db_table,
             commands::compute::compute_dashboard,
             commands::groupby::groupby_agg,

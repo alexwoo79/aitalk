@@ -66,3 +66,23 @@ export function getNumericOrNaN(val: string | number | undefined | null): number
     const { value } = parseNumeric(val)
     return value // NaN 就是 NaN，不替换
 }
+
+/**
+ * 安全的数组最小值，不依赖展开运算符，避免大数据集栈溢出
+ */
+export function safeMin(arr: number[]): number {
+    if (arr.length === 0) return 0
+    let m = arr[0]
+    for (let i = 1; i < arr.length; i++) if (arr[i] < m) m = arr[i]
+    return m
+}
+
+/**
+ * 安全的数组最大值，不依赖展开运算符，避免大数据集栈溢出
+ */
+export function safeMax(arr: number[]): number {
+    if (arr.length === 0) return 0
+    let m = arr[0]
+    for (let i = 1; i < arr.length; i++) if (arr[i] > m) m = arr[i]
+    return m
+}

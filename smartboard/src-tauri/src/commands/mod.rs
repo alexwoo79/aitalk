@@ -4,6 +4,7 @@
 
 pub mod analysis;
 pub mod compute;
+#[cfg(not(target_os = "ios"))]
 pub mod database;
 pub mod datasource;
 pub mod excel_selection;

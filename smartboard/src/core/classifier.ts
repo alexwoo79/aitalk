@@ -1,5 +1,5 @@
 import type { ColumnClassification, ColumnStats } from '@/types/data'
-import { parseNumeric } from './numeric'
+import { parseNumeric, safeMin, safeMax } from './numeric'
 
 // ====== 日期格式检测 ======
 
@@ -43,8 +43,8 @@ function computeStats(numVals: number[]): ColumnStats {
     return { sum: 0, avg: 0, min: 0, max: 0, count: 0, nonzero: 0, nonzeroRatio: 0 }
   }
   const sum = numVals.reduce((a, b) => a + b, 0)
-  const min = Math.min(...numVals)
-  const max = Math.max(...numVals)
+  const min = safeMin(numVals)
+  const max = safeMax(numVals)
   const nonzero = numVals.filter((v) => v !== 0).length
   return {
     sum,

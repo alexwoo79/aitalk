@@ -4,6 +4,7 @@
  */
 import { applyFilter, parseFilter } from '@/core/filter'
 import { aggregate } from '@/core/aggregator'
+import { safeMin, safeMax } from '@/core/numeric'
 import {
   buildBarOption, buildHorizontalBarOption, buildDoughnutOption,
   buildHistogramOption, buildLineOption, buildToolbox,
@@ -369,8 +370,8 @@ function computeAggValue(column: string, agg: string, rows: Record<string, strin
   switch (agg) {
     case 'sum': return vals.reduce((a, b) => a + b, 0)
     case 'avg': return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
-    case 'min': return vals.length ? Math.min(...vals) : 0
-    case 'max': return vals.length ? Math.max(...vals) : 0
+    case 'min': return vals.length ? safeMin(vals) : 0
+    case 'max': return vals.length ? safeMax(vals) : 0
     default: return vals.reduce((a, b) => a + b, 0)
   }
 }
@@ -439,8 +440,8 @@ function renderKpiCards(rows: Record<string, string | number>[]) {
       }
       case 'sum': val = vs.reduce((a, b) => a + b, 0); break
       case 'avg': val = vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : 0; break
-      case 'min': val = Math.min(...vs); break
-      case 'max': val = Math.max(...vs); break
+      case 'min': val = safeMin(vs); break
+      case 'max': val = safeMax(vs); break
       default: val = vs.reduce((a, b) => a + b, 0)
     }
     const dc = k.decimals != null ? k.decimals : 2
@@ -1047,8 +1048,8 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
               case 'sum': val = vals.reduce((a, b) => a + b, 0); break
               case 'avg': val = vals.reduce((a, b) => a + b, 0) / vals.length; break
               case 'count': val = vals.length; break
-              case 'min': val = Math.min(...vals); break
-              case 'max': val = Math.max(...vals); break
+              case 'min': val = safeMin(vals); break
+              case 'max': val = safeMax(vals); break
             }
           }
         }

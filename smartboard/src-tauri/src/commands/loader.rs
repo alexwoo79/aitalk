@@ -280,7 +280,7 @@ fn load_csv(path: &Path, skip_head: usize, skip_tail: usize) -> Result<DataFrame
         .with_has_header(true)
         .with_skip_rows(skip_head)
         .with_skip_rows_after_header(0)
-        .with_infer_schema_length(None)
+        .with_infer_schema_length(Some(10000))
         .map_parse_options(|opts| opts.with_truncate_ragged_lines(true))
         .try_into_reader_with_file_path(Some(path.to_path_buf()))?
         .finish()?;

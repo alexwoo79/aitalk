@@ -48,12 +48,13 @@ reqwest = { version = "0.12", features = ["rustls-tls"] }
 # ── SQLite (for database import) ──
 rusqlite = { version = "0.32", features = ["bundled"] }
 
-# ── SQL databases ──
-mysql = "25"
-tokio-postgres = { version = "0.7", features = ["with-chrono-0_4"] }
-
 # ── Utilities ──
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 uuid = { version = "1", features = ["v4"] }
 once_cell = "1"
 chrono = "0.4"
+
+# ── SQL databases (desktop only, not available on iOS) ──
+[target.'cfg(not(target_os = "ios"))'.dependencies]
+mysql = "25"
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4"] }

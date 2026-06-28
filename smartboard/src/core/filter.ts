@@ -91,7 +91,7 @@ export function applyFilter(
   return result
 }
 
-function matchRow(
+export function matchRow(
   r: Record<string, string | number>,
   parsed: { column: string; op: string; value: string },
 ): boolean {

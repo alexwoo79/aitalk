@@ -119,6 +119,18 @@ var SmartboardRenderer = (function(exports) {
     const { value } = parseNumeric(val);
     return value;
   }
+  function safeMin(arr) {
+    if (arr.length === 0) return 0;
+    let m = arr[0];
+    for (let i = 1; i < arr.length; i++) if (arr[i] < m) m = arr[i];
+    return m;
+  }
+  function safeMax(arr) {
+    if (arr.length === 0) return 0;
+    let m = arr[0];
+    for (let i = 1; i < arr.length; i++) if (arr[i] > m) m = arr[i];
+    return m;
+  }
   function aggregate(rows, dimCol, metricCol, agg = "sum") {
     const groups = /* @__PURE__ */ new Map();
     for (const row of rows) {
@@ -1326,9 +1338,9 @@ var SmartboardRenderer = (function(exports) {
       case "avg":
         return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
       case "min":
-        return vals.length ? Math.min(...vals) : 0;
+        return vals.length ? safeMin(vals) : 0;
       case "max":
-        return vals.length ? Math.max(...vals) : 0;
+        return vals.length ? safeMax(vals) : 0;
       default:
         return vals.reduce((a, b) => a + b, 0);
     }
@@ -1404,10 +1416,10 @@ var SmartboardRenderer = (function(exports) {
           val = vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : 0;
           break;
         case "min":
-          val = Math.min(...vs);
+          val = safeMin(vs);
           break;
         case "max":
-          val = Math.max(...vs);
+          val = safeMax(vs);
           break;
         default:
           val = vs.reduce((a, b) => a + b, 0);
@@ -2239,10 +2251,10 @@ var SmartboardRenderer = (function(exports) {
                   val = vals.length;
                   break;
                 case "min":
-                  val = Math.min(...vals);
+                  val = safeMin(vals);
                   break;
                 case "max":
-                  val = Math.max(...vals);
+                  val = safeMax(vals);
                   break;
               }
             }

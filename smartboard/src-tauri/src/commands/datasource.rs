@@ -178,29 +178,16 @@ pub async fn paste_from_clipboard(text: String, has_header: bool) -> ApiResult<C
         return ApiResult::failure("剪贴板内容为空");
     }
 
-    // TSV requires custom separator — use temp file path for Polars CSV reader
-    let tmp = std::env::temp_dir().join(format!("smartboard_clipboard_{}.csv", now_ts_secs()));
-    if let Err(e) = fs::write(&tmp, trimmed.as_bytes()) {
-        return ApiResult::failure(format!("写入临时数据失败: {e}"));
-    }
-    let df = match CsvReadOptions::default()
+    // Parse TSV from clipboard text in memory (no temp file)
+    let cursor = Cursor::new(trimmed.as_bytes());
+    let reader = CsvReadOptions::default()
         .with_has_header(has_header)
         .map_parse_options(|opts| opts.with_separator(b'\t').with_truncate_ragged_lines(true))
-        .try_into_reader_with_file_path(Some(tmp.clone()))
-    {
-        Ok(reader) => match reader.finish() {
-            Ok(df) => df,
-            Err(e) => {
-                let _ = fs::remove_file(&tmp);
-                return ApiResult::failure(format!("解析粘贴数据失败: {e}"));
-            }
-        },
-        Err(e) => {
-            let _ = fs::remove_file(&tmp);
-            return ApiResult::failure(format!("读取粘贴数据失败: {e}"));
-        }
+        .into_reader_with_file_handle(cursor);
+    let df = match reader.finish() {
+        Ok(df) => df,
+        Err(e) => return ApiResult::failure(format!("解析粘贴数据失败: {e}")),
     };
-    let _ = fs::remove_file(&tmp);
 
     if df.height() == 0 {
         return ApiResult::failure("粘贴数据中没有可解析的行");

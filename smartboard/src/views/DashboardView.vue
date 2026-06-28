@@ -263,7 +263,7 @@ import { usePreviewStore } from '@/stores/preview-store'
 import type { ChartSpec, KpiSpec } from '@/types/spec'
 import { useTheme } from '@/composables/use-theme'
 import { useLazyRender } from '@/composables/use-lazy-render'
-import { applyFilter } from '@/core/filter'
+import { applyFilter, parseFilter, matchRow } from '@/core/filter'
 import SkeletonChart from '@/components/common/SkeletonChart.vue'
 
 use([
@@ -987,18 +987,34 @@ const rowColorCache = computed(() => {
   const rules = configStore.config.table.rowConditionColors
   if (!rules?.length) return null
   const cache = new WeakMap<Record<string, any>, Record<string, string>>()
+
+  // 预编译所有规则的条件为解析后的谓词（只解析一次）
+  const compiledRules = rules.map(rule => {
+    if (!rule.condition.trim() || !rule.color) return null
+    const fullExpr = rule.condition.trim()
+    const andGroups = fullExpr.split('&').map(g => g.trim()).filter(g => g)
+    const parsedAndGroups = andGroups.map(group => {
+      const orConds = group.split('|').map(c => c.trim()).filter(c => c)
+      return orConds.map(parseFilter).filter((p): p is NonNullable<ReturnType<typeof parseFilter>> => p !== null)
+    }).filter(g => g.length > 0)
+    if (parsedAndGroups.length === 0) return null
+    return { parsedAndGroups, color: rule.color, textColor: rule.textColor }
+  }).filter(Boolean) as { parsedAndGroups: { column: string; op: string; value: string }[][]; color: string; textColor?: string }[]
+
+  if (compiledRules.length === 0) return null
+
   for (const row of tableRows.value) {
-    for (const rule of rules) {
-      if (!rule.condition.trim() || !rule.color) continue
-      try {
-        const filtered = applyFilter([row], undefined, rule.condition)
-        if (filtered.length > 0) {
-          const s: Record<string, string> = { backgroundColor: rule.color + '30' }
-          if (rule.textColor) s.color = rule.textColor + 'c0'
-          cache.set(row, s)
-          break
-        }
-      } catch { /* skip */ }
+    for (const rule of compiledRules) {
+      // 评估预编译的条件：AND 组全部满足，每组内 OR 条件至少一个满足
+      const matches = rule.parsedAndGroups.every(orGroup =>
+        orGroup.some(parsed => matchRow(row, parsed))
+      )
+      if (matches) {
+        const s: Record<string, string> = { backgroundColor: rule.color + '30' }
+        if (rule.textColor) s.color = rule.textColor + 'c0'
+        cache.set(row, s)
+        break
+      }
     }
   }
   return cache
