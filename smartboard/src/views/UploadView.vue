@@ -362,7 +362,7 @@ async function downloadSample() {
 
 <style scoped>
 .upload-view {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
