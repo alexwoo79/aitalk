@@ -1826,7 +1826,7 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   max-width: 280px;
 }
 
-/* Charts flex layout with resize handles */
+/* Charts flex layout with resize handles — contain & overflow prevent ECharts infinite stretch on Windows */
 .charts-wrap {
   display: flex;
   flex-wrap: wrap;
@@ -1843,9 +1843,12 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  min-height: 350px;
+  min-height: 280px;
+  min-width: 320px;
+  max-height: 80vh;
   position: relative;
   overflow: hidden;
+  contain: layout style;
 }
 
 .chart-card-full {
@@ -1854,12 +1857,15 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   min-height: 420px;
 }
 
+.resizable-card {
+  overflow: hidden;
+}
+
 /* Resize handles */
 .rs-handle {
   position: absolute;
   z-index: 5;
-  opacity: 0;
-  transition: opacity 0.15s;
+  transition: background 0.15s;
 }
 
 .chart-card:hover .rs-handle,
@@ -1872,15 +1878,15 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   top: 0;
   bottom: 0;
   width: 6px;
-  cursor: col-resize;
+  cursor: ew-resize;
 }
 
 .rs-handle-s {
+  bottom: 0;
   left: 0;
   right: 0;
-  bottom: 0;
   height: 6px;
-  cursor: row-resize;
+  cursor: ns-resize;
 }
 
 .rs-handle-se {
@@ -1891,26 +1897,8 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   cursor: nwse-resize;
 }
 
-.chart-card {
-  flex: 1 1 400px;
-  max-width: 100%;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  min-height: 280px;
-  min-width: 320px;
-  position: relative;
-}
-
-.chart-card-full {
-  flex: 1 1 100%;
-}
-
-.resizable-card {
-  overflow: hidden;
+.rs-handle:hover {
+  background: rgba(59, 130, 246, 0.15);
 }
 
 /* Resize handles */
