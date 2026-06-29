@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
 import { buildHistogramOption, resolveTitle, buildToolbox } from '@/core/chart-options'
@@ -51,27 +51,6 @@ const effectiveChart = computed<ChartSpec>(() => ({ ...props.chart, metric: sele
 const displayTitle = computed(() => resolveTitle(props.chart.title, selectedMetric.value ? [selectedMetric.value] : []))
 const chartRef = ref<InstanceType<typeof VChart> | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
-let _chartRo: ResizeObserver | null = null
-let _chartPrevW = 0, _chartPrevH = 0
-
-onMounted(() => {
-    const el = containerRef.value
-    if (!el) return
-    _chartRo = new ResizeObserver(() => {
-        if (!containerRef.value) return
-        const w = containerRef.value.offsetWidth
-        const h = containerRef.value.offsetHeight
-        if (Math.abs(w - _chartPrevW) < 1.5 && Math.abs(h - _chartPrevH) < 1.5) return
-        _chartPrevW = w
-        _chartPrevH = h
-        chartRef.value?.chart?.resize()
-    })
-    _chartRo.observe(el)
-})
-
-onUnmounted(() => {
-    _chartRo?.disconnect()
-})
 
 const isFullscreen = ref(false)
 
