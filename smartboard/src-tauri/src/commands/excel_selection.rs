@@ -32,21 +32,23 @@ pub async fn list_excel_sheets(path: String) -> ApiResult<Vec<SheetInfo>> {
 #[tauri::command]
 pub async fn load_excel_sheet(path: String, sheet_index: usize) -> ApiResult<ChartPayload> {
     tokio::task::spawn_blocking(move || {
-    let normalized = crate::commands::loader::normalize_file_path(&path);
-    match load_sheet_impl(&normalized, sheet_index) {
-        Ok(df) => {
-            let sheet_name = get_sheet_name_impl(&normalized, sheet_index)
-                .unwrap_or_else(|| format!("Sheet_{}", sheet_index + 1));
+        let normalized = crate::commands::loader::normalize_file_path(&path);
+        match load_sheet_impl(&normalized, sheet_index) {
+            Ok(df) => {
+                let sheet_name = get_sheet_name_impl(&normalized, sheet_index)
+                    .unwrap_or_else(|| format!("Sheet_{}", sheet_index + 1));
 
-            let payload = df_to_payload(&df, None);
-            replace_active_dataframe(&df, true);
-            let _ = register_dataset(&df, sheet_name, "excel_sheet".to_string());
+                let payload = df_to_payload(&df, None);
+                replace_active_dataframe(&df, true);
+                let _ = register_dataset(&df, sheet_name, "excel_sheet".to_string());
 
-            payload.map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
+                payload.map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
+            }
+            Err(e) => ApiResult::failure(e.to_string()),
         }
-        Err(e) => ApiResult::failure(e.to_string()),
-    }
-    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
+    })
+    .await
+    .unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,7 +59,7 @@ pub async fn load_excel_sheet(path: String, sheet_index: usize) -> ApiResult<Cha
 pub fn list_sheets_impl(path: &str) -> Result<Vec<SheetInfo>> {
     let path = Path::new(path);
     if !path.exists() {
-        bail!("文件不存在: {}", path.display());
+        bail!("File not found: {}", path.display());
     }
 
     let mut workbook =
@@ -70,11 +72,7 @@ pub fn list_sheets_impl(path: &str) -> Result<Vec<SheetInfo>> {
         match workbook.worksheet_range(name) {
             Ok(range) => {
                 let rows = range.rows().count();
-                let cols = range
-                    .rows()
-                    .next()
-                    .map(|r| r.len())
-                    .unwrap_or(0);
+                let cols = range.rows().next().map(|r| r.len()).unwrap_or(0);
                 // 过滤掉少于 2 行的工作表（无数据或仅有表头）
                 if rows < 2 {
                     continue;
@@ -138,10 +136,7 @@ pub fn load_sheet_impl(path: &str, sheet_index: usize) -> Result<DataFrame> {
         .collect();
 
     // Pre-compute which columns are date columns by name heuristic
-    let date_col_mask: Vec<bool> = headers
-        .iter()
-        .map(|h| is_date_column_name(h))
-        .collect();
+    let date_col_mask: Vec<bool> = headers.iter().map(|h| is_date_column_name(h)).collect();
 
     let mut columns: Vec<Vec<String>> = headers.iter().map(|_| Vec::new()).collect();
 

@@ -207,7 +207,7 @@ pub async fn load_json_file(path: String) -> ApiResult<ChartPayload> {
     let normalized = crate::commands::loader::normalize_file_path(&path);
     let path = Path::new(&normalized);
     if !path.exists() {
-        return ApiResult::failure(format!("文件不存在: {}", path.display()));
+        return ApiResult::failure(format!("File not found: {}", path.display()));
     }
 
     let content = match fs::read_to_string(path) {
@@ -243,13 +243,13 @@ pub async fn load_parquet_file(path: String) -> ApiResult<ChartPayload> {
     let normalized = crate::commands::loader::normalize_file_path(&path);
     let path = Path::new(&normalized);
     if !path.exists() {
-        return ApiResult::failure(format!("文件不存在: {}", path.display()));
+        return ApiResult::failure(format!("File not found: {}", path.display()));
     }
 
     let df = {
         let file = match std::fs::File::open(path) {
             Ok(f) => f,
-            Err(e) => return ApiResult::failure(format!("无法打开 Parquet 文件: {e}")),
+            Err(e) => return ApiResult::failure(format!("Cannot open Parquet file: {e}")),
         };
         match ParquetReader::new(file).finish() {
             Ok(df) => df,
@@ -285,19 +285,52 @@ pub async fn fetch_from_url(
         return ApiResult::failure("URL 不能为空");
     }
 
-    // Handle local file paths (file://, absolute paths, Windows drive letters, ~)
-    if is_local_path(endpoint) {
-        let local_path = if endpoint.starts_with("file://") {
-            crate::commands::loader::normalize_file_path(endpoint)
+    // ── 剥离不可见的 Unicode 控制字符 ──
+    // Windows 从文件资源管理器复制路径时，会附带 U+202A～U+202E（方向覆盖）
+    // 以及 U+200E/U+200F（左右标记）等不可见字符，导致 starts_with 检查失败。
+    fn strip_invisible_chars(s: &str) -> String {
+        s.chars()
+            .filter(|&c| {
+                !matches!(
+                    c,
+                    '\u{200E}' | '\u{200F}' | '\u{202A}' | '\u{202B}'
+                | '\u{202C}' | '\u{202D}' | '\u{202E}' | '\u{2060}'
+                | '\u{FEFF}' // BOM
+                | '\u{00AD}' // soft hyphen
+                )
+            })
+            .collect()
+    }
+    let endpoint = strip_invisible_chars(endpoint);
+
+    // ── 路径归一化 ──
+    // 将反斜杠统一为正向斜杠（但保留 UNC 路径的 \\ 前缀不变）。
+    // 对于 UNC 路径 (\\server\share\path)，Windows 原生使用 \\ 前缀，
+    // 故保留 \\ 前缀，仅将后面的分隔符 \ 转为 /，使 Path 正确识别。
+    // 对于非 UNC 路径，全部 \ 转为 /。
+    let (_is_unc, normalized) = if endpoint.starts_with("\\\\") {
+        // 保留 \\ 前缀，仅归一化后续路径
+        let rest = endpoint[2..].replace('\\', "/");
+        (true, format!("\\\\{}", rest))
+    } else {
+        (false, endpoint.replace('\\', "/"))
+    };
+
+    // Handle local file paths (file://, absolute paths, Windows drive letters, ~, UNC)
+    if is_local_path(&endpoint) || is_local_path(&normalized) {
+        // UNC 路径直接用归一化后的字符串（保留了 \\ 前缀）
+        // 非 UNC 路径也使用归一化后的正向斜杠版本
+        let local_path = if normalized.starts_with("file://") {
+            crate::commands::loader::normalize_file_path(&normalized)
         } else {
             // Expand ~ and normalize direct paths
-            let expanded = if endpoint.starts_with('~') {
+            let expanded = if normalized.starts_with('~') {
                 let home = std::env::var("HOME")
                     .or_else(|_| std::env::var("USERPROFILE"))
                     .unwrap_or_default();
-                endpoint.replacen('~', &home, 1)
+                normalized.replacen('~', &home, 1)
             } else {
-                endpoint.to_string()
+                normalized.to_string()
             };
             expanded
         };
@@ -351,8 +384,8 @@ pub async fn fetch_from_url(
     // ═════════════════════════════════════════════════════════════
     // Google Sheets: rewrite to CSV export URL
     // ═════════════════════════════════════════════════════════════
-    let endpoint = if is_gsheet_url(endpoint) {
-        gsheet_to_export_url(endpoint)
+    let endpoint = if is_gsheet_url(&endpoint) {
+        gsheet_to_export_url(&endpoint)
     } else {
         endpoint.to_string()
     };
@@ -368,7 +401,7 @@ pub async fn fetch_from_url(
     };
 
     let resp = match client
-        .get(endpoint)
+        .get(&endpoint)
         .header("User-Agent", "SmartBoard/0.1")
         .header("Accept", "text/csv,application/json,*/*")
         .send()
@@ -383,7 +416,13 @@ pub async fn fetch_from_url(
             } else {
                 "请求异常"
             };
-            return ApiResult::failure(format!("{kind}: {e}"));
+            // 截取前 120 字符用于调试，避免打印超长路径
+            let preview = if endpoint.len() > 120 {
+                format!("{}...", &endpoint[..120])
+            } else {
+                endpoint.to_string()
+            };
+            return ApiResult::failure(format!("{kind}: {e}\n请求地址: {preview}"));
         }
     };
 
@@ -476,7 +515,7 @@ fn is_local_path(s: &str) -> bool {
 pub async fn list_sqlite_tables(path: String) -> ApiResult<Vec<SqliteTableInfo>> {
     let p = Path::new(&path);
     if !p.exists() {
-        return ApiResult::failure(format!("数据库文件不存在: {}", path));
+        return ApiResult::failure(format!("Database file not found: {}", path));
     }
 
     let conn = match rusqlite::Connection::open(p) {

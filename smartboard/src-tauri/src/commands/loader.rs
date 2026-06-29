@@ -67,70 +67,77 @@ pub async fn load_file(
     header_locked: bool,
 ) -> ApiResult<ChartPayload> {
     tokio::task::spawn_blocking(move || {
-    let normalized = normalize_file_path(&path);
-    match load_file_impl(&normalized, skip_head, skip_tail, header_row, header_locked) {
-        Ok(df) => {
-            let payload = df_to_payload(&df, None);
-            replace_active_dataframe(&df, true);
-            let file_name = Path::new(&normalized)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("加载数据")
-                .to_string();
-            let _ = register_dataset(&df, file_name, "load_file".to_string());
-            payload.map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
+        let normalized = normalize_file_path(&path);
+        match load_file_impl(&normalized, skip_head, skip_tail, header_row, header_locked) {
+            Ok(df) => {
+                let payload = df_to_payload(&df, None);
+                replace_active_dataframe(&df, true);
+                let file_name = Path::new(&normalized)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("加载数据")
+                    .to_string();
+                let _ = register_dataset(&df, file_name, "load_file".to_string());
+                payload.map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
+            }
+            Err(e) => ApiResult::failure(e.to_string()),
         }
-        Err(e) => ApiResult::failure(e.to_string()),
-    }
-    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
+    })
+    .await
+    .unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 /// Load multiple files and register each as a dataset.
 #[tauri::command]
 pub async fn load_files(paths: Vec<String>) -> ApiResult<Vec<ChartPayload>> {
     tokio::task::spawn_blocking(move || {
-    let mut results = Vec::new();
-    for path in &paths {
-        let normalized = normalize_file_path(path);
-        match load_file_impl(&normalized, 0, 0, -1, false) {
-            Ok(df) => {
-                let file_name = Path::new(&normalized)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("unknown")
-                    .to_string();
-                let _ = register_dataset(&df, file_name.clone(), "load_files".to_string());
+        let mut results = Vec::new();
+        for path in &paths {
+            let normalized = normalize_file_path(path);
+            match load_file_impl(&normalized, 0, 0, -1, false) {
+                Ok(df) => {
+                    let file_name = Path::new(&normalized)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    let _ = register_dataset(&df, file_name.clone(), "load_files".to_string());
 
-                // Set the first file as active
-                if results.is_empty() {
-                    replace_active_dataframe(&df, false);
-                }
+                    // Set the first file as active
+                    if results.is_empty() {
+                        replace_active_dataframe(&df, false);
+                    }
 
-                match df_to_payload(&df, None) {
-                    Ok(p) => results.push(p),
-                    Err(e) => return ApiResult::failure(e.to_string()),
+                    match df_to_payload(&df, None) {
+                        Ok(p) => results.push(p),
+                        Err(e) => return ApiResult::failure(e.to_string()),
+                    }
                 }
+                Err(e) => return ApiResult::failure(e.to_string()),
             }
-            Err(e) => return ApiResult::failure(e.to_string()),
         }
-    }
-    ApiResult::success(results)
-    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
+        ApiResult::success(results)
+    })
+    .await
+    .unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 /// Get basic info about the currently loaded DataFrame.
 #[tauri::command]
 pub async fn get_dataframe_info() -> ApiResult<ChartPayload> {
     tokio::task::spawn_blocking(|| {
-    let df = {
-        let guard = GLOBAL_DF.read().unwrap();
-        match guard.as_ref() {
-            None => return ApiResult::failure("没有加载数据"),
-            Some(df) => df.clone(),
-        }
-    };
-    df_to_payload(&df, None).map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
-    }).await.unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
+        let df = {
+            let guard = GLOBAL_DF.read().unwrap();
+            match guard.as_ref() {
+                None => return ApiResult::failure("没有加载数据"),
+                Some(df) => df.clone(),
+            }
+        };
+        df_to_payload(&df, None)
+            .map_or_else(|e| ApiResult::failure(e.to_string()), ApiResult::success)
+    })
+    .await
+    .unwrap_or_else(|e| ApiResult::failure(format!("spawn_blocking error: {e}")))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,7 +154,7 @@ pub fn load_file_impl(
 ) -> Result<DataFrame> {
     let path = Path::new(path);
     if !path.exists() {
-        bail!("文件不存在: {}", path.display());
+        bail!("File not found: {}", path.display());
     }
 
     let ext = path

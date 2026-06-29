@@ -59,8 +59,28 @@ const statusClass = computed(() => ({
   'status-error': !!error.value,
 }))
 
+/** 剥离不可见的 Unicode 控制字符（Windows 复制路径时自动附加） */
+function stripInvisible(s: string): string {
+  return s.replace(/[\u200E\u200F\u202A\u202B\u202C\u202D\u202E\u2060\uFEFF\u00AD]/g, '')
+}
+
+/** 将 Rust 后端的英文错误消息翻译为当前语言 */
+function translateRustError(msg: string): string {
+  // 文件不存在
+  if (/^File not found:/i.test(msg)) {
+    const path = msg.replace(/^File not found: /i, '')
+    return t('upload.fileNotFound') + path
+  }
+  // 数据库文件不存在
+  if (/^Database file not found:/i.test(msg)) {
+    const path = msg.replace(/^Database file not found: /i, '')
+    return t('upload.dbFileNotFound') + path
+  }
+  return msg
+}
+
 async function doFetch() {
-  const trimmed = url.value.trim()
+  const trimmed = stripInvisible(url.value.trim())
   if (!trimmed) return
 
   loading.value = true
@@ -79,16 +99,23 @@ async function doFetch() {
       statusText.value = t('upload.urlSuccess')
       url.value = ''
     } else {
-      error.value = result.error ?? t('upload.urlError')
+      // UNC 网络路径错误时附加本地化提示
+      const errMsg = translateRustError(result.error ?? '')
+      const isUncError = /^(File not found|文件不存在): \\\\./m.test(errMsg)
+      error.value = isUncError
+        ? errMsg + '\n' + t('upload.uncPathHint')
+        : errMsg || t('upload.urlError')
       statusText.value = ''
     }
   } catch (e: any) {
     if (cancelled.value) return
 
     // Detect local file path (not supported in browser)
-    const isLocal = /^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/|\\\\)/.test(trimmed)
+    // 先剥离不可见字符再检测，避免 Windows 复制路径时附带的 Unicode 控制字符干扰
+    const stripped = stripInvisible(trimmed)
+    const isLocal = /^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/|\\\\|\\\\\\\\|\/\/)/.test(stripped)
     if (isLocal) {
-      error.value = t('upload.urlLocalNotSupported') ?? '浏览器模式不支持本地路径，请在桌面应用中使用或使用文件上传功能'
+      error.value = t('upload.urlLocalNotSupported') ?? '浏览器模式不支持本地/网络路径，请在桌面应用中使用或使用文件上传功能'
       statusText.value = ''
       loading.value = false
       return
