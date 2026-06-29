@@ -49,39 +49,29 @@ watch(() => props.chart.metric, (v) => { if (v) selectedMetric.value = v })
 
 const effectiveChart = computed<ChartSpec>(() => ({ ...props.chart, metric: selectedMetric.value }))
 const displayTitle = computed(() => resolveTitle(props.chart.title, selectedMetric.value ? [selectedMetric.value] : []))
-const option = computed(() => {
-    const opt = buildHistogramOption(effectiveChart.value, props.rows, bins.value || undefined)
-    if (opt && Object.keys(opt).length > 0 && opt.toolbox) {
-        Object.assign(opt.toolbox.feature, {
-            mySaveAsImage: { title: '💾 PNG', show: true, icon: 'path://M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm2-6h2v2H8v-2zm0-4h2v2H8v-2zm4 4h2v2h-2v-2zm0-4h2v2h-2v-2z', onclick: () => { const ci = chartRef.value?.chart; if (ci) downloadPNG(ci) } },
-            mySaveCSV: { title: '📄 CSV', show: true, icon: 'path://M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm0 2h7v5h5v11H6V4zm2 4h8v2H8V8zm0 4h8v2H8v-2zm0 4h5v2H8v-2z', onclick: () => { const ci = chartRef.value?.chart; if (ci) downloadCSV(ci, ci.getOption()) } },
-        })
-        delete opt.toolbox.feature.saveAsImage
-    }
-    return opt
-})
-
-const wrapRef = ref<HTMLElement | null>(null)
-const containerRef = ref<HTMLElement | null>(null)
 const chartRef = ref<InstanceType<typeof VChart> | null>(null)
-let ro: ResizeObserver | null = null
-let _resizePending = false
+const containerRef = ref<HTMLElement | null>(null)
+let _chartRo: ResizeObserver | null = null
+let _chartPrevW = 0, _chartPrevH = 0
 
 onMounted(() => {
-    if (containerRef.value) {
-        ro = new ResizeObserver(() => {
-            if (_resizePending) return
-            _resizePending = true
-            requestAnimationFrame(() => {
-                chartRef.value?.chart?.resize()
-                _resizePending = false
-            })
-        })
-        ro.observe(containerRef.value)
-    }
+    const el = containerRef.value
+    if (!el) return
+    _chartRo = new ResizeObserver(() => {
+        if (!containerRef.value) return
+        const w = containerRef.value.offsetWidth
+        const h = containerRef.value.offsetHeight
+        if (Math.abs(w - _chartPrevW) < 1.5 && Math.abs(h - _chartPrevH) < 1.5) return
+        _chartPrevW = w
+        _chartPrevH = h
+        chartRef.value?.chart?.resize()
+    })
+    _chartRo.observe(el)
 })
 
-onUnmounted(() => { ro?.disconnect() })
+onUnmounted(() => {
+    _chartRo?.disconnect()
+})
 
 const isFullscreen = ref(false)
 
@@ -97,4 +87,15 @@ function toggleFullscreen() {
 function onFullscreenEsc(e: KeyboardEvent) {
     if (e.key === 'Escape') { isFullscreen.value = false; document.removeEventListener('keydown', onFullscreenEsc); nextTick(() => { chartRef.value?.chart?.resize() }) }
 }
+const option = computed(() => {
+    const opt = buildHistogramOption(effectiveChart.value, props.rows, bins.value || undefined)
+    if (opt && Object.keys(opt).length > 0 && opt.toolbox) {
+        Object.assign(opt.toolbox.feature, {
+            mySaveAsImage: { title: '💾 PNG', show: true, icon: 'path://M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm2-6h2v2H8v-2zm0-4h2v2H8v-2zm4 4h2v2h-2v-2zm0-4h2v2h-2v-2z', onclick: () => { const ci = chartRef.value?.chart; if (ci) downloadPNG(ci) } },
+            mySaveCSV: { title: '📄 CSV', show: true, icon: 'path://M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm0 2h7v5h5v11H6V4zm2 4h8v2H8V8zm0 4h8v2H8v-2zm0 4h5v2H8v-2z', onclick: () => { const ci = chartRef.value?.chart; if (ci) downloadCSV(ci, ci.getOption()) } },
+        })
+        delete opt.toolbox.feature.saveAsImage
+    }
+    return opt
+})
 </script>

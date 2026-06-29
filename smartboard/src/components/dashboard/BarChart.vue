@@ -30,12 +30,12 @@
 </template>
 
 <script setup lang="ts">
-import {  ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import VChart from 'vue-echarts'
 import type { ChartSpec } from '@/types/spec'
-import {  buildBarOption, resolveTitle, buildToolbox } from '@/core/chart-options'
-import {  useChartDownload } from '@/composables/use-chart-download'
-import {  useTheme } from '@/composables/use-theme'
+import { buildBarOption, resolveTitle, buildToolbox } from '@/core/chart-options'
+import { useChartDownload } from '@/composables/use-chart-download'
+import { useTheme } from '@/composables/use-theme'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -66,6 +66,46 @@ function toggleMetric(m: string) {
 
 const effectiveChart = computed<ChartSpec>(() => ({ ...props.chart, metrics: activeMetrics.value }))
 const displayTitle = computed(() => resolveTitle(props.chart.title, activeMetrics.value))
+const chartRef = ref<InstanceType<typeof VChart> | null>(null)
+const containerRef = ref<HTMLElement | null>(null)
+let _chartRo: ResizeObserver | null = null
+let _chartPrevW = 0, _chartPrevH = 0
+
+onMounted(() => {
+    const el = containerRef.value
+    if (!el) return
+    _chartRo = new ResizeObserver(() => {
+        if (!containerRef.value) return
+        const w = containerRef.value.offsetWidth
+        const h = containerRef.value.offsetHeight
+        // 忽略 <1.5px 的变化（高DPI子像素抖动）
+        if (Math.abs(w - _chartPrevW) < 1.5 && Math.abs(h - _chartPrevH) < 1.5) return
+        _chartPrevW = w
+        _chartPrevH = h
+        chartRef.value?.chart?.resize()
+    })
+    _chartRo.observe(el)
+})
+
+onUnmounted(() => {
+    _chartRo?.disconnect()
+})
+
+const isFullscreen = ref(false)
+
+function toggleFullscreen() {
+    isFullscreen.value = !isFullscreen.value
+    if (isFullscreen.value) {
+        document.addEventListener('keydown', onFullscreenEsc)
+    } else {
+        document.removeEventListener('keydown', onFullscreenEsc)
+        nextTick(() => { chartRef.value?.chart?.resize() })
+    }
+}
+function onFullscreenEsc(e: KeyboardEvent) {
+    if (e.key === 'Escape') { isFullscreen.value = false; document.removeEventListener('keydown', onFullscreenEsc); nextTick(() => { chartRef.value?.chart?.resize() }) }
+}
+
 const option = computed(() => {
     const opt = buildBarOption(effectiveChart.value, props.rows, sortOrder.value, showLabel.value)
     if (opt && Object.keys(opt).length > 0 && opt.toolbox) {
@@ -84,44 +124,4 @@ const option = computed(() => {
     }
     return opt
 })
-
-// ResizeObserver — 卡片拉伸时同步图表大小
-const wrapRef = ref<HTMLElement | null>(null)
-const containerRef = ref<HTMLElement | null>(null)
-const chartRef = ref<InstanceType<typeof VChart> | null>(null)
-let ro: ResizeObserver | null = null
-let _resizePending = false
-
-onMounted(() => {
-    if (containerRef.value) {
-        ro = new ResizeObserver(() => {
-            if (_resizePending) return
-            _resizePending = true
-            requestAnimationFrame(() => {
-                chartRef.value?.chart?.resize()
-                _resizePending = false
-            })
-        })
-        ro.observe(containerRef.value)
-    }
-})
-
-onUnmounted(() => {
-    ro?.disconnect()
-})
-
-const isFullscreen = ref(false)
-
-function toggleFullscreen() {
-    isFullscreen.value = !isFullscreen.value
-    if (isFullscreen.value) {
-        document.addEventListener('keydown', onFullscreenEsc)
-    } else {
-        document.removeEventListener('keydown', onFullscreenEsc)
-        nextTick(() => { chartRef.value?.chart?.resize() })
-    }
-}
-function onFullscreenEsc(e: KeyboardEvent) {
-    if (e.key === 'Escape') { isFullscreen.value = false; document.removeEventListener('keydown', onFullscreenEsc); nextTick(() => { chartRef.value?.chart?.resize() }) }
-}
 </script>

@@ -443,8 +443,6 @@ input[type="search"]::placeholder {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  /* contain + overflow prevents ECharts autoresize flex feedback loop on Windows */
-  contain: layout style;
   overflow: hidden;
 }
 
@@ -463,11 +461,6 @@ input[type="search"]::placeholder {
 .basic-chart-wrap.is-fullscreen .chart-container {
   flex: 1;
   min-height: 0;
-}
-
-/* Global .chart-container overflow guard — prevents ECharts autoresize feedback loop (Windows) */
-.chart-container {
-  overflow: hidden;
 }
 
 /* Override ECharts toolbox dataView panel in dark mode */

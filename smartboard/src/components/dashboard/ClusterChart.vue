@@ -101,10 +101,8 @@ const COLORS = [
 const { theme } = useTheme()
 const { downloadPNG, downloadCSV } = useChartDownload()
 
-// Fullscreen
-const wrapRef = ref<HTMLElement | null>(null)
-const containerRef = ref<HTMLElement | null>(null)
 const chartRef = ref<InstanceType<typeof VChart> | null>(null)
+const containerRef = ref<HTMLElement | null>(null)
 const isFullscreen = ref(false)
 function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value

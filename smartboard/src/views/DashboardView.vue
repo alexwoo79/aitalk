@@ -1848,7 +1848,6 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   max-height: 80vh;
   position: relative;
   overflow: hidden;
-  contain: layout style;
 }
 
 .chart-card-full {
