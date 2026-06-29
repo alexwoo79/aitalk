@@ -467,6 +467,10 @@ export default {
     },
   },
 
+  app: {
+    version: 'Version',
+  },
+
   theme: {
     switchDark: 'Switch to Dark',
     switchLight: 'Switch to Light',

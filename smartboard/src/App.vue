@@ -23,6 +23,8 @@
       </div>
       <StepIndicator :current="currentStep" />
       <div class="header-right">
+        <span class="app-version" :title="t('app.version') + ' ' + version.full">{{ version.semver }}<span
+            class="app-version-build" v-if="version.build">.{{ version.build }}</span></span>
         <button class="theme-toggle" @click="toggleTheme"
           :title="theme === 'light' ? t('theme.switchDark') : t('theme.switchLight')">
           {{ theme === 'light' ? '🌙' : '☀️' }}
@@ -50,11 +52,13 @@ import { useI18n } from 'vue-i18n'
 import StepIndicator from '@/components/common/StepIndicator.vue'
 import Toast from '@/components/common/Toast.vue'
 import { useTheme } from '@/composables/use-theme'
+import { useVersion } from '@/composables/use-version'
 import { LOCALES, type SupportedLocale } from '@/i18n'
 
 const route = useRoute()
 const toastRef = ref<InstanceType<typeof Toast> | null>(null)
 const { theme, toggle: toggleTheme } = useTheme()
+const { version } = useVersion()
 const { locale, t } = useI18n()
 
 function setLocale() {
@@ -116,6 +120,20 @@ if (typeof window !== 'undefined') {
 
 .logo-icon {
   flex-shrink: 0;
+}
+
+.app-version {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-right: 8px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.app-version-build {
+  font-size: 10px;
+  opacity: 0.6;
 }
 
 .header-right {

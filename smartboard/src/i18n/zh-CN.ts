@@ -472,6 +472,11 @@ export default {
     },
   },
 
+  // App
+  app: {
+    version: '版本',
+  },
+
   // Theme
   theme: {
     switchDark: '切换暗色',
