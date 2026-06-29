@@ -33,7 +33,7 @@ export interface MetricDefault {
 export interface KpiSpec {
   column: string
   label: string
-  agg: 'sum' | 'avg' | 'count' | 'min' | 'max'
+  agg: 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max'
   format: string
   prefix: string
   icon?: string

@@ -218,7 +218,7 @@ var SmartboardRenderer = (function(exports) {
     if (!fmtType || fmtType === "number" || fmtType === "global") return fmt(n, decimals);
     if (fmtType === "integer") return fmt(n, 0);
     if (fmtType === "percent") {
-      const v = n <= 1 && n >= -1 ? n * 100 : n;
+      const v = n <= 1.000001 && n >= -1.000001 ? n * 100 : n;
       return v.toFixed(decimals) + "%";
     }
     if (fmtType === "currency") {

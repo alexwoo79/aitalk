@@ -178,7 +178,7 @@ if (typeof window !== 'undefined') {
 
 .app-main {
   flex: 1;
-  padding: 24px;
+  padding: 0 24px 24px 24px;
   overflow-y: auto;
 }
 

@@ -123,6 +123,8 @@ export interface ComputeResponse {
   kpi_values: Record<string, number>
   chart_data: Record<string, { label: string; value: number }[]>
   summary_values: Record<string, number>
+  /** Rust 计算列逐行数据（前端表格显示用，key=列名，value=按行序排列的值） */
+  computed_columns: Record<string, number[]>
 }
 
 /** 一次 IPC 完成所有 Dashboard 计算（筛选 + KPI + 图表 + 合计） */

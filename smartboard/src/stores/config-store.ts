@@ -75,10 +75,13 @@ export const useConfigStore = defineStore('config', () => {
     if (!base) return
     config.value.kpis = base.metricCols.slice(0, 6).map((col) => {
       const cls = dataStore.getEffectiveClassification(col) || base.ds.classifications[col]
+      const defaultAgg = cls?.format === 'percent' ? 'avg'
+        : cls?.type === 'numeric' ? 'sum'
+          : 'unique_count'
       return {
         column: col,
         label: col,
-        agg: (cls?.format === 'percent' ? 'avg' : 'sum') as 'sum' | 'avg',
+        agg: defaultAgg as 'sum' | 'avg' | 'unique_count',
         format: 'global',
         prefix: cls?.prefix,
         selected: true,
@@ -129,7 +132,7 @@ export const useConfigStore = defineStore('config', () => {
   function generateAutoTable() {
     const base = _autoBase()
     if (!base) return
-    const { ds, metricCols, excluded } = base
+    const { ds, metricCols, excluded, primaryMetric } = base
     // Phase 4: 有关联表时使用跨表合并后的列头，确保与 Dashboard 显示一致
     const effectiveHeaders = dataStore.hasRelations
       ? dataStore.effectiveHeaders.filter((h) => !excluded.has(h))
@@ -142,11 +145,41 @@ export const useConfigStore = defineStore('config', () => {
       if (cls?.type === 'numeric') summaryAggs[h] = 'sum'
       else if (cls?.role === 'dimension' || cls?.type === 'date') summaryAggs[h] = 'unique_count'
     }
+    // 预设占比计算列（基于主指标）
+    const maybeCC: any[] = []
+    if (primaryMetric) {
+      const ratioName = t('config.presetRatioCol')
+      const existing = config.value.table?.computedColumns || []
+      const hasRatio = existing.some(c => c.name === ratioName)
+      if (!hasRatio) {
+        maybeCC.push({
+          name: ratioName,
+          selected: true,
+          variables: [{ alias: 'A', column: primaryMetric }],
+          expression: 'A/SUM(A)',
+        })
+        // 占比列默认在表格显示
+        if (!cols.includes(ratioName)) cols.push(ratioName)
+        // 占比列默认汇总=求和
+        summaryAggs[ratioName] = 'sum'
+      }
+      maybeCC.push(...existing)
+    } else {
+      maybeCC.push(...(config.value.table?.computedColumns || []))
+    }
+    // 预设占比列的全局格式=百分比，在表格生效
+    if (primaryMetric) {
+      const ratioName = t('config.presetRatioCol')
+      if (!config.value.metricDefaults) config.value.metricDefaults = {}
+      if (!config.value.metricDefaults[ratioName]) {
+        config.value.metricDefaults[ratioName] = { format: 'percent', unit: 'yuan', decimals: 2, sections: ['table'] }
+      }
+    }
     config.value.table = {
       sortBy: (ds.primaryMetric && !excluded.has(ds.primaryMetric) ? ds.primaryMetric : metricCols[0]) || '',
       columns: cols,
       summaryAggs: summaryAggs as Record<string, 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max'>,
-      computedColumns: [],
+      computedColumns: maybeCC,
     }
   }
 

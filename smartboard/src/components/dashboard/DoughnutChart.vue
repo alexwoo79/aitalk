@@ -2,7 +2,7 @@
     <div class="basic-chart-wrap" ref="wrapRef" :class="{ 'is-fullscreen': isFullscreen }" @dblclick="toggleFullscreen">
         <h3 class="chart-title">{{ displayTitle }}</h3>
         <div class="metric-toggle">
-            <select v-if="availableMetrics.length > 1" v-model="selectedMetric" class="input input-sm metric-select">
+            <select v-if="availableMetrics.length > 1" v-model="selectedMetric" class="input input-xs metric-select">
                 <option v-for="m in availableMetrics" :key="m" :value="m">{{ m }}</option>
             </select>
             <span v-if="availableMetrics.length > 1" class="toggle-sep"></span>

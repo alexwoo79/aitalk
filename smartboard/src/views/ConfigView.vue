@@ -536,18 +536,18 @@
                 <h4 class="ps-title">{{ t('config.sections.table') }}</h4>
                 <div class="preview-table-info">
                   <span>{{ t('config.displayColumns') }}: {{ configStore.config.table.columns.length }}</span>
-                  <span>{{ t('config.dataRows') }}: {{ dataStore.dataSet?.rows.length || 0 }}</span>
+                  <span>{{ t('config.dataRows') }}: {{ previewStore.effectiveRows.length }}</span>
                 </div>
                 <div class="preview-table-mini-wrap">
                   <table class="preview-table-mini">
                     <thead>
                       <tr>
-                        <th v-for="col in previewTableCols" :key="col">{{ col }}</th>
+                        <th v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, true)">{{ col }}</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-for="(row, ri) in previewTableRows" :key="ri">
-                        <td v-for="col in previewTableCols" :key="col">{{ previewCellValue(row[col]) }}</td>
+                        <td v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, false)">{{ previewCellValue(row[col]) }}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -977,12 +977,19 @@
               <button v-for="v in computedColForm.variables" :key="v.alias" class="period-btn"
                 @click="computedColForm.expression += v.alias">{{ v.alias }}</button>
               <span v-if="computedColForm.variables.length" class="toggle-sep" style="margin:0 4px"></span>
-              <button class="period-btn" @click="computedColForm.expression += '+'">+</button>
-              <button class="period-btn" @click="computedColForm.expression += '-'">−</button>
-              <button class="period-btn" @click="computedColForm.expression += '*'">×</button>
-              <button class="period-btn" @click="computedColForm.expression += '/'">÷</button>
-              <button class="period-btn" @click="computedColForm.expression += '('">(</button>
-              <button class="period-btn" @click="computedColForm.expression += ')'">)</button>
+              <button class="period-btn func-btn" @click="insertCCFunc('SUM')">SUM</button>
+              <button class="period-btn func-btn" @click="insertCCFunc('AVG')">AVG</button>
+              <button class="period-btn func-btn" @click="insertCCFunc('COUNT')">CNT</button>
+              <button class="period-btn func-btn" @click="insertCCFunc('UNIQUE_COUNT')">UNIQ</button>
+              <button class="period-btn func-btn" @click="insertCCFunc('MIN')">MIN</button>
+              <button class="period-btn func-btn" @click="insertCCFunc('MAX')">MAX</button>
+              <span class="toggle-sep" style="margin:0 4px"></span>
+              <button class="period-btn" @click="insertCCOp('+')">+</button>
+              <button class="period-btn" @click="insertCCOp('-')">−</button>
+              <button class="period-btn" @click="insertCCOp('*')">×</button>
+              <button class="period-btn" @click="insertCCOp('/')">÷</button>
+              <button class="period-btn" @click="insertCCOp('(')">(</button>
+              <button class="period-btn" @click="insertCCOp(')')">)</button>
             </div>
             <input v-model="computedColForm.expression" class="input" :placeholder="t('config.colExprPlaceholder')"
               style="margin-top:6px" />
@@ -1010,6 +1017,7 @@ import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { usePreviewStore } from '@/stores/preview-store'
 import { applyFilter } from '@/core/filter'
+import { augmentComputedCols } from '@/core/formula-engine'
 import type { ConfigSection } from '@/stores/config-store'
 import { CHART_TYPES, AGG_OPTIONS, KPI_FORMAT_OPTIONS } from '@/types/config'
 import type { ChartFormItem } from '@/types/config'
@@ -1135,6 +1143,43 @@ function formatPreviewValue(kpi: KpiPreview): string {
   return n.toFixed(kpi.decimals ?? 2).toLocaleString()
 }
 
+/** 关联列颜色调色板（按关联表顺序：淡蓝 → 淡粉 → 浅绿） */
+const ASSOC_PALETTE = [
+  { headerBg: '#c5dcff', cellBg: '#e3efff' },  // 淡蓝
+  { headerBg: '#ffcdd9', cellBg: '#ffe3ea' },  // 淡粉
+  { headerBg: '#c5ecc5', cellBg: '#e3f6e3' },  // 浅绿
+]
+
+/** 关联表列 → 表序号映射（带 "表名." 前缀的列，用于按表着色） */
+const associatedColumnMap = computed(() => {
+  const map = new Map<string, number>()
+  if (!dataStore.hasRelations) return map
+  const ds = dataStore.dataSet
+  if (!ds) return map
+  const mainHeaders = new Set(ds.headers)
+  let relIdx = 0
+  for (const rel of dataStore.relations) {
+    const rightDs = dataStore.tables[rel.rightTableId]
+    if (!rightDs) { relIdx++; continue }
+    const prefix = dataStore.getTableDisplayName(rightDs)
+    for (const rh of rightDs.headers) {
+      if (rh === rel.rightColumn && mainHeaders.has(rh)) continue
+      if (mainHeaders.has(rh)) {
+        map.set(prefix + '.' + rh, relIdx)
+      }
+    }
+    relIdx++
+  }
+  return map
+})
+
+function getAssocColStyle(col: string, isHeader: boolean): Record<string, string> {
+  const idx = associatedColumnMap.value.get(col)
+  if (idx === undefined) return {}
+  const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
+  return { backgroundColor: isHeader ? p.headerBg : p.cellBg }
+}
+
 /** 预览表格的排序列 */
 const previewTableCols = computed(() => {
   const cols = [...configStore.config.table.columns]
@@ -1153,37 +1198,10 @@ const previewTableCols = computed(() => {
   return [...cols].sort((a, b) => (rank.get(a) ?? Infinity) - (rank.get(b) ?? Infinity))
 })
 
-/** 前 3 行数据预览（含计算列，支持变量筛选和共享筛选） */
+/** 前 3 行数据预览（含计算列） */
 const previewTableRows = computed(() => {
-  const rows = (dataStore.dataSet?.rows ?? []).slice(0, 3)
-  const cc = configStore.config.table.computedColumns?.filter(c => c.selected !== false && c.name && c.expression)
-  if (!cc?.length) return rows
-  return rows.map(row => {
-    const aug = { ...row }
-    for (const c of cc) {
-      try {
-        // 共享筛选
-        if (c.filter && applyFilter([row], undefined, c.filter).length === 0) {
-          aug[c.name] = ''
-          continue
-        }
-        let expr = c.expression
-        for (const v of c.variables || []) {
-          // 变量筛选
-          let val: number
-          if (v.filter && applyFilter([row], undefined, v.filter).length === 0) {
-            val = 0
-          } else {
-            val = Number(aug[v.column] ?? row[v.column])
-          }
-          expr = expr.replace(new RegExp('\\b' + v.alias + '\\b', 'g'), isNaN(val) ? '0' : String(val))
-        }
-        const result = new Function('"use strict"; return (' + expr + ')')()
-        aug[c.name] = typeof result === 'number' && isFinite(result) ? result : ''
-      } catch { aug[c.name] = '' }
-    }
-    return aug
-  })
+  const rows = previewStore.effectiveRows.slice(0, 3)
+  return augmentComputedCols(rows, configStore.config.table.computedColumns || [])
 })
 
 function previewCellValue(val: any): string {
@@ -1476,6 +1494,14 @@ const computedColForm = reactive({
 function addComputedColVariable() {
   const idx = computedColForm.variables.length
   computedColForm.variables.push({ alias: ALPHABET[idx] || 'V' + idx, column: '' })
+}
+
+function insertCCFunc(func: string) {
+  computedColForm.expression += func + '()'
+}
+
+function insertCCOp(op: string) {
+  computedColForm.expression += ` ${op} `
 }
 
 function openComputedColEditor(idx: number) {
@@ -2291,24 +2317,24 @@ function cancelChartEdit() {
 }
 
 .config-top {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 /* Tab 切换 */
 .config-tabs {
   display: flex;
   gap: 0;
-  margin-bottom: 16px;
-  border-bottom: 2px solid var(--border-color, #e0e0e0);
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--border);
 }
 
 .config-tab {
-  padding: 8px 20px;
+  padding: 6px 16px;
   border: none;
   background: none;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary, #888);
+  color: var(--text-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -2316,18 +2342,18 @@ function cancelChartEdit() {
 }
 
 .config-tab:hover {
-  color: var(--text-primary, #333);
+  color: var(--text-primary);
 }
 
 .config-tab.active {
-  color: var(--primary, #4a90d9);
-  border-bottom-color: var(--primary, #4a90d9);
+  color: var(--primary);
+  border-bottom-color: var(--primary);
 }
 
 .config-top-inner {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .config-top-row {
@@ -2367,17 +2393,17 @@ function cancelChartEdit() {
 }
 
 .config-top-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 10px;
+  margin: 0;
 }
 
 .config-top-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .config-top-head .config-top-title {
@@ -2385,17 +2411,17 @@ function cancelChartEdit() {
 }
 
 .config-bottom-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 10px;
+  margin: 0;
 }
 
 .config-bottom-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .config-bottom-head .config-bottom-title {
@@ -2422,15 +2448,16 @@ function cancelChartEdit() {
 .section-header-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
   user-select: none;
+  padding: 1px 0;
 }
 
 .section-header-row h3 {
   margin-bottom: 0;
   flex: 1;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -3687,16 +3714,16 @@ function cancelChartEdit() {
 
 .btn-refresh-preview {
   position: absolute;
-  bottom: 12px;
-  right: 12px;
+  bottom: 8px;
+  right: 8px;
   color: #fff;
   background: #10B981;
   border: 1px solid #10B981;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 12px;
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
   cursor: pointer;
-  opacity: 0.75;
+  opacity: 0.8;
   transition: opacity 0.2s;
   z-index: 10;
 }
@@ -3710,9 +3737,9 @@ function cancelChartEdit() {
 .preview-dash {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px 20px 44px 20px;
-  min-height: 300px;
+  border-radius: 8px;
+  padding: 14px 14px 40px 14px;
+  min-height: 240px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -3721,12 +3748,12 @@ function cancelChartEdit() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .preview-dash-header h3 {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   margin: 0;
   overflow: hidden;
@@ -3789,18 +3816,18 @@ function cancelChartEdit() {
 
 .preview-kpi-card {
   flex: 1;
-  min-width: 120px;
+  min-width: 100px;
   background: var(--bg);
   border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 14px 16px;
+  border-radius: 8px;
+  padding: 10px 12px;
   text-align: center;
 }
 
 .pk-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .pk-value {

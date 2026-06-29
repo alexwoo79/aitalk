@@ -93,7 +93,7 @@ export interface DashboardConfig {
 export interface KpiFormItem {
   column: string
   label: string
-  agg: 'sum' | 'avg' | 'count' | 'min' | 'max'
+  agg: 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max'
   format: string
   prefix: string
   /** 货币单位: 元 / 万元 / 亿元（仅 format='currency' 时生效） */

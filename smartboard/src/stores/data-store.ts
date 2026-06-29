@@ -596,7 +596,8 @@ export const useDataStore = defineStore('data', () => {
     const prefix = ref.substring(0, dotIdx)
     const column = ref.substring(dotIdx + 1)
     for (const [id, ds] of Object.entries(tables.value)) {
-      if ((ds.fileName || ds.sheetName) === prefix) {
+      const displayName = getTableDisplayName(ds)
+      if (displayName === prefix) {
         return { tableId: id, column }
       }
     }

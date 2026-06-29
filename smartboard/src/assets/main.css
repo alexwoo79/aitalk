@@ -187,9 +187,9 @@ textarea {
 
 /* ====== Chart Component Title ====== */
 .chart-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  margin: 0 0 10px 0;
+  margin: 0 0 6px 0;
   color: var(--text-primary);
 }
 
@@ -504,20 +504,21 @@ input[type="search"]::placeholder {
 
 .metric-toggle {
   display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 4px;
+  margin-bottom: 6px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .metric-selector {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .metric-selector label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
   font-weight: 500;
   white-space: nowrap;
@@ -525,19 +526,43 @@ input[type="search"]::placeholder {
 
 .metric-select {
   width: auto;
-  min-width: 100px;
+  min-width: 80px;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+}
+
+.axis-select {
+  width: auto;
+  min-width: 80px;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
 }
 
 .period-btn {
-  padding: 4px 12px;
-  border-radius: 16px;
+  padding: 2px 10px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--bg-surface);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.15s;
   font-family: inherit;
+  line-height: 1.4;
 }
 
 .period-btn:hover {
@@ -553,10 +578,10 @@ input[type="search"]::placeholder {
 
 .toggle-sep {
   width: 1px;
-  height: 20px;
+  height: 14px;
   background: var(--border);
   align-self: center;
-  margin: 0 2px 0 auto;
+  margin: 0 2px;
 }
 
 .no-data-msg {

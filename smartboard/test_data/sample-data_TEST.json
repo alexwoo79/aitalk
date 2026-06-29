@@ -1,0 +1,332 @@
+{
+  "version": 2,
+  "config": {
+    "title": "sample-data 分析看板",
+    "kpis": [
+      {
+        "column": "利润",
+        "label": "利润",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      },
+      {
+        "column": "客户数",
+        "label": "客户数",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      },
+      {
+        "column": "销售额",
+        "label": "销售额",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      },
+      {
+        "column": "销量",
+        "label": "销量",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      }
+    ],
+    "filters": [
+      "产品名称",
+      "产品类别",
+      "区域",
+      "城市"
+    ],
+    "charts": [
+      {
+        "id": "b602c009-7c57-4887-aae3-847f84bd0b6f",
+        "type": "doughnut",
+        "title": "产品名称 占比",
+        "dimension": "产品名称",
+        "metric": "count",
+        "selected": true
+      },
+      {
+        "id": "63e9a67a-42dd-4bb4-a38a-826cc556399e",
+        "type": "bar",
+        "title": "产品名称 对比",
+        "dimension": "产品名称",
+        "metrics": [
+          "利润"
+        ],
+        "selected": true
+      },
+      {
+        "id": "c40461e1-c579-48ab-b4a0-8c95f70fbe17",
+        "type": "doughnut",
+        "title": "产品类别 占比",
+        "dimension": "产品类别",
+        "metric": "count",
+        "selected": true
+      },
+      {
+        "id": "ff16194d-65c0-413c-97cd-b264b8341877",
+        "type": "bar",
+        "title": "产品类别 对比",
+        "dimension": "产品类别",
+        "metrics": [
+          "利润"
+        ],
+        "selected": true
+      },
+      {
+        "id": "4bdce3c1-df68-4bbe-802a-55b095c27de0",
+        "type": "doughnut",
+        "title": "区域 占比",
+        "dimension": "区域",
+        "metric": "count",
+        "selected": true
+      },
+      {
+        "id": "c592cda8-2a19-40a5-9560-21cea55e00e5",
+        "type": "bar",
+        "title": "区域 对比",
+        "dimension": "区域",
+        "metrics": [
+          "利润"
+        ],
+        "selected": true
+      },
+      {
+        "id": "3fe723f5-ae97-467c-822e-61007a9bd2bd",
+        "type": "timeseries",
+        "title": "利润 时序分析",
+        "dateColumn": "日期",
+        "metric": "利润",
+        "selected": true
+      },
+      {
+        "id": "155f09a8-1c81-4234-90be-6c7ce340a00e",
+        "type": "decile",
+        "title": "利润 十分位分析",
+        "metric": "利润",
+        "selected": true
+      },
+      {
+        "id": "1178a6ec-5dce-4251-be50-a029682af1f2",
+        "type": "cluster",
+        "title": "聚类分析",
+        "metrics": [
+          "利润",
+          "客户数",
+          "销售额",
+          "销量"
+        ],
+        "clusterMetrics": [
+          "利润",
+          "客户数",
+          "销售额",
+          "销量"
+        ],
+        "k": 3,
+        "selected": true
+      }
+    ],
+    "table": {
+      "sortBy": "利润",
+      "columns": [
+        "产品名称",
+        "产品类别",
+        "利润",
+        "区域",
+        "城市",
+        "客户数",
+        "日期",
+        "销售额",
+        "销量",
+        "占比"
+      ],
+      "summaryAggs": {
+        "产品名称": "unique_count",
+        "产品类别": "unique_count",
+        "利润": "sum",
+        "区域": "unique_count",
+        "城市": "unique_count",
+        "客户数": "sum",
+        "日期": "unique_count",
+        "销售额": "sum",
+        "销量": "sum",
+        "占比": "sum"
+      },
+      "computedColumns": [
+        {
+          "name": "占比",
+          "variables": [
+            {
+              "alias": "A",
+              "column": "销售额"
+            },
+            {
+              "alias": "B",
+              "column": "销售额"
+            }
+          ],
+          "expression": "A / SUM(A)",
+          "selected": true
+        }
+      ]
+    },
+    "layout": [
+      {
+        "i": "kpi-0",
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "kpi-1",
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "kpi-2",
+        "x": 6,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "kpi-3",
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "chart-0",
+        "x": 0,
+        "y": 1,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-1",
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-2",
+        "x": 0,
+        "y": 5,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-3",
+        "x": 6,
+        "y": 5,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-4",
+        "x": 0,
+        "y": 9,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-5",
+        "x": 6,
+        "y": 9,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-6",
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-7",
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-8",
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      }
+    ],
+    "metricDefaults": {
+      "占比": {
+        "format": "percent",
+        "decimals": 2,
+        "sections": [
+          "kpi",
+          "chart",
+          "table"
+        ]
+      }
+    }
+  },
+  "relations": [],
+  "mainTableId": null,
+  "tableMeta": [
+    {
+      "id": "mqzbf20mmffjhd",
+      "name": "sample-data.json",
+      "filePath": "G:\\GitHub\\aitalk\\smartboard\\test_data\\sample-data.json",
+      "headers": [
+        "产品名称",
+        "产品类别",
+        "利润",
+        "区域",
+        "城市",
+        "客户数",
+        "日期",
+        "销售额",
+        "销量"
+      ],
+      "rows": 50
+    }
+  ],
+  "exportedAt": "2026-06-29T14:31:29.890Z"
+}

@@ -19,6 +19,8 @@
         <span class="layout-size">{{ layoutW }} × {{ layoutH }}</span>
       </div>
 
+      <!-- 筛选栏 + 日期范围（顶部固定） -->
+      <div class="sticky-filters">
       <!-- 筛选栏 -->
       <div class="filter-bar">
         <div v-for="f in spec.filters" :key="f.column" class="filter-item">
@@ -67,9 +69,8 @@
         <button class="btn btn-sm btn-reset" @click="resetFilters">{{ t('dashboard.resetFilter') }}</button>
         <button class="btn btn-sm btn-clear" @click="clearDashboard">Clear</button>
         <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
+        <span v-if="!spec.dateRange" class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records') }}</span>
       </div>
-      <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
-      }}</span>
 
       <!-- 日期范围 -->
       <div v-if="dateColWarn" class="date-col-warn">
@@ -95,7 +96,9 @@
             {{ p.label }}
           </button>
         </div>
+        <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records') }}</span>
       </div>
+      </div> <!-- .sticky-filters -->
 
       <!-- 已清空提示 -->
       <div v-if="dashboardCleared" class="cleared-msg">
@@ -159,6 +162,11 @@
           <div class="rs-handle rs-handle-e" @pointerdown.prevent="onResizeStart($event, 'e')"></div>
           <div class="rs-handle rs-handle-s" @pointerdown.prevent="onResizeStart($event, 's')"></div>
           <div class="rs-handle rs-handle-se" @pointerdown.prevent="onResizeStart($event, 'se')"></div>
+          <!-- 占比逻辑提示：当计算列含聚合函数（SUM/AVG 等）时显示 -->
+          <div v-if="proportionHint" class="proportion-hint">
+            <span class="ph-icon">💡</span>
+            <span>{{ proportionHint }}</span>
+          </div>
           <div class="table-toolbar">
             <h3>{{ t('dashboard.dataTable') }} · {{ tableRows.length }}<span v-if="tableSearch.trim()"> {{
               t('common.matched')
@@ -301,6 +309,7 @@ import type { ChartSpec, KpiSpec } from '@/types/spec'
 import { useTheme } from '@/composables/use-theme'
 import { useLazyRender } from '@/composables/use-lazy-render'
 import { applyFilter, parseFilter, matchRow } from '@/core/filter'
+import { augmentComputedCols } from '@/core/formula-engine'
 import SkeletonChart from '@/components/common/SkeletonChart.vue'
 
 use([
@@ -441,6 +450,37 @@ function cachedFormatCellValue(val: string | number | undefined, col: string): s
 const allColumns = computed(() => {
   if (dataStore.hasRelations) return previewStore.effectiveHeaders
   return dataStore.dataSet?.headers ?? []
+})
+
+/** 关联列颜色调色板（按关联表顺序：淡蓝 → 淡粉 → 浅绿） */
+const ASSOC_PALETTE = [
+  { headerBg: '#c5dcff', cellBg: '#e3efff' },  // 淡蓝
+  { headerBg: '#ffcdd9', cellBg: '#ffe3ea' },  // 淡粉
+  { headerBg: '#c5ecc5', cellBg: '#e3f6e3' },  // 浅绿
+]
+
+/** 关联表列 → 表序号映射（带 "表名." 前缀的列，用于按表着色） */
+const associatedColumnMap = computed(() => {
+  const map = new Map<string, number>()
+  if (!dataStore.hasRelations) return map
+  const ds = dataStore.dataSet
+  if (!ds) return map
+  const mainHeaders = new Set(ds.headers)
+  let relIdx = 0
+  for (const rel of dataStore.relations) {
+    const rightDs = dataStore.tables[rel.rightTableId]
+    if (!rightDs) { relIdx++; continue }
+    const prefix = dataStore.getTableDisplayName(rightDs)
+    for (const rh of rightDs.headers) {
+      // 跳过连接键列（与主表列名相同则无前缀，不算关联特有列）
+      if (rh === rel.rightColumn && mainHeaders.has(rh)) continue
+      if (mainHeaders.has(rh)) {
+        map.set(prefix + '.' + rh, relIdx)
+      }
+    }
+    relIdx++
+  }
+  return map
 })
 
 /** 判断列是否为数值类型（数值列用 > <，非数值列用 in ~） */
@@ -966,7 +1006,7 @@ function isDatePresetActive(months: number): boolean {
   return previewStore.dateRange.start === startStr && previewStore.dateRange.end === dr.max
 }
 
-const totalRows = computed(() => dataStore.dataSet?.rows.length ?? 0)
+const totalRows = computed(() => previewStore.effectiveRows.length)
 
 const dateRangeCount = computed(() => {
   if (!spec.value?.dateRange) return 0
@@ -974,7 +1014,7 @@ const dateRangeCount = computed(() => {
   const start = previewStore.dateRange.start
   const end = previewStore.dateRange.end
   if (!start || !end) return 0
-  const rows = dataStore.dataSet?.rows ?? []
+  const rows = previewStore.effectiveRows
   return rows.reduce((n, r) => {
     const d = String(r[dateCol] ?? '').trim()
     return d >= start && d <= end ? n + 1 : n
@@ -997,7 +1037,7 @@ function formatKpiValue(value: number, format: string, prefix: string, unit?: st
   const p = prefix || ''
   const d = decimals !== undefined ? decimals : 2
   if (format === 'percent') {
-    const v = value <= 1 && value >= -1 ? value * 100 : value
+    const v = value <= 1.000001 && value >= -1.000001 ? value * 100 : value
     return v.toFixed(d) + '%'
   }
   if (format === 'currency') {
@@ -1015,7 +1055,8 @@ function formatKpiValue(value: number, format: string, prefix: string, unit?: st
 function formatCellValue(val: string | number | undefined, col: string): string {
   if (val === undefined || val === null || val === '') return '—'
   const cls = dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col]
-  const isCompCol = spec.value?.table?.computedColumns?.some(c => c.name === col && c.selected !== false)
+  const ccDef = configStore.config.table.computedColumns?.find(c => c.name === col && c.selected !== false)
+  const isCompCol = !!ccDef
   if ((cls?.type === 'numeric' && cls.role === 'metric') || isCompCol) {
     const n = getNumericVal(val)
     if (!isNaN(n)) {
@@ -1043,7 +1084,14 @@ function getColumnHeaderStyle(col: string): Record<string, string> {
   const s: Record<string, string> = {}
   const bg = configStore.config.table.columnColors?.[col]
   const fg = configStore.config.table.columnTextColors?.[col]
-  if (bg) s.backgroundColor = bg
+  if (bg) { s.backgroundColor = bg }
+  else {
+    const idx = associatedColumnMap.value.get(col)
+    if (idx !== undefined) {
+      const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
+      s.backgroundColor = p.headerBg
+    }
+  }
   if (fg) s.color = fg
   return s
 }
@@ -1052,7 +1100,14 @@ function getColumnCellStyle(col: string, val: any): Record<string, string> {
   const s: Record<string, string> = {}
   const bg = configStore.config.table.columnColors?.[col]
   const fg = configStore.config.table.columnTextColors?.[col]
-  if (bg) s.backgroundColor = bg + '20'
+  if (bg) { s.backgroundColor = bg + '20' }
+  else {
+    const idx = associatedColumnMap.value.get(col)
+    if (idx !== undefined) {
+      const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
+      s.backgroundColor = p.cellBg
+    }
+  }
   // 列条件字体色优先于静态字体色
   const ruleColor = matchColTextRule(col, val)
   const textColor = ruleColor || (fg ? fg + 'a0' : '')
@@ -1146,10 +1201,22 @@ function getRowColorStyle(row: Record<string, any>): Record<string, string> {
 const tableFilteredRows = computed(() => {
   const rows = previewStore.filtersApplied
     ? previewStore.filteredRows
-    : (dataStore.dataSet?.rows ?? [])
+    : previewStore.effectiveRows
 
-  // 追加计算列，使表格筛选可引用计算列
-  let filtered = augmentWithComputedCols(rows)
+  // 追加计算列：优先使用 Rust 后端计算的数据，否则 JS fallback
+  const rustCC = previewStore.computedColumnData
+  let filtered: Record<string, any>[]
+  if (rustCC && Object.keys(rustCC).length > 0) {
+    filtered = rows.map((row, idx) => {
+      const aug = { ...row }
+      for (const [col, values] of Object.entries(rustCC)) {
+        aug[col] = values[idx] ?? 0
+      }
+      return aug
+    })
+  } else {
+    filtered = augmentComputedCols(rows, spec.value?.table?.computedColumns || [])
+  }
 
   const q = tableSearch.value.trim().toLowerCase()
   if (q) {
@@ -1168,39 +1235,8 @@ const tableFilteredRows = computed(() => {
   return filtered
 })
 
-/** 为行追加计算列值（纯函数，不依赖 computed） */
-function augmentWithComputedCols(rows: Record<string, any>[]): Record<string, any>[] {
-  const cc = spec.value?.table?.computedColumns?.filter(c => c.selected !== false && c.name && c.expression)
-  if (!cc?.length) return rows
-  return rows.map(row => {
-    const aug = { ...row }
-    for (const c of cc) {
-      try {
-        if (c.filter && applyFilter([row], undefined, c.filter).length === 0) {
-          aug[c.name] = ''; continue
-        }
-        let expr = c.expression
-        for (const v of c.variables || []) {
-          let val: number
-          if (v.filter && applyFilter([row], undefined, v.filter).length === 0) {
-            val = 0
-          } else {
-            val = Number(aug[v.column] ?? row[v.column])
-          }
-          expr = expr.replace(new RegExp('\\b' + v.alias + '\\b', 'g'), isNaN(val) ? '0' : String(val))
-        }
-        const result = new Function('"use strict"; return (' + expr + ')')()
-        aug[c.name] = typeof result === 'number' && isFinite(result) ? result : ''
-      } catch { aug[c.name] = '' }
-    }
-    return aug
-  })
-}
-
-/** 为每行追加计算列的值（排序/汇总用） */
-const augmentedRows = computed(() => {
-  return augmentWithComputedCols(tableFilteredRows.value)
-})
+/** 为每行追加计算列的值（排序/汇总用——直接复用 tableFilteredRows，不再二次计算） */
+const augmentedRows = computed(() => tableFilteredRows.value)
 
 const tableRows = computed(() => {
   let sorted = [...augmentedRows.value]
@@ -1221,6 +1257,10 @@ const tableRows = computed(() => {
 watch(() => tableRows.value.length, () => {
   for (const k of Object.keys(_cellStrCache)) delete _cellStrCache[k]
 })
+// 计算列配置变更时也清空缓存（避免旧 '—' 残留）
+watch(() => spec.value?.table?.computedColumns, () => {
+  for (const k of Object.keys(_cellStrCache)) delete _cellStrCache[k]
+}, { deep: true })
 
 // 渐进式渲染：只取前 displayRowCount 行
 const visibleRows = computed(() => tableRows.value.slice(0, displayRowCount.value))
@@ -1251,17 +1291,12 @@ watch([sortCol, sortDir, tableSearch, tableCondition], () => {
 // ====== Summary row (底部汇总行) ======
 const hasSummaryRow = computed(() => {
   const aggs = spec.value?.table?.summaryAggs
-  return aggs && Object.keys(aggs).length > 0
+  return !!(aggs && Object.keys(aggs).length > 0)
 })
 
 const summaryValues = computed(() => {
-  const noTableFilter = !tableSearch.value.trim() && !tableCondition.value.trim()
-  if (noTableFilter && previewStore.dashboardResult?.summary_values) {
-    return previewStore.dashboardResult.summary_values
-  }
-
   const rows = augmentedRows.value
-  const aggs = spec.value?.table?.summaryAggs || {}
+  const aggs = { ...spec.value?.table?.summaryAggs }
   if (Object.keys(aggs).length === 0) return {}
 
   const result: Record<string, number> = {}
@@ -1286,20 +1321,29 @@ const summaryValues = computed(() => {
 })
 
 function formatSummaryValue(col: string): string {
-  const val = summaryValues.value[col]
-  if (val === undefined) return '—'
+  const rows = tableFilteredRows.value
   const agg = spec.value?.table?.summaryAggs?.[col]
-  if (agg === 'count' || agg === 'unique_count') return String(val)
-  const cls = dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col]
-  const isCompCol = spec.value?.table?.computedColumns?.some(c => c.name === col && c.selected !== false)
-  if (cls?.type === 'numeric' || isCompCol) {
-    const def = spec.value?.metricDefaults?.[col]
-    if (def && (!def.sections || def.sections.includes('table')) && def.format) {
-      return fmtByChart(val, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
-    }
-    return fmt(val, 2)
+  if (!agg) return '—'
+  if (agg === 'unique_count') {
+    const raw = rows.map(r => String(r[col] ?? '')).filter(v => v !== '')
+    return String(new Set(raw).size)
   }
-  return String(val)
+  const vals = rows.map(r => getNumericVal(r[col])).filter(v => !isNaN(v))
+  if (vals.length === 0) return '—'
+  let result: number
+  switch (agg) {
+    case 'avg': result = vals.reduce((a, b) => a + b, 0) / vals.length; break
+    case 'count': result = vals.length; break
+    case 'min': result = vals.reduce((a, b) => a < b ? a : b, Infinity); break
+    case 'max': result = vals.reduce((a, b) => a > b ? a : b, -Infinity); break
+    default: result = vals.reduce((a, b) => a + b, 0)
+  }
+  if (agg === 'count') return String(result)
+  const def = spec.value?.metricDefaults?.[col]
+  if (def && (!def.sections || def.sections.includes('table')) && def.format) {
+    return fmtByChart(result, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
+  }
+  return fmt(result, 2)
 }
 
 function summaryAggLabel(col: string): string {
@@ -1349,7 +1393,7 @@ async function downloadTableCsv() {
 function getRows(): Record<string, string | number>[] {
   return previewStore.filtersApplied
     ? previewStore.filteredRows
-    : (dataStore.dataSet?.rows ?? [])
+    : previewStore.effectiveRows
 }
 
 const chartRows = computed(() => getRows())
@@ -1389,6 +1433,35 @@ const allMetricCols = computed(() => {
     const cls = dataStore.getEffectiveClassification(h) || ds.classifications[h]
     return cls?.role === 'metric' && !dataStore.excludedColumns.has(h)
   })
+})
+
+/** 检测计算列中是否包含聚合函数（用于占比逻辑提示） */
+const AGG_FUNC_RE = /\b(SUM|AVG|COUNT|MIN|MAX|UNIQUE_COUNT)\s*\(/i
+const hasAggComputedCols = computed(() => {
+  const cc = spec.value?.table?.computedColumns?.filter(c => c.selected !== false && c.name && c.expression)
+  return cc?.some(c => AGG_FUNC_RE.test(c.expression)) ?? false
+})
+
+/** 仪表板级别筛选是否生效（顶部筛选栏或日期范围，排除初始"全部"状态） */
+const dashboardFilterActive = computed(() => {
+  // 检查列值筛选：是否有任何列不是"全部"
+  const fv = previewStore.filterValues
+  const hasColumnFilter = Object.values(fv).some(v => v !== '__all__')
+  // 检查搜索/条件
+  const hasSearch = !!(previewStore.searchText || previewStore.conditionFilter)
+  // 检查日期范围是否偏离默认
+  const dr = spec.value?.dateRange
+  const hasDateFilter = dr
+    ? (previewStore.dateRange.start !== dr.min || previewStore.dateRange.end !== dr.max)
+    : false
+  return hasColumnFilter || hasSearch || hasDateFilter
+})
+
+/** 占比逻辑提示文本 */
+const proportionHint = computed(() => {
+  if (!hasAggComputedCols.value) return ''
+  if (dashboardFilterActive.value) return '📊 ' + t('dashboard.proportionHintSubset')
+  return '📊 ' + t('dashboard.proportionHintGlobal')
 })
 
 function isAnalysisChart(chart: ChartSpec): boolean {
@@ -1468,7 +1541,7 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   align-items: center;
   justify-content: center;
   position: relative;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
 
 .dashboard-toolbar .btn-ghost {
@@ -1501,14 +1574,15 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 .btn {
   display: inline-flex;
   align-items: center;
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
   cursor: pointer;
   border: 1px solid var(--border);
   background: var(--bg-surface);
   color: var(--text-primary);
   transition: all 0.2s;
+  line-height: 1.3;
 }
 
 .btn-ghost {
@@ -1528,59 +1602,82 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   border-color: var(--primary);
 }
 
-/* Filter bar */
+/* 筛选栏 + 日期范围：顶部固定，滚动时保持可见 */
+.sticky-filters {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  padding: 2px 0 0 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Filter bar — 紧凑模式 */
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
-  padding: 14px 18px;
+  gap: 6px;
+  padding: 6px 10px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  margin-bottom: 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
   align-items: center;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .filter-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.filter-search-group {
-  flex-shrink: 0;
-  border: 1.5px solid #10B981;
-  border-radius: 6px;
-  padding: 3px 10px;
+  gap: 4px;
 }
 
 .filter-item label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .filter-select {
-  min-width: 120px;
-  height: 32px;
+  min-width: 90px;
+  height: 26px;
+  font-size: 11px;
 }
 
 .search-input {
-  width: 180px;
-  height: 32px;
+  width: 130px;
+  height: 26px;
+  font-size: 11px;
 }
 
 .condition-input {
-  width: 240px;
-  height: 32px;
-  line-height: 1.4;
+  width: 180px;
+  height: 26px;
+  font-size: 11px;
+  line-height: 1.3;
 }
 
-.filter-actions {
+.filter-search-group {
+  flex-shrink: 0;
+  border: 1px solid #10B981;
+  border-radius: 5px;
+  padding: 1px 6px;
   display: flex;
-  gap: 8px;
-  margin-left: 4px;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-search-group label {
+  font-size: 11px;
+}
+
+.filter-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  margin-left: auto;
 }
 
 .btn-apply {
@@ -1595,11 +1692,11 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 }
 
 .btn-mode-toggle {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -1690,18 +1787,20 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 
 .date-range-bar {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 6px;
+  margin-bottom: 0;
   align-items: center;
   flex-wrap: wrap;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 18px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .dr-label {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--text-secondary);
   font-weight: 600;
   white-space: nowrap;
@@ -1713,38 +1812,39 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 }
 
 .dr-date-col {
-  width: 130px;
-  font-size: 12px;
-  height: 28px;
+  width: 110px;
+  font-size: 11px;
+  height: 26px;
 }
 
 .dr-sep {
   color: #A0AEC0;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .dr-info {
-  font-size: 12px;
+  font-size: 11px;
   color: #718096;
-  margin-left: 4px;
+  margin-left: 2px;
 }
 
 .dr-presets {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
-  margin-left: 4px;
+  margin-left: 2px;
 }
 
 .dr-preset {
-  padding: 5px 12px;
+  padding: 2px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10px;
   background: var(--bg);
   color: var(--text-secondary);
   transition: all 0.15s;
+  line-height: 1.4;
 }
 
 .dr-preset:hover {
@@ -1762,18 +1862,12 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 .cleared-msg {
   text-align: center;
   padding: 80px 20px;
+  margin-top: 16px;
   color: #A0AEC0;
   font-size: 15px;
 }
 
 /* KPI grid */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
 .kpi-card {
   display: flex;
   align-items: center;
@@ -1812,18 +1906,17 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   margin-top: 2px;
 }
 
-/* KPI row */
+/* KPI row — CSS Grid 自动换行，卡片不拥挤 */
 .kpi-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 14px;
+  margin-top: 16px;
   margin-bottom: 20px;
 }
 
 .kpi-row .kpi-card {
-  flex: 1;
-  min-width: 180px;
-  max-width: 280px;
+  /* grid 自动分配尺寸，无需 flex/max-width */
 }
 
 /* Charts flex layout with resize handles — contain & overflow prevent ECharts infinite stretch on Windows */
@@ -1831,6 +1924,7 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
+  margin-top: 16px;
   margin-bottom: 24px;
 }
 
@@ -1978,50 +2072,79 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* 占比逻辑提示条 */
+.proportion-hint {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #1e40af;
+  background: #dbeafe;
+  border: 1px solid #bfdbfe;
+  line-height: 1.4;
+}
+
+.proportion-hint .ph-icon {
+  flex-shrink: 0;
+  font-size: 13px;
 }
 
 .table-toolbar h3 {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
+  margin: 0;
 }
 
 .table-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   position: relative;
+  font-size: 11px;
 }
 
 .control-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .control-group label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 
 .table-search-group {
-  border: 1.5px solid #10B981;
-  border-radius: 6px;
-  padding: 2px 8px;
+  border: 1px solid #10B981;
+  border-radius: 5px;
+  padding: 1px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.table-input {
-  width: 70px;
+.table-search-group label {
+  font-size: 11px;
 }
 
 .table-search {
-  width: 170px;
+  width: 130px;
+  height: 26px;
+  font-size: 11px;
 }
 
 .table-cond {
-  width: 200px;
+  width: 160px;
+  height: 26px;
+  font-size: 11px;
 }
 
 /* 输入框包裹 + 内嵌清除按钮 */
@@ -2044,8 +2167,8 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 13px;
-  padding: 2px 4px;
+  font-size: 11px;
+  padding: 1px 3px;
   line-height: 1;
   border-radius: 3px;
   opacity: 0.6;
@@ -2219,15 +2342,15 @@ function isAnalysisChart(chart: ChartSpec): boolean {
 <style>
 /* Native date inputs in date-range bar */
 .dr-date-input {
-  height: 32px;
-  padding: 0 8px;
+  height: 26px;
+  padding: 0 6px;
   font-size: 11px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--bg);
   color: var(--text-primary);
   outline: none;
-  width: 130px;
+  width: 110px;
 }
 
 .dr-date-input:focus {

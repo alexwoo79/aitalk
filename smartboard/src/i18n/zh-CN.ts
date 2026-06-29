@@ -294,6 +294,7 @@ export default {
     computedCols: '计算列（公式生成新列）',
     addComputedCol: '添加计算列',
     editComputedCol: '编辑计算列',
+    presetRatioCol: '占比',
     colName: '列名',
     colExpr: '公式',
     unnamedCol: '未命名列',
@@ -397,6 +398,8 @@ export default {
     saveSuccessTitle: '保存成功',
     saveFailed: '保存失败:\n{error}',
     saveFailedTitle: '保存失败',
+    proportionHintGlobal: '无顶部筛选条件，占比 = 子集占全局比（合计可能 < 100%）',
+    proportionHintSubset: '当前有顶部筛选条件，占比 = 子集内相对占比（合计 = 100%）',
   },
 
   // Chart common

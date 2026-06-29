@@ -79,6 +79,106 @@ export function parseExpression(expr: string, aliases: string[]): ParsedTerm[] {
   return terms
 }
 
+// ====== 计算列聚合预计算 ======
+
+export interface PrecomputedAggs {
+  /** 替换聚合调用后的纯数值表达式 */
+  expression: string
+}
+
+/**
+ * 预计算表达式中的聚合函数值，替换为数值
+ * 用于计算列：先将 SUM(A)/AVG(B) 等聚合项计算为常数，再逐行求值
+ *
+ * 例: "A / SUM(A)" → { expression: "A / 10000" }
+ */
+export function precomputeAggregates(
+  expression: string,
+  variables: FormulaVar[],
+  rows: Record<string, string | number>[],
+): PrecomputedAggs {
+  const aliases = variables.map(v => v.alias)
+  const terms = parseExpression(expression, aliases)
+
+  if (terms.length === 0) return { expression }
+
+  let expr = expression
+
+  for (const term of terms) {
+    const original = `${term.func}(${term.innerExpr})`
+    const termVars = variables.filter(v => term.aliases.includes(v.alias))
+    const termFilters = termVars.map(v => v.filter).filter(Boolean)
+    const combinedFilter = termFilters.join(' & ') || undefined
+    const termRows = combinedFilter ? applyFilter(rows, combinedFilter) : rows
+
+    const rowResults = computeRowWise(termRows, term.innerExpr, termVars)
+    const value = applyAgg(rowResults, term.func, termRows, termVars[0]?.column)
+
+    // 替换原文本中的聚合调用为数值（只替换第一个匹配，避免多重替换）
+    expr = expr.replace(original, String(value))
+  }
+
+  return { expression: expr }
+}
+
+// ====== 计算列增强（公共函数，避免三处重复） ======
+
+export interface ComputedColDef {
+  name: string
+  expression: string
+  selected?: boolean
+  variables?: { alias: string; column: string; filter?: string }[]
+  filter?: string
+}
+
+/**
+ * 为行数据追加计算列的值
+ * 支持聚合函数 SUM/AVG/COUNT/MIN/MAX/UNIQUE_COUNT
+ * 例: A/SUM(A) → 每行 Ai/全局SUM
+ */
+export function augmentComputedCols(
+  rows: Record<string, any>[],
+  cc: ComputedColDef[],
+): Record<string, any>[] {
+  const active = cc.filter(c => c.selected !== false && c.name && c.expression)
+  if (!active.length) return rows
+
+  const precomputed: { name: string; expr: string; filter?: string; variables: FormulaVar[] }[] = []
+  for (const c of active) {
+    const vars: FormulaVar[] = (c.variables || []).map(v => ({
+      alias: v.alias,
+      column: v.column,
+      filter: (v as any).filter as string | undefined,
+    }))
+    const { expression: preExpr } = precomputeAggregates(c.expression, vars, rows)
+    precomputed.push({ name: c.name, expr: preExpr, filter: c.filter, variables: vars })
+  }
+
+  return rows.map(row => {
+    const aug = { ...row }
+    for (const pc of precomputed) {
+      try {
+        if (pc.filter && applyFilter([row], undefined, pc.filter).length === 0) {
+          aug[pc.name] = ''; continue
+        }
+        let expr = pc.expr
+        for (const v of pc.variables) {
+          let val: number
+          if (v.filter && applyFilter([row], undefined, v.filter).length === 0) {
+            val = 0
+          } else {
+            val = Number(aug[v.column] ?? row[v.column])
+          }
+          expr = expr.replace(new RegExp('\\b' + v.alias + '\\b', 'g'), isNaN(val) ? '0' : String(val))
+        }
+        const result = new Function('"use strict"; return (' + expr + ')')()
+        aug[pc.name] = typeof result === 'number' && isFinite(result) ? result : ''
+      } catch { aug[pc.name] = '' }
+    }
+    return aug
+  })
+}
+
 // ====== 行内计算 ======
 
 /**

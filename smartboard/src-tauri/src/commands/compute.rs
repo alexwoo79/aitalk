@@ -87,6 +87,8 @@ pub struct ComputeResponse {
     pub kpi_values: HashMap<String, f64>,
     pub chart_data: HashMap<String, Vec<GroupbyItem>>,
     pub summary_values: HashMap<String, f64>,
+    /// 计算列的逐行数据（前端表格显示用）
+    pub computed_columns: HashMap<String, Vec<f64>>,
 }
 
 #[tauri::command]
@@ -187,11 +189,24 @@ pub async fn compute_dashboard(request_json: String) -> ApiResult<ComputeRespons
             summary_values.insert(cn.clone(), compute_one(&filtered, cn, agg));
         }
 
+        // 提取计算列逐行数据，传给前端表格显示
+        let mut computed_columns = HashMap::new();
+        for cc in &req.computed_columns {
+            if let Ok(col_data) = filtered.column(&cc.name) {
+                let values: Vec<f64> = col_data
+                    .f64()
+                    .map(|ca| ca.iter().map(|v| v.unwrap_or(0.0)).collect())
+                    .unwrap_or_default();
+                computed_columns.insert(cc.name.clone(), values);
+            }
+        }
+
         ApiResult::success(ComputeResponse {
             row_count,
             kpi_values,
             chart_data,
             summary_values,
+            computed_columns,
         })
     })
     .await

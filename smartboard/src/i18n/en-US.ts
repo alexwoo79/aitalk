@@ -291,6 +291,7 @@ export default {
     computedCols: 'Computed Columns (Formula)',
     addComputedCol: 'Add Computed Column',
     editComputedCol: 'Edit Computed Column',
+    presetRatioCol: 'Ratio',
     colName: 'Col Name',
     colExpr: 'Formula',
     unnamedCol: 'Unnamed',
@@ -393,6 +394,8 @@ export default {
     saveSuccessTitle: 'Save Successful',
     saveFailed: 'Save failed:\n{error}',
     saveFailedTitle: 'Save Failed',
+    proportionHintGlobal: 'No top filter active — ratio = subset / global total (sum may be < 100%)',
+    proportionHintSubset: 'Top filter active — ratio = within filtered subset (sum = 100%)',
   },
 
   chart: {

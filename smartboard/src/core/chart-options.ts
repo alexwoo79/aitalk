@@ -54,7 +54,8 @@ export function fmtByChart(n: number | null | undefined, chart: { format?: strin
   if (!fmtType || fmtType === 'number' || fmtType === 'global') return fmt(n, decimals)
   if (fmtType === 'integer') return fmt(n, 0)
   if (fmtType === 'percent') {
-    const v = n <= 1 && n >= -1 ? n * 100 : n
+    // 浮点容差：sum(A/SUM(A)) 理论上=1.0，实际可能是 1.0000000000000002
+    const v = n <= 1.000001 && n >= -1.000001 ? n * 100 : n
     return v.toFixed(decimals) + '%'
   }
   if (fmtType === 'currency') {
@@ -173,105 +174,105 @@ export function buildToolbox(): Record<string, any> {
       title: L.dataView,
       readOnly: true,
       lang: [L.dataTable, L.close, L.refresh],
-        optionToContent: function (opt: any) {
-          const series = opt.series || []
-          // Read resolved CSS variable values from <html> — these auto-update with theme
-          const root = document.documentElement
-          const cs = getComputedStyle(root)
-          const bg = cs.getPropertyValue('--bg-surface').trim() || '#fff'
-          const bd = cs.getPropertyValue('--border').trim() || '#e2e8f0'
-          const txt = cs.getPropertyValue('--text-primary').trim() || '#1e293b'
-          const bgHover = cs.getPropertyValue('--bg-hover').trim() || '#f1f5f9'
-          const thStyle = 'padding:6px 10px;border-bottom:2px solid ' + bd + ';color:' + txt
-          const tdStyle = 'padding:4px 10px;border-bottom:1px solid ' + bd + ';color:' + txt
-          const btnStyle = 'margin-top:8px;padding:4px 12px;border:1px solid ' + bd + ';border-radius:4px;background:' + bgHover + ';cursor:pointer;font-size:12px;color:' + txt
-          // Helper: format number to 2 decimals if fractional
-          const mfStore = { metricFormats: (opt as any)._mf || {} }
-          function tf(v: any, metricName?: string): string {
-            const n = Number(v)
-            if (isNaN(n)) return String(v ?? '')
-            return fmtByChart(n, mfStore, metricName)
-          }
-          // Pie chart (doughnut): use series[0].data [{name, value}]
-          const isPie = series[0]?.type === 'pie'
-          if (isPie) {
-            const data = series[0]?.data || []
-            const total = data.reduce((s: number, d: any) => s + (d.value || 0), 0)
-            let tsv = L.category + '\t' + L.value + '\t' + L.proportion + '\n'
-            let html = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ';background:' + bg + '"><table style="width:100%;border-collapse:collapse">'
-            html += '<thead><tr><th style="' + thStyle + ';text-align:left">' + L.category + '</th><th style="' + thStyle + ';text-align:right">' + L.value + '</th><th style="' + thStyle + ';text-align:right">' + L.proportion + '</th></tr></thead><tbody>'
-            data.forEach((d: any) => {
-              const pct = total ? ((d.value / total) * 100).toFixed(1) + '%' : '0%'
-              const fv = tf(d.value)
-              html += '<tr><td style="' + tdStyle + '">' + (d.name || '') + '</td><td style="' + tdStyle + ';text-align:right">' + fv + '</td><td style="' + tdStyle + ';text-align:right">' + pct + '</td></tr>'
-              tsv += (d.name || '') + '\t' + fv + '\t' + pct + '\n'
-            })
-            html += '</tbody></table>'
-            html += '<button class="copy-table-btn" data-tsv="' + encodeTsv(tsv) + '" style="' + btnStyle + '">' + L.copyTable + '</button>'
-            html += '</div>'
-            return html
-          }
-          // Scatter chart (cluster): series[].data are [x, y] pairs
-          const isScatter = series[0]?.type === 'scatter'
-          if (isScatter) {
-            const xName = opt.xAxis?.[0]?.name || 'X'
-            const yName = opt.yAxis?.[0]?.name || 'Y'
-            let tsv = L.index + '\t' + xName + '\t' + yName + '\t' + L.cluster + '\n'
-            let html = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ';background:' + bg + '"><table style="width:100%;border-collapse:collapse">'
-            html += '<thead><tr><th style="' + thStyle + ';text-align:left">#</th>'
-            html += '<th style="' + thStyle + ';text-align:right">' + xName + '</th>'
-            html += '<th style="' + thStyle + ';text-align:right">' + yName + '</th>'
-            html += '<th style="' + thStyle + ';text-align:left">' + L.cluster + '</th></tr></thead><tbody>'
-            let idx = 0
-            for (const s of series) {
-              const sName = s.name || ''
-              for (const pt of (s.data || [])) {
-                if (!Array.isArray(pt) || pt.length < 2) continue
-                idx++
-                const label = sName + ' #' + idx
-                html += '<tr><td style="' + tdStyle + '">' + label + '</td>'
-                html += '<td style="' + tdStyle + ';text-align:right">' + tf(pt[0]) + '</td>'
-                html += '<td style="' + tdStyle + ';text-align:right">' + tf(pt[1]) + '</td>'
-                html += '<td style="' + tdStyle + '">' + sName + '</td></tr>'
-                tsv += label + '\t' + tf(pt[0]) + '\t' + tf(pt[1]) + '\t' + sName + '\n'
-              }
-            }
-            html += '</tbody></table>'
-            html += '<button class="copy-table-btn" data-tsv="' + encodeTsv(tsv) + '" style="' + btnStyle + '">' + L.copyTable + '</button>'
-            html += '</div>'
-            return html
-          }
-          // Cartesian chart: check xAxis first, then yAxis (horizontal bar)
-          const xAxisData = opt.xAxis?.[0]?.data || []
-          const yAxisData = opt.yAxis?.[0]?.data || []
-          const isHorizontal = xAxisData.length === 0 && yAxisData.length > 0
-          const catData = isHorizontal ? yAxisData : xAxisData
-          let tsv = L.dimension + '\t' + series.map((s: any) => s.name || '').join('\t') + '\n'
+      optionToContent: function (opt: any) {
+        const series = opt.series || []
+        // Read resolved CSS variable values from <html> — these auto-update with theme
+        const root = document.documentElement
+        const cs = getComputedStyle(root)
+        const bg = cs.getPropertyValue('--bg-surface').trim() || '#fff'
+        const bd = cs.getPropertyValue('--border').trim() || '#e2e8f0'
+        const txt = cs.getPropertyValue('--text-primary').trim() || '#1e293b'
+        const bgHover = cs.getPropertyValue('--bg-hover').trim() || '#f1f5f9'
+        const thStyle = 'padding:6px 10px;border-bottom:2px solid ' + bd + ';color:' + txt
+        const tdStyle = 'padding:4px 10px;border-bottom:1px solid ' + bd + ';color:' + txt
+        const btnStyle = 'margin-top:8px;padding:4px 12px;border:1px solid ' + bd + ';border-radius:4px;background:' + bgHover + ';cursor:pointer;font-size:12px;color:' + txt
+        // Helper: format number to 2 decimals if fractional
+        const mfStore = { metricFormats: (opt as any)._mf || {} }
+        function tf(v: any, metricName?: string): string {
+          const n = Number(v)
+          if (isNaN(n)) return String(v ?? '')
+          return fmtByChart(n, mfStore, metricName)
+        }
+        // Pie chart (doughnut): use series[0].data [{name, value}]
+        const isPie = series[0]?.type === 'pie'
+        if (isPie) {
+          const data = series[0]?.data || []
+          const total = data.reduce((s: number, d: any) => s + (d.value || 0), 0)
+          let tsv = L.category + '\t' + L.value + '\t' + L.proportion + '\n'
           let html = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ';background:' + bg + '"><table style="width:100%;border-collapse:collapse">'
-          html += '<thead><tr><th style="' + thStyle + ';text-align:left">' + L.dimension + '</th>'
-          series.forEach((s: any) => {
-            html += '<th style="' + thStyle + ';text-align:right">' + (s.name || '') + '</th>'
+          html += '<thead><tr><th style="' + thStyle + ';text-align:left">' + L.category + '</th><th style="' + thStyle + ';text-align:right">' + L.value + '</th><th style="' + thStyle + ';text-align:right">' + L.proportion + '</th></tr></thead><tbody>'
+          data.forEach((d: any) => {
+            const pct = total ? ((d.value / total) * 100).toFixed(1) + '%' : '0%'
+            const fv = tf(d.value)
+            html += '<tr><td style="' + tdStyle + '">' + (d.name || '') + '</td><td style="' + tdStyle + ';text-align:right">' + fv + '</td><td style="' + tdStyle + ';text-align:right">' + pct + '</td></tr>'
+            tsv += (d.name || '') + '\t' + fv + '\t' + pct + '\n'
           })
-          html += '</tr></thead><tbody>'
-          for (let i = 0; i < catData.length; i++) {
-            html += '<tr>'
-            html += '<td style="' + tdStyle + '">' + (catData[i] || '') + '</td>'
-            const row: string[] = [String(catData[i] || '')]
-            series.forEach((s: any) => {
-              const val = tf(s.data?.[i] ?? '')
-              row.push(val)
-              html += '<td style="' + tdStyle + ';text-align:right">' + val + '</td>'
-            })
-            tsv += row.join('\t') + '\n'
-            html += '</tr>'
+          html += '</tbody></table>'
+          html += '<button class="copy-table-btn" data-tsv="' + encodeTsv(tsv) + '" style="' + btnStyle + '">' + L.copyTable + '</button>'
+          html += '</div>'
+          return html
+        }
+        // Scatter chart (cluster): series[].data are [x, y] pairs
+        const isScatter = series[0]?.type === 'scatter'
+        if (isScatter) {
+          const xName = opt.xAxis?.[0]?.name || 'X'
+          const yName = opt.yAxis?.[0]?.name || 'Y'
+          let tsv = L.index + '\t' + xName + '\t' + yName + '\t' + L.cluster + '\n'
+          let html = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ';background:' + bg + '"><table style="width:100%;border-collapse:collapse">'
+          html += '<thead><tr><th style="' + thStyle + ';text-align:left">#</th>'
+          html += '<th style="' + thStyle + ';text-align:right">' + xName + '</th>'
+          html += '<th style="' + thStyle + ';text-align:right">' + yName + '</th>'
+          html += '<th style="' + thStyle + ';text-align:left">' + L.cluster + '</th></tr></thead><tbody>'
+          let idx = 0
+          for (const s of series) {
+            const sName = s.name || ''
+            for (const pt of (s.data || [])) {
+              if (!Array.isArray(pt) || pt.length < 2) continue
+              idx++
+              const label = sName + ' #' + idx
+              html += '<tr><td style="' + tdStyle + '">' + label + '</td>'
+              html += '<td style="' + tdStyle + ';text-align:right">' + tf(pt[0]) + '</td>'
+              html += '<td style="' + tdStyle + ';text-align:right">' + tf(pt[1]) + '</td>'
+              html += '<td style="' + tdStyle + '">' + sName + '</td></tr>'
+              tsv += label + '\t' + tf(pt[0]) + '\t' + tf(pt[1]) + '\t' + sName + '\n'
+            }
           }
           html += '</tbody></table>'
           html += '<button class="copy-table-btn" data-tsv="' + encodeTsv(tsv) + '" style="' + btnStyle + '">' + L.copyTable + '</button>'
           html += '</div>'
           return html
-        },
+        }
+        // Cartesian chart: check xAxis first, then yAxis (horizontal bar)
+        const xAxisData = opt.xAxis?.[0]?.data || []
+        const yAxisData = opt.yAxis?.[0]?.data || []
+        const isHorizontal = xAxisData.length === 0 && yAxisData.length > 0
+        const catData = isHorizontal ? yAxisData : xAxisData
+        let tsv = L.dimension + '\t' + series.map((s: any) => s.name || '').join('\t') + '\n'
+        let html = '<div style="max-height:400px;overflow:auto;font-size:12px;color:' + txt + ';background:' + bg + '"><table style="width:100%;border-collapse:collapse">'
+        html += '<thead><tr><th style="' + thStyle + ';text-align:left">' + L.dimension + '</th>'
+        series.forEach((s: any) => {
+          html += '<th style="' + thStyle + ';text-align:right">' + (s.name || '') + '</th>'
+        })
+        html += '</tr></thead><tbody>'
+        for (let i = 0; i < catData.length; i++) {
+          html += '<tr>'
+          html += '<td style="' + tdStyle + '">' + (catData[i] || '') + '</td>'
+          const row: string[] = [String(catData[i] || '')]
+          series.forEach((s: any) => {
+            const val = tf(s.data?.[i] ?? '')
+            row.push(val)
+            html += '<td style="' + tdStyle + ';text-align:right">' + val + '</td>'
+          })
+          tsv += row.join('\t') + '\n'
+          html += '</tr>'
+        }
+        html += '</tbody></table>'
+        html += '<button class="copy-table-btn" data-tsv="' + encodeTsv(tsv) + '" style="' + btnStyle + '">' + L.copyTable + '</button>'
+        html += '</div>'
+        return html
       },
-      restore: { title: L.restore },
+    },
+    restore: { title: L.restore },
   }
   return {
     show: true,
@@ -678,18 +679,18 @@ export function buildLineOption(
       const arr = seriesData[l]?.[mc] || []
       const aggFn = chart.metricAggs?.[mc] || chart.agg || 'sum'
       return applyAgg(arr, aggFn)
-      }),
-      smooth,
-      lineStyle: { color: COLORS[mi % COLORS.length], width: 2 },
-      itemStyle: { color: COLORS[mi % COLORS.length] },
-      markPoint: {
-        data: [
-          { type: 'max', name: '最大', symbolSize: 36, itemStyle: { color: '#EF4444' }, label: { show: false } },
-          { type: 'min', name: '最小', symbolSize: 30, itemStyle: { color: '#3B82F6' }, label: { show: false } },
-        ],
-      },
-      areaStyle: areaFill ? { color: COLORS[mi % COLORS.length] + '22' } : undefined,
-    }))
+    }),
+    smooth,
+    lineStyle: { color: COLORS[mi % COLORS.length], width: 2 },
+    itemStyle: { color: COLORS[mi % COLORS.length] },
+    markPoint: {
+      data: [
+        { type: 'max', name: '最大', symbolSize: 36, itemStyle: { color: '#EF4444' }, label: { show: false } },
+        { type: 'min', name: '最小', symbolSize: 30, itemStyle: { color: '#3B82F6' }, label: { show: false } },
+      ],
+    },
+    areaStyle: areaFill ? { color: COLORS[mi % COLORS.length] + '22' } : undefined,
+  }))
 
   return {
     _mf: chart.metricFormats || {},

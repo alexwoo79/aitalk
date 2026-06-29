@@ -398,25 +398,27 @@ const csvDone = ref(false)
 .metric-toggle {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 4px;
+  margin-bottom: 6px;
+  align-items: center;
 }
 
 .period-btn {
-  padding: 4px 14px;
-  border-radius: 16px;
+  padding: 2px 10px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
+  line-height: 1.4;
 }
 
 .period-btn.active {
-  background: #3B82F6;
+  background: var(--primary);
   color: white;
-  border-color: #3B82F6;
+  border-color: var(--primary);
 }
 
 .chart-container {
