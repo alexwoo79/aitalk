@@ -50,6 +50,8 @@ export interface TableConfig {
   columnOrder?: string[]
   /** 计算列（公式生成的行内数据） */
   computedColumns?: ComputedColumn[]
+  /** 列格式（仅指标列）：格式/单位/前缀/小数位数，默认对KPI/图表/数据表全部生效 */
+  columnFormats?: Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi'; prefix?: string; decimals?: number }>
 }
 
 /** 计算列：基于已有列的公式生成新数据列 */
@@ -83,8 +85,6 @@ export interface DashboardConfig {
   dateColumns?: string[]
   charts: ChartFormItem[]
   table: TableConfig
-  /** 全局指标格式默认值，按列名 key，KPI/图表单独设定会覆盖此值 */
-  metricDefaults?: Record<string, MetricDefault>
   /** 画布布局（拖拽位置/大小），为空时自动生成 */
   layout?: LayoutItem[]
 }

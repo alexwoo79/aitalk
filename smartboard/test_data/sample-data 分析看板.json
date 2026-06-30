@@ -1,0 +1,328 @@
+{
+  "version": 2,
+  "config": {
+    "title": "sample-data 分析看板",
+    "kpis": [
+      {
+        "column": "销售额",
+        "label": "销售额",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      },
+      {
+        "column": "销量",
+        "label": "销量",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      },
+      {
+        "column": "利润",
+        "label": "利润",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      },
+      {
+        "column": "客户数",
+        "label": "客户数",
+        "agg": "sum",
+        "format": "global",
+        "prefix": "",
+        "selected": true
+      }
+    ],
+    "filters": [
+      "区域",
+      "城市",
+      "产品类别",
+      "产品名称"
+    ],
+    "charts": [
+      {
+        "id": "2c76aa4b-cd54-4854-a604-8ea0a90dd968",
+        "type": "doughnut",
+        "title": "区域 占比",
+        "dimension": "区域",
+        "metric": "count",
+        "selected": true
+      },
+      {
+        "id": "9eb45d62-1168-4135-819a-a8bbaf4a45e9",
+        "type": "bar",
+        "title": "区域 对比",
+        "dimension": "区域",
+        "metrics": [
+          "销售额"
+        ],
+        "selected": true
+      },
+      {
+        "id": "2f1f5669-5035-47c0-baea-14d7c309f3cb",
+        "type": "horizontal_bar",
+        "title": "城市 排行",
+        "dimension": "城市",
+        "metric": "销售额",
+        "metrics": [
+          "销售额"
+        ],
+        "selected": true
+      },
+      {
+        "id": "61120feb-b43b-4023-a2bc-1032bbb25176",
+        "type": "doughnut",
+        "title": "产品类别 占比",
+        "dimension": "产品类别",
+        "metric": "count",
+        "selected": true
+      },
+      {
+        "id": "5de028cc-bc42-4f47-a22a-4b2f15cbc541",
+        "type": "bar",
+        "title": "产品类别 对比",
+        "dimension": "产品类别",
+        "metrics": [
+          "销售额"
+        ],
+        "selected": true
+      },
+      {
+        "id": "4e57004f-d5b6-4ca9-b25a-2967007ad6ca",
+        "type": "histogram",
+        "title": "销售额 分布",
+        "metric": "销售额",
+        "selected": true
+      },
+      {
+        "id": "5d08c240-d1e4-409b-8093-44ec940b6e6c",
+        "type": "timeseries",
+        "title": "销售额 时序分析",
+        "dateColumn": "日期",
+        "metric": "销售额",
+        "selected": true
+      },
+      {
+        "id": "b5540557-dd8e-4ebf-872b-5600f75bf12e",
+        "type": "decile",
+        "title": "销售额 十分位分析",
+        "metric": "销售额",
+        "selected": true
+      },
+      {
+        "id": "fc9af14e-d39f-43e9-80d9-6e638be72e87",
+        "type": "cluster",
+        "title": "聚类分析",
+        "metrics": [
+          "销售额",
+          "销量",
+          "利润",
+          "客户数"
+        ],
+        "clusterMetrics": [
+          "销售额",
+          "销量",
+          "利润",
+          "客户数"
+        ],
+        "k": 3,
+        "selected": true
+      }
+    ],
+    "table": {
+      "sortBy": "销售额",
+      "columns": [
+        "日期",
+        "区域",
+        "城市",
+        "产品类别",
+        "产品名称",
+        "销售额",
+        "销量",
+        "利润",
+        "客户数",
+        "占比"
+      ],
+      "summaryAggs": {
+        "日期": "unique_count",
+        "区域": "unique_count",
+        "城市": "unique_count",
+        "产品类别": "unique_count",
+        "产品名称": "unique_count",
+        "销售额": "sum",
+        "销量": "sum",
+        "利润": "sum",
+        "客户数": "sum",
+        "占比": "sum"
+      },
+      "computedColumns": [
+        {
+          "name": "占比",
+          "selected": true,
+          "variables": [
+            {
+              "alias": "A",
+              "column": "销售额"
+            }
+          ],
+          "expression": "A/SUM(A)"
+        }
+      ],
+      "columnFormats": {
+        "占比": {
+          "format": "percent",
+          "unit": "yuan",
+          "prefix": "",
+          "decimals": 2
+        }
+      },
+      "columnTextColors": {
+        "占比": "#ff9300"
+      }
+    },
+    "layout": [
+      {
+        "i": "kpi-0",
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "kpi-1",
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "kpi-2",
+        "x": 6,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "kpi-3",
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 2,
+        "minW": 2,
+        "minH": 2
+      },
+      {
+        "i": "chart-0",
+        "x": 0,
+        "y": 1,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-1",
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-2",
+        "x": 0,
+        "y": 5,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-3",
+        "x": 6,
+        "y": 5,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-4",
+        "x": 0,
+        "y": 9,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-5",
+        "x": 6,
+        "y": 9,
+        "w": 6,
+        "h": 4,
+        "minW": 3,
+        "minH": 3
+      },
+      {
+        "i": "chart-6",
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-7",
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      },
+      {
+        "i": "chart-8",
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 5,
+        "minW": 6,
+        "minH": 4
+      }
+    ]
+  },
+  "relations": [],
+  "mainTableId": null,
+  "tableMeta": [
+    {
+      "id": "mr0swnx5257jpe",
+      "name": "sample-data.parquet",
+      "filePath": "/Volumes/ExtraSSD/Users/alex/Documents/Git仓库/GitHub/aitalk/smartboard/test_data/sample-data.parquet",
+      "headers": [
+        "日期",
+        "区域",
+        "城市",
+        "产品类别",
+        "产品名称",
+        "销售额",
+        "销量",
+        "利润",
+        "客户数"
+      ],
+      "rows": 50
+    }
+  ],
+  "exportedAt": "2026-06-30T15:41:54.463Z"
+}

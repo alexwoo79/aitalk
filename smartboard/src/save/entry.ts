@@ -41,7 +41,11 @@ interface DashboardData {
   tableRowLimit?: number | 'all'
   tableSummaryAggs?: Record<string, string>
   tableColColors?: Record<string, string>
-  tableRowCondColors?: { condition: string; color: string }[]
+  tableColTextColors?: Record<string, string>
+  tableRowCondColors?: { condition: string; color: string; textColor?: string }[]
+  tableColumnFormats?: Record<string, { format?: string; unit?: string; prefix?: string; decimals?: number }>
+  tableComputedColumns?: { name: string; variables: { alias: string; column: string; filter?: string }[]; expression: string; filter?: string; selected?: boolean }[]
+  tableColumnOrder?: string[]
   dateRange?: { column: string; min: string; max: string } | null
   dateStart: string
   dateEnd: string
@@ -234,6 +238,14 @@ function getFilteredRows(): Record<string, string | number>[] {
 function renderFilterBar() {
   const bar = document.getElementById('filterBar')!
   bar.innerHTML = ''
+
+  // 无筛选列时隐藏整个 bar
+  if (!DATA.filterSpecs?.length) {
+    bar.style.display = 'none'
+    return
+  }
+  bar.style.display = ''
+
   DATA.filterSpecs.forEach(f => {
     const lb = document.createElement('label'); lb.textContent = f.column + ':'; bar.appendChild(lb)
     const sel = document.createElement('select')
@@ -246,27 +258,34 @@ function renderFilterBar() {
     sel.onchange = () => { filterValues[f.column] = sel.value; refreshAll() }
     bar.appendChild(sel)
   })
+
   // Condition filter
-  const cf = document.createElement('input'); cf.type = 'text'
+  const cf = document.createElement('input'); cf.type = 'text'; cf.className = 'filter-cond-inp'
   cf.placeholder = t('dashboard.conditionPlaceholder') || 'e.g. Amount > 100 & Region = Beijing'
-  cf.style.cssText = 'padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:200px;background:var(--bg-surface);color:var(--text-primary)'
   cf.oninput = () => { condFilter = cf.value; refreshAll() }; bar.appendChild(cf)
+
   // Search
-  const si = document.createElement('input'); si.type = 'text'; si.placeholder = '搜索...'
-  si.style.cssText = 'padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;width:120px;background:var(--bg-surface);color:var(--text-primary)'
+  const si = document.createElement('input'); si.type = 'text'; si.className = 'filter-search-inp'
+  si.placeholder = t('dashboard.searchPlaceholder') || '搜索...'
   si.oninput = () => { searchText = si.value; refreshAll() }; bar.appendChild(si)
+
   // Reset
   const rb = document.createElement('button'); rb.className = 'btn'; rb.textContent = t('dashboard.resetFilter')
-  rb.onclick = () => { filterValues = {}; condFilter = ''; searchText = ''; cf.value = ''; si.value = ''; refreshAll() }
+  rb.onclick = () => {
+    filterValues = {}; condFilter = ''; searchText = ''
+    cf.value = ''; si.value = ''
+    // 同时重置所有下拉框
+    bar.querySelectorAll('select').forEach(s => { s.value = '' })
+    refreshAll()
+  }
   bar.appendChild(rb)
+
   // Theme toggle
   const tb = document.createElement('button'); tb.className = 'theme-toggle'; tb.id = 'themeToggle'
   tb.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'
   tb.title = document.documentElement.getAttribute('data-theme') === 'dark' ? '切换亮色主题' : '切换暗色主题'
   tb.onclick = toggleTheme
   bar.appendChild(tb)
-  // Count
-  const sp = document.createElement('span'); sp.className = 'filter-count'; sp.id = 'fc'; bar.appendChild(sp)
 }
 
 // ====== Date Range Bar (interactive) ======
@@ -318,6 +337,11 @@ function renderDateRangeBar() {
     pw.appendChild(btn)
   })
   bar.appendChild(pw)
+
+  // Count — 放在日期切片行最右侧
+  const fc = document.createElement('span'); fc.className = 'filter-count'; fc.id = 'fc'
+  fc.style.cssText = 'margin-left:auto'
+  bar.appendChild(fc)
 
   updateDrInfo()
 }
@@ -981,6 +1005,63 @@ function renderTable(rows: Record<string, string | number>[]) {
   renderTableContent(rows, el, tb)
 }
 
+/** 为行数据追加计算列的值 */
+function augmentRows(rows: Record<string, string | number>[]): Record<string, string | number>[] {
+  const cc = DATA.tableComputedColumns?.filter(c => c.selected !== false && c.name && c.expression)
+  if (!cc?.length) return rows
+
+  // 预计算所有列的聚合值（跨全行），供计算列表达式中 SUM/AVG 等引用
+  const aggs: Record<string, Record<string, number>> = {}
+  for (const c of cc) {
+    for (const v of c.variables) {
+      if (!aggs[v.column]) {
+        const vals = rows.map(r => {
+          const val = r[v.column]
+          return typeof val === 'number' ? val : (parseFloat(String(val ?? '')) || 0)
+        })
+        const sum = vals.reduce((a, b) => a + b, 0)
+        aggs[v.column] = {
+          SUM: sum,
+          AVG: vals.length ? sum / vals.length : 0,
+          COUNT: vals.length,
+          UNIQUE_COUNT: new Set(vals).size,
+          MIN: vals.length ? Math.min(...vals) : 0,
+          MAX: vals.length ? Math.max(...vals) : 0,
+        }
+      }
+    }
+  }
+
+  return rows.map(row => {
+    const aug = { ...row }
+    for (const c of cc) {
+      try {
+        const ctx: Record<string, number> = {}
+        for (const v of c.variables) {
+          const val = row[v.column]
+          ctx[v.alias] = typeof val === 'number' ? val : (parseFloat(String(val ?? '')) || 0)
+        }
+        // 替换表达式中的聚合函数为预计算的聚合值
+        let expr = c.expression
+        for (const v of c.variables) {
+          const colAggs = aggs[v.column]
+          if (colAggs) {
+            expr = expr.replace(new RegExp(`SUM\\s*\\(\\s*${v.alias}\\s*\\)`, 'gi'), String(colAggs.SUM))
+            expr = expr.replace(new RegExp(`AVG\\s*\\(\\s*${v.alias}\\s*\\)`, 'gi'), String(colAggs.AVG))
+            expr = expr.replace(new RegExp(`COUNT\\s*\\(\\s*${v.alias}\\s*\\)`, 'gi'), String(colAggs.COUNT))
+            expr = expr.replace(new RegExp(`UNIQUE_COUNT\\s*\\(\\s*${v.alias}\\s*\\)`, 'gi'), String(colAggs.UNIQUE_COUNT))
+            expr = expr.replace(new RegExp(`MIN\\s*\\(\\s*${v.alias}\\s*\\)`, 'gi'), String(colAggs.MIN))
+            expr = expr.replace(new RegExp(`MAX\\s*\\(\\s*${v.alias}\\s*\\)`, 'gi'), String(colAggs.MAX))
+          }
+        }
+        const result = new Function(...Object.keys(ctx), 'return ' + expr)(...Object.values(ctx))
+        aug[c.name] = typeof result === 'number' && !isNaN(result) ? result : 0
+      } catch { aug[c.name] = 0 }
+    }
+    return aug
+  })
+}
+
 function renderTableContent(rows: Record<string, string | number>[], el: HTMLElement, tb: HTMLElement) {
   const ot = el.querySelector('div:not(:first-child)'); if (ot) ot.remove()
   let filtered = rows.slice()
@@ -1004,23 +1085,40 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
   const scrollWrap = document.createElement('div')
   scrollWrap.className = 'table-scroll'
   let html = '<table><thead><tr><th class="rn">#</th>'
-  tblCols.forEach(c => {
+  // 合并显示列：tableColumns + 已选中的计算列，按 columnOrder 排序
+  const displayCols = [...DATA.tableColumns]
+  if (DATA.tableComputedColumns) {
+    for (const cc of DATA.tableComputedColumns) {
+      if (cc.selected !== false && cc.name && !displayCols.includes(cc.name)) {
+        displayCols.push(cc.name)
+      }
+    }
+  }
+  const order = DATA.tableColumnOrder
+  if (order && order.length > 0) {
+    const rank = new Map(order.map((c, i) => [c, i]))
+    displayCols.sort((a, b) => (rank.get(a) ?? 999) - (rank.get(b) ?? 999))
+  }
+  displayCols.forEach(c => {
     const ind = sortCol === c ? (sortDir ? ' ↓' : ' ↑') : ''
     html += `<th onclick="window._sortTable('${c}')">${c}${ind}</th>`
   })
   html += '</tr></thead><tbody>'
-  sorted.forEach((r, i) => {
+  // 为行数据追加计算列
+  const augRows = augmentRows(sorted)
+  augRows.forEach((r, i) => {
     html += `<tr><td class="rn">${i + 1}</td>`
-    tblCols.forEach(c => {
+    displayCols.forEach(c => {
       let v = r[c]
       if (v == null || v === '') v = '—'
       else {
         const cl = DATA.classifications[c]
-        if (cl?.type === 'numeric' && cl?.role === 'metric') {
+        const isComp = (DATA.tableComputedColumns || []).some(cc => cc.name === c && cc.selected !== false)
+        if ((cl?.type === 'numeric' && cl?.role === 'metric') || isComp) {
           const n = getNumericVal(v as any)
           if (!isNaN(n)) {
-            const md = DATA.metricDefaults[c]
-            if (md && md.format && md.format !== 'global') v = fmtByChart(n, { metricFormats: DATA.metricDefaults }, c)
+            const cf = DATA.tableColumnFormats?.[c] || DATA.metricDefaults?.[c]
+            if (cf && cf.format && cf.format !== 'global') v = fmtByChart(n, { format: cf.format, unit: cf.unit, metricFormats: { [c]: { format: cf.format, unit: cf.unit, decimals: cf.decimals } } }, c)
             else v = fmt(n)
           }
         }
@@ -1034,15 +1132,15 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
   // Summary row (底部汇总行)
   if (tblSummaryAggs && Object.keys(tblSummaryAggs).length > 0) {
     html += '<tfoot class="summary-foot"><tr class="summary-row"><td class="rn summary-label">' + (t('config.summaryRow') || 'Summary') + '</td>'
-    tblCols.forEach(c => {
+    displayCols.forEach(c => {
       const agg = tblSummaryAggs[c]
       if (agg) {
         let val: number | string = 0
         if (agg === 'unique_count') {
-          const raw = sorted.map(r => String(r[c] ?? '')).filter(v => v !== '')
+          const raw = augRows.map(r => String(r[c] ?? '')).filter(v => v !== '')
           val = new Set(raw).size
         } else {
-          const vals = sorted.map(r => getNumericVal(r[c] as any)).filter(v => !isNaN(v))
+          const vals = augRows.map(r => getNumericVal(r[c] as any)).filter(v => !isNaN(v))
           if (vals.length > 0) {
             switch (agg) {
               case 'sum': val = vals.reduce((a, b) => a + b, 0); break
@@ -1057,9 +1155,10 @@ function renderTableContent(rows: Record<string, string | number>[], el: HTMLEle
         if (agg === 'count' || agg === 'unique_count') sv = String(val)
         else if (typeof val === 'number') {
           const cl = DATA.classifications[c]
-          if (cl?.type === 'numeric' && cl?.role === 'metric') {
-            const md = DATA.metricDefaults[c]
-            if (md && md.format && md.format !== 'global') sv = fmtByChart(val, { metricFormats: DATA.metricDefaults }, c)
+          const isComp = (DATA.tableComputedColumns || []).some(cc => cc.name === c && cc.selected !== false)
+          if ((cl?.type === 'numeric' && cl?.role === 'metric') || isComp) {
+            const cf = DATA.tableColumnFormats?.[c] || DATA.metricDefaults?.[c]
+            if (cf && cf.format && cf.format !== 'global') sv = fmtByChart(val, { format: cf.format, unit: cf.unit, metricFormats: { [c]: { format: cf.format, unit: cf.unit, decimals: cf.decimals } } }, c)
             else sv = fmt(val)
           } else sv = String(val)
         } else sv = String(val)

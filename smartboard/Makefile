@@ -5,6 +5,11 @@
 # 用法: make [target]   (需安装 GNU Make for Windows)
 # ============================================================
 
+# ---- 辅助：检测操作系统 ----
+IS_MACOS := $(shell uname -s | grep -qi darwin && echo 1 || echo 0)
+IS_LINUX := $(shell uname -s | grep -qi linux && echo 1 || echo 0)
+IS_WIN   := $(shell uname -s | grep -qi mingw\\|msys\\|cygwin && echo 1 || echo 0)
+
 # ---- 辅助：调用 PowerShell 处理复杂操作 ----
 _PS := powershell -NoProfile -Command
 
@@ -159,63 +164,69 @@ IOS_DST    := generic/platform=iOS
 PROJ_ROOT  := $(shell cd)
 
 ios-rust: ## 🦀 仅编译 Rust → iOS (aarch64-apple-ios)
-	@$(_PS) "if ($$IsMacOS) { cd src-tauri; cargo build --target aarch64-apple-ios --release -p smartboard } else { Write-Host '❌ iOS 构建仅支持 macOS' }"
+ifeq ($(IS_MACOS),1)
+	@cd src-tauri && cargo build --target aarch64-apple-ios --release -p smartboard
+else
+	@echo "❌ iOS 构建仅支持 macOS"
+endif
 
 # === iOS 真机直连 (仅 macOS) ===
 ios-device-deploy: ## 📱 一键构建 + 部署 Debug 到真机（仅 macOS）
-	@$(_PS) "if (-not $$IsMacOS) { Write-Host '❌ iOS 部署仅支持 macOS'; exit 0 }; \
-		Write-Host '========================================'; \
-		Write-Host '  iOS 真机部署 (tauri build + devicectl)'; \
-		Write-Host '========================================'; \
-		$$devLine = (xcrun devicectl list devices 2>$$null | Select-String 'iphone|ipad' | Where-Object { $$_ -notmatch 'unavailable' } | Select-Object -First 1).Line; \
-		if (-not $$devLine) { Write-Host '❌ 未检测到可用的 iOS 设备'; exit 1 }; \
-		$$devId = if ($$devLine -match '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}') { $$matches[0] } else { '' }; \
-		$$paired = $$devLine -match 'paired'; \
-		Write-Host \"📱 目标设备: $$devId\"; \
-		Write-Host \"🔐 配对状态: $$(if ($$paired) { '✅ 已配对' } else { '❌ 未配对' })\"; \
-		if (-not $$paired) { Write-Host '⚠️  首次需要配对! 请在 Xcode → Window → Devices and Simulators 中完成配对'; exit 1 }; \
-		Write-Host '🔨 Step 1/2: Tauri iOS 构建 (Debug)...'; \
-		npx tauri ios build --debug; \
-		if ($$LASTEXITCODE) { Write-Host '❌ tauri ios build 失败'; exit 1 }; \
-		Write-Host '✅ 构建成功'; \
-		Write-Host '🚀 安装到设备...'; \
-		$$app = Get-ChildItem -Path src-tauri/gen/apple/build -Recurse -Filter *.ipa -Depth 4 -File -EA SilentlyContinue | Select-Object -First 1; \
-		if (-not $$app) { $$app = Get-ChildItem -Path src-tauri/gen/apple/build -Recurse -Filter *.app -Depth 5 -Directory -EA SilentlyContinue | Select-Object -First 1 }; \
-		if (-not $$app) { Write-Host '❌ 找不到构建产物'; exit 1 }; \
-		xcrun devicectl device install app --device $$devId $$app.FullName; \
-		if ($$LASTEXITCODE) { \
-			$$app2 = Get-ChildItem -Path src-tauri/gen/apple/build -Recurse -Filter *.app -Depth 5 -Directory -EA SilentlyContinue | Select-Object -First 1; \
-			if ($$app2) { xcrun devicectl device install app --device $$devId $$app2.FullName } else { Write-Host '❌ 安装失败'; exit 1 } \
-		}; \
-		Write-Host '✅ 部署完成！App 已在设备上'"
+ifeq ($(IS_MACOS),1)
+	@echo '========================================'
+	@echo '  iOS 真机部署 (tauri build + devicectl)'
+	@echo '========================================'
+	@devLine=$$(xcrun devicectl list devices 2>/dev/null | grep -i 'iphone\|ipad' | grep -v 'unavailable' | head -1); \
+	if [ -z "$$devLine" ]; then echo '❌ 未检测到可用的 iOS 设备'; exit 1; fi; \
+	devId=$$(echo "$$devLine" | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1); \
+	echo "📱 目标设备: $$devId"; \
+	if echo "$$devLine" | grep -qi 'paired'; then echo '🔐 ✅ 已配对'; else echo '🔐 ❌ 未配对 - 请在 Xcode → Window → Devices and Simulators 中配对'; exit 1; fi; \
+	echo '🔨 Step 1/2: Tauri iOS 构建 (Debug)...'; \
+	npx tauri ios build --debug || { echo '❌ tauri ios build 失败'; exit 1; }; \
+	echo '✅ 构建成功'; \
+	echo '🚀 Step 2/2: 安装到设备...'; \
+	ipa=$$(find src-tauri/gen/apple/build -name '*.ipa' -type f 2>/dev/null | head -1); \
+	if [ -z "$$ipa" ]; then app=$$(find src-tauri/gen/apple/build -name '*.app' -type d 2>/dev/null | head -1); fi; \
+	if [ -n "$$ipa" ]; then xcrun devicectl device install app --device "$$devId" "$$ipa"; \
+	elif [ -n "$$app" ]; then xcrun devicectl device install app --device "$$devId" "$$app"; \
+	else echo '❌ 找不到构建产物'; exit 1; fi; \
+	echo '✅ 部署完成！App 已在设备上'
+else
+	@echo "❌ iOS 部署仅支持 macOS"
+endif
 
 ios-device-deploy-release: ## 📱 一键构建 Release + 部署到真机（仅 macOS）
-	@$(_PS) "if (-not $$IsMacOS) { Write-Host '❌ iOS 部署仅支持 macOS'; exit 0 }; \
-		Write-Host '========================================'; \
-		Write-Host '  iOS 真机部署 Release'; \
-		Write-Host '========================================'; \
-		$$devLine = (xcrun devicectl list devices 2>$$null | Select-String 'iphone|ipad' | Where-Object { $$_ -notmatch 'unavailable' } | Select-Object -First 1).Line; \
-		if (-not $$devLine) { Write-Host '❌ 未检测到可用的 iOS 设备'; exit 1 }; \
-		$$devId = if ($$devLine -match '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}') { $$matches[0] } else { '' }; \
-		$$paired = $$devLine -match 'paired'; \
-		if (-not $$paired) { Write-Host '⚠️  首次需要配对!'; exit 1 }; \
-		Write-Host '🔨 Step 1/2: Tauri iOS 构建 (Release)...'; \
-		npx tauri ios build; \
-		if ($$LASTEXITCODE) { Write-Host '❌ tauri ios build 失败'; exit 1 }; \
-		Write-Host '✅ 构建成功'; \
-		Write-Host '🚀 Step 2/2: 安装到设备...'; \
-		$$ipa = Get-ChildItem -Path src-tauri/gen/apple/build -Recurse -Filter *.ipa -Depth 4 -File -EA SilentlyContinue | Select-Object -First 1; \
-		if (-not $$ipa) { Write-Host '❌ 找不到 IPA'; exit 1 }; \
-		xcrun devicectl device install app --device $$devId $$ipa.FullName; \
-		Write-Host '✅ 部署完成！'"
+ifeq ($(IS_MACOS),1)
+	@echo '========================================'
+	@echo '  iOS 真机部署 Release'
+	@echo '========================================'
+	@devLine=$$(xcrun devicectl list devices 2>/dev/null | grep -i 'iphone\|ipad' | grep -v 'unavailable' | head -1); \
+	if [ -z "$$devLine" ]; then echo '❌ 未检测到可用的 iOS 设备'; exit 1; fi; \
+	devId=$$(echo "$$devLine" | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1); \
+	echo "📱 目标设备: $$devId"; \
+	if echo "$$devLine" | grep -qi 'paired'; then echo '🔐 ✅ 已配对'; else echo '🔐 ❌ 未配对 - 请在 Xcode → Window → Devices and Simulators 中配对'; exit 1; fi; \
+	echo '🔨 Step 1/2: Tauri iOS 构建 (Release)...'; \
+	npx tauri ios build || { echo '❌ tauri ios build 失败'; exit 1; }; \
+	echo '✅ 构建成功'; \
+	echo '🚀 Step 2/2: 安装到设备...'; \
+	ipa=$$(find src-tauri/gen/apple/build -name '*.ipa' -type f 2>/dev/null | head -1); \
+	if [ -z "$$ipa" ]; then echo '❌ 找不到 IPA'; exit 1; fi; \
+	xcrun devicectl device install app --device "$$devId" "$$ipa"; \
+	echo '✅ 部署完成！'
+else
+	@echo "❌ iOS 部署仅支持 macOS"
+endif
 
 ios-ipa-install: ## 📦 将指定 IPA 安装到真机（仅 macOS; 用法: make ios-ipa-install IPA=/path/to/app.ipa）
-	@if "$(IPA)"=="" (echo 用法: make ios-ipa-install IPA=/path/to/app.ipa & exit 1)
-	@$(_PS) "if (-not $$IsMacOS) { Write-Host '❌ iOS 部署仅支持 macOS'; exit 0 }; \
-		$$devLine = (xcrun devicectl list devices 2>$$null | Select-String 'iphone|ipad' | Where-Object { $$_ -notmatch 'unavailable' } | Select-Object -First 1).Line; \
-		if (-not $$devLine) { Write-Host '❌ 未检测到可用的 iOS 设备'; exit 1 }; \
-		$$devId = if ($$devLine -match '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}') { $$matches[0] } else { '' }; \
-		xcrun devicectl device install app --device $$devId $(IPA)"
+ifeq ($(IS_MACOS),1)
+	@if [ -z "$(IPA)" ]; then echo '用法: make ios-ipa-install IPA=/path/to/app.ipa'; exit 1; fi
+	@devLine=$$(xcrun devicectl list devices 2>/dev/null | grep -i 'iphone\|ipad' | grep -v 'unavailable' | head -1); \
+	if [ -z "$$devLine" ]; then echo '❌ 未检测到可用的 iOS 设备'; exit 1; fi; \
+	devId=$$(echo "$$devLine" | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1); \
+	xcrun devicectl device install app --device "$$devId" "$(IPA)"
+else
+	@echo "❌ iOS 部署仅支持 macOS"
+endif
 
 # ============================================================
 # 发布

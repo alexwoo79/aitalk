@@ -21,83 +21,86 @@
 
       <!-- 筛选栏 + 日期范围（顶部固定） -->
       <div class="sticky-filters">
-      <!-- 筛选栏 -->
-      <div class="filter-bar">
-        <div v-for="f in spec.filters" :key="f.column" class="filter-item">
-          <label>{{ f.column }}</label>
-          <select v-model="previewStore.filterValues[f.column]" @change="onFilterChange"
-            class="input input-sm filter-select">
-            <option value="__all__">{{ t('common.all') }}</option>
-            <option v-for="opt in previewStore.getFilterOptions(f.column)" :key="opt" :value="opt">
-              {{ opt }}
-            </option>
-          </select>
+        <!-- 筛选栏 -->
+        <div class="filter-bar">
+          <div v-for="f in spec.filters" :key="f.column" class="filter-item">
+            <label>{{ f.column }}</label>
+            <select v-model="previewStore.filterValues[f.column]" @change="onFilterChange"
+              class="input input-sm filter-select">
+              <option value="__all__">{{ t('common.all') }}</option>
+              <option v-for="opt in previewStore.getFilterOptions(f.column)" :key="opt" :value="opt">
+                {{ opt }}
+              </option>
+            </select>
+          </div>
+          <div class="filter-item filter-search-group">
+            <label>{{ t('common.search') }}</label>
+            <span class="input-wrap">
+              <input type="text" v-model="filterSearchInput" class="input input-sm search-input"
+                :placeholder="t('dashboard.searchPlaceholder')" @keyup.enter="commitFilterInputs" />
+              <button v-if="filterSearchInput" class="input-clear" @click="filterSearchInput = ''"
+                tabindex="-1">✕</button>
+            </span>
+            <label>{{ t('common.condition') }}</label>
+            <span class="input-wrap">
+              <input type="text" v-model="filterConditionInput" class="input input-sm condition-input"
+                list="condition-cols" :placeholder="t('dashboard.conditionPlaceholder')"
+                @keyup.enter="commitFilterInputs" />
+              <button v-if="filterConditionInput" class="input-clear" @click="filterConditionInput = ''"
+                tabindex="-1">✕</button>
+            </span>
+            <datalist id="condition-cols">
+              <template v-for="col in allHeaders" :key="col">
+                <option :value="col + ' = '" />
+                <option :value="col + ' != '" />
+                <option v-if="isNumericCol(col)" :value="col + ' > '" />
+                <option v-if="isNumericCol(col)" :value="col + ' < '" />
+                <option v-if="!isNumericCol(col)" :value="col + ' in '" />
+                <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
+              </template>
+            </datalist>
+            <button v-if="!reactiveFilterMode" class="btn btn-sm btn-apply" @click="commitFilterInputs">{{
+              t('dashboard.applyFilter') }}</button>
+            <button class="btn btn-sm btn-mode-toggle" :class="{ active: reactiveFilterMode }"
+              @click="reactiveFilterMode = !reactiveFilterMode" :title="t('dashboard.filterModeHint')">
+              {{ reactiveFilterMode ? '⚡' : '🖱️' }}
+            </button>
+          </div>
+          <button class="btn btn-sm btn-reset" @click="resetFilters">{{ t('dashboard.resetFilter') }}</button>
+          <button class="btn btn-sm btn-clear" @click="clearDashboard">Clear</button>
+          <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
+          <span v-if="!spec.dateRange" class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }}
+            {{
+              t('common.records') }}</span>
         </div>
-        <div class="filter-item filter-search-group">
-          <label>{{ t('common.search') }}</label>
-          <span class="input-wrap">
-            <input type="text" v-model="filterSearchInput" class="input input-sm search-input"
-              :placeholder="t('dashboard.searchPlaceholder')" @keyup.enter="commitFilterInputs" />
-            <button v-if="filterSearchInput" class="input-clear" @click="filterSearchInput = ''"
-              tabindex="-1">✕</button>
-          </span>
-          <label>{{ t('common.condition') }}</label>
-          <span class="input-wrap">
-            <input type="text" v-model="filterConditionInput" class="input input-sm condition-input"
-              list="condition-cols" :placeholder="t('dashboard.conditionPlaceholder')"
-              @keyup.enter="commitFilterInputs" />
-            <button v-if="filterConditionInput" class="input-clear" @click="filterConditionInput = ''"
-              tabindex="-1">✕</button>
-          </span>
-          <datalist id="condition-cols">
-            <template v-for="col in allHeaders" :key="col">
-              <option :value="col + ' = '" />
-              <option :value="col + ' != '" />
-              <option v-if="isNumericCol(col)" :value="col + ' > '" />
-              <option v-if="isNumericCol(col)" :value="col + ' < '" />
-              <option v-if="!isNumericCol(col)" :value="col + ' in '" />
-              <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
-            </template>
-          </datalist>
-          <button v-if="!reactiveFilterMode" class="btn btn-sm btn-apply" @click="commitFilterInputs">{{
-            t('dashboard.applyFilter') }}</button>
-          <button class="btn btn-sm btn-mode-toggle" :class="{ active: reactiveFilterMode }"
-            @click="reactiveFilterMode = !reactiveFilterMode" :title="t('dashboard.filterModeHint')">
-            {{ reactiveFilterMode ? '⚡' : '🖱️' }}
-          </button>
-        </div>
-        <button class="btn btn-sm btn-reset" @click="resetFilters">{{ t('dashboard.resetFilter') }}</button>
-        <button class="btn btn-sm btn-clear" @click="clearDashboard">Clear</button>
-        <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
-        <span v-if="!spec.dateRange" class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records') }}</span>
-      </div>
 
-      <!-- 日期范围 -->
-      <div v-if="dateColWarn" class="date-col-warn">
-        <span>⚠️ {{ dateColWarn }}</span>
-        <button class="dcw-close" @click="dateColWarn = ''">✕</button>
-      </div>
-      <div v-if="spec.dateRange" class="date-range-bar">
-        <span class="dr-label">{{ t('dashboard.timeSlice') }}:</span>
-        <select v-if="spec.dateColumns && spec.dateColumns.length > 1" v-model="previewStore.activeDateColumn"
-          @change="onDateColumnChange" class="input input-xs dr-date-col">
-          <option v-for="col in spec.dateColumns" :key="col" :value="col">{{ col }}</option>
-        </select>
-        <span v-else class="dr-label dr-col-name">{{ spec.dateRange.column }}</span>
-        <input type="date" v-model="dateStart" :min="spec.dateRange.min" :max="spec.dateRange.max"
-          class="dr-date-input" />
-        <span class="dr-sep">{{ t('dashboard.to') }}</span>
-        <input type="date" v-model="dateEnd" :min="spec.dateRange.min" :max="spec.dateRange.max"
-          class="dr-date-input" />
-        <span class="dr-info">{{ t('dashboard.recordsCount', { filtered: dateRangeCount, total: totalRows }) }}</span>
-        <div class="dr-presets">
-          <button v-for="p in datePresets" :key="p.months" class="dr-preset"
-            :class="{ active: isDatePresetActive(p.months) }" @click="applyDatePreset(p.months)">
-            {{ p.label }}
-          </button>
+        <!-- 日期范围 -->
+        <div v-if="dateColWarn" class="date-col-warn">
+          <span>⚠️ {{ dateColWarn }}</span>
+          <button class="dcw-close" @click="dateColWarn = ''">✕</button>
         </div>
-        <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records') }}</span>
-      </div>
+        <div v-if="spec.dateRange" class="date-range-bar">
+          <span class="dr-label">{{ t('dashboard.timeSlice') }}:</span>
+          <select v-if="spec.dateColumns && spec.dateColumns.length > 1" v-model="previewStore.activeDateColumn"
+            @change="onDateColumnChange" class="input input-xs dr-date-col">
+            <option v-for="col in spec.dateColumns" :key="col" :value="col">{{ col }}</option>
+          </select>
+          <span v-else class="dr-label dr-col-name">{{ spec.dateRange.column }}</span>
+          <input type="date" v-model="dateStart" :min="spec.dateRange.min" :max="spec.dateRange.max"
+            class="dr-date-input" />
+          <span class="dr-sep">{{ t('dashboard.to') }}</span>
+          <input type="date" v-model="dateEnd" :min="spec.dateRange.min" :max="spec.dateRange.max"
+            class="dr-date-input" />
+          <span class="dr-info">{{ t('dashboard.recordsCount', { filtered: dateRangeCount, total: totalRows }) }}</span>
+          <div class="dr-presets">
+            <button v-for="p in datePresets" :key="p.months" class="dr-preset"
+              :class="{ active: isDatePresetActive(p.months) }" @click="applyDatePreset(p.months)">
+              {{ p.label }}
+            </button>
+          </div>
+          <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
+          }}</span>
+        </div>
       </div> <!-- .sticky-filters -->
 
       <!-- 已清空提示 -->
@@ -711,7 +714,11 @@ async function saveDashboard() {
   const tblRowLimit = s.table?.rowLimit
   const tblSummaryAggs = s.table?.summaryAggs || {}
   const tblColColors = s.table?.columnColors || {}
+  const tblColTextColors = s.table?.columnTextColors || {}
   const tblRowCondColors = s.table?.rowConditionColors || []
+  const tblColumnFormats = s.table?.columnFormats || {}
+  const tblComputedColumns = s.table?.computedColumns || []
+  const tblColumnOrder = s.table?.columnOrder || []
   const date = new Date().toISOString().slice(0, 10)
   const i18nData = locale.value === 'zh-CN' ? zhCN : enUS
 
@@ -798,7 +805,11 @@ async function saveDashboard() {
       tableRowLimit: tblRowLimit,
       tableSummaryAggs: tblSummaryAggs,
       tableColColors: tblColColors,
+      tableColTextColors: tblColTextColors,
       tableRowCondColors: tblRowCondColors,
+      tableColumnFormats: tblColumnFormats,
+      tableComputedColumns: tblComputedColumns,
+      tableColumnOrder: tblColumnOrder,
       dateRange: s.dateRange || null,
       dateStart: previewStore.dateRange.start || '',
       dateEnd: previewStore.dateRange.end || '',
@@ -1068,7 +1079,7 @@ function formatCellValue(val: string | number | undefined, col: string): string 
     const n = getNumericVal(val)
     if (!isNaN(n)) {
       const def = spec.value?.metricDefaults?.[col]
-      if (def && (!def.sections || def.sections.includes('table')) && def.format) {
+      if (def && def.format) {
         return fmtByChart(n, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
       }
       return fmt(n, 2)
@@ -1347,7 +1358,7 @@ function formatSummaryValue(col: string): string {
   }
   if (agg === 'count') return String(result)
   const def = spec.value?.metricDefaults?.[col]
-  if (def && (!def.sections || def.sections.includes('table')) && def.format) {
+  if (def && def.format) {
     return fmtByChart(result, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
   }
   return fmt(result, 2)

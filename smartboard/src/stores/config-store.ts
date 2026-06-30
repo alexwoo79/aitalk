@@ -6,7 +6,7 @@ import i18n from '@/i18n'
 
 const t = i18n.global.t
 
-export type ConfigSection = 'title' | 'filters' | 'dateColumn' | 'kpis' | 'charts' | 'table' | 'metricDefaults' | 'computedCols'
+export type ConfigSection = 'title' | 'filters' | 'dateColumn' | 'kpis' | 'charts' | 'table' | 'computedCols'
 
 export const useConfigStore = defineStore('config', () => {
   const config = ref<DashboardConfig>({
@@ -145,9 +145,9 @@ export const useConfigStore = defineStore('config', () => {
       if (cls?.type === 'numeric') summaryAggs[h] = 'sum'
       else if (cls?.role === 'dimension' || cls?.type === 'date') summaryAggs[h] = 'unique_count'
     }
-    // 预设占比计算列（基于主指标）
+    // 预设占比计算列（基于主指标，受高级数据定义 toggle 控制）
     const maybeCC: any[] = []
-    if (primaryMetric) {
+    if (primaryMetric && localStorage.getItem('smartboard-advanced-config') === '1') {
       const ratioName = t('config.presetRatioCol')
       const existing = config.value.table?.computedColumns || []
       const hasRatio = existing.some(c => c.name === ratioName)
@@ -162,24 +162,33 @@ export const useConfigStore = defineStore('config', () => {
         if (!cols.includes(ratioName)) cols.push(ratioName)
         // 占比列默认汇总=求和
         summaryAggs[ratioName] = 'sum'
+        // 占比列默认格式：百分比，2位小数
+        if (!config.value.table) config.value.table = {} as any
+        if (!config.value.table.columnFormats) config.value.table.columnFormats = {}
+        config.value.table.columnFormats[ratioName] = { format: 'percent', decimals: 2 }
+      } else {
+        // 已存在则恢复默认选中状态
+        const ratioCol = existing.find(c => c.name === ratioName)
+        if (ratioCol) ratioCol.selected = true
+        if (!cols.includes(ratioName)) cols.push(ratioName)
+        summaryAggs[ratioName] = 'sum'
+        // 确保已有占比列也有默认格式
+        if (!config.value.table) config.value.table = {} as any
+        if (!config.value.table.columnFormats) config.value.table.columnFormats = {}
+        if (!config.value.table.columnFormats[ratioName]) {
+          config.value.table.columnFormats[ratioName] = { format: 'percent', decimals: 2 }
+        }
       }
       maybeCC.push(...existing)
     } else {
       maybeCC.push(...(config.value.table?.computedColumns || []))
-    }
-    // 预设占比列的全局格式=百分比，在表格生效
-    if (primaryMetric) {
-      const ratioName = t('config.presetRatioCol')
-      if (!config.value.metricDefaults) config.value.metricDefaults = {}
-      if (!config.value.metricDefaults[ratioName]) {
-        config.value.metricDefaults[ratioName] = { format: 'percent', unit: 'yuan', decimals: 2, sections: ['table'] }
-      }
     }
     config.value.table = {
       sortBy: (ds.primaryMetric && !excluded.has(ds.primaryMetric) ? ds.primaryMetric : metricCols[0]) || '',
       columns: cols,
       summaryAggs: summaryAggs as Record<string, 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max'>,
       computedColumns: maybeCC,
+      columnFormats: config.value.table?.columnFormats || {},
     }
   }
 
@@ -446,7 +455,6 @@ export const useConfigStore = defineStore('config', () => {
     kpis: () => JSON.parse(JSON.stringify(config.value.kpis)),
     charts: () => JSON.parse(JSON.stringify(config.value.charts)),
     table: () => JSON.parse(JSON.stringify(config.value.table)),
-    metricDefaults: () => config.value.metricDefaults ? JSON.parse(JSON.stringify(config.value.metricDefaults)) : {},
     computedCols: () => config.value.table.computedColumns ? JSON.parse(JSON.stringify(config.value.table.computedColumns)) : [],
   }
 
@@ -457,7 +465,6 @@ export const useConfigStore = defineStore('config', () => {
     kpis: (v) => { config.value.kpis = v },
     charts: (v) => { config.value.charts = v },
     table: (v) => { config.value.table = v },
-    metricDefaults: (v) => { config.value.metricDefaults = Object.keys(v).length > 0 ? v : undefined },
     computedCols: (v) => { config.value.table.computedColumns = v && v.length > 0 ? v : [] },
   }
 
@@ -468,7 +475,6 @@ export const useConfigStore = defineStore('config', () => {
     kpis: generateAutoKpis,
     charts: generateAutoCharts,
     table: generateAutoTable,
-    metricDefaults: () => { config.value.metricDefaults = undefined },
     computedCols: () => { config.value.table.computedColumns = [] },
   }
 
@@ -505,7 +511,7 @@ export const useConfigStore = defineStore('config', () => {
 
   /** 全部保存/解除 */
   function saveAll() {
-    const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'metricDefaults', 'computedCols']
+    const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'computedCols']
     if (sections.every((s) => isSectionSaved(s))) {
       // 全部已保存 → 全部解除
       sectionSnapshots.value = {}

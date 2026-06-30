@@ -74,20 +74,22 @@ export const usePreviewStore = defineStore('preview', () => {
 
   function buildSpec(): DashboardSpec | null {
     const ds = dataStore.dataSet; const cfg = configStore.config; if (!ds || !cfg) return null
-    const e = dataStore.hasRelations ? buildEffectiveDS(ds) : ds; const ex = dataStore.excludedColumns; const defs = cfg.metricDefaults || {}
+    const advEnabled = localStorage.getItem('smartboard-advanced-config') === '1'
+    const e = dataStore.hasRelations ? buildEffectiveDS(ds) : ds; const ex = dataStore.excludedColumns
+    const defs = advEnabled ? (cfg.table.columnFormats || {}) : {}
     const kpis: KpiSpec[] = cfg.kpis.filter(k => k.selected !== false).map(k => {
-      const d = defs[k.column]; const ug = d && (!d.sections || d.sections.includes('kpi'))
+      const d = defs[k.column]; const ug = !!d
       if (ug && (k.format === 'global' || k.format === 'number' || !k.format)) return { column: k.column, label: k.label, agg: k.agg, format: d.format || '', prefix: d.prefix || '', unit: d.unit, decimals: d.decimals, filter: k.filter, formula: safeFormula(k.formula) }
       return { column: k.column, label: k.label, agg: k.agg, format: k.format, prefix: k.prefix, unit: k.unit, decimals: k.decimals, filter: k.filter, formula: safeFormula(k.formula) }
     })
     const charts: ChartSpec[] = cfg.charts.filter(c => c.selected !== false).map(c => {
       const am = new Set<string>(); if (c.metrics) c.metrics.forEach(m => am.add(m)); if (c.metric) am.add(c.metric); if (c.clusterMetrics) c.clusterMetrics.forEach(m => am.add(m))
-      for (const k of Object.keys(defs)) { const d = defs[k]; if (d && (!d.sections || d.sections.includes('chart')) && d.format && d.format !== 'global') am.add(k) }
-      const mf: Record<string, any> = {}; for (const m of am) { const d = defs[m]; if (!d || (d.sections && !d.sections.includes('chart'))) continue; mf[m] = { format: d.format || '', unit: d.unit, prefix: d.prefix || '', decimals: d.decimals } }
+      if (advEnabled) { for (const k of Object.keys(defs)) { const d = defs[k]; if (d && d.format && d.format !== 'global') am.add(k) } }
+      const mf: Record<string, any> = {}; for (const m of am) { const d = defs[m]; if (!d) continue; mf[m] = { format: d.format || '', unit: d.unit, prefix: d.prefix || '', decimals: d.decimals } }
       return { type: c.type, title: c.title, dimension: c.dimension, metric: c.metric, metrics: c.metrics, dateColumn: c.dateColumn, agg: c.agg, k: c.k, clusterMetrics: c.clusterMetrics, filter: c.filter, format: undefined, unit: undefined, metricFormats: Object.keys(mf).length > 0 ? mf : undefined, metricAggs: c.metricAggs }
     })
     const tbl: TableSpec | null = cfg.table.columns.length > 0
-      ? { columns: cfg.table.columns, sortBy: cfg.table.sortBy || '', summaryAggs: cfg.table.summaryAggs, columnColors: cfg.table.columnColors, columnTextColors: cfg.table.columnTextColors, columnTextRules: cfg.table.columnTextRules, rowConditionColors: cfg.table.rowConditionColors, columnOrder: cfg.table.columnOrder, computedColumns: cfg.table.computedColumns }
+      ? { columns: cfg.table.columns, sortBy: cfg.table.sortBy || '', summaryAggs: cfg.table.summaryAggs, columnColors: cfg.table.columnColors, columnTextColors: cfg.table.columnTextColors, columnTextRules: cfg.table.columnTextRules, rowConditionColors: cfg.table.rowConditionColors, columnOrder: cfg.table.columnOrder, computedColumns: advEnabled ? cfg.table.computedColumns : undefined, columnFormats: advEnabled ? cfg.table.columnFormats : undefined }
       : null
     let drs: DashboardSpec['dateRange']; const adc = e.headers.filter(h => e.classifications[h]?.type === 'date' && !ex.has(h))
     const cd = cfg.dateColumns?.length ? cfg.dateColumns : adc; const dc = cd.length > 0 ? cd[0] : undefined

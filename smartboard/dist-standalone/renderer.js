@@ -1144,6 +1144,11 @@ var SmartboardRenderer = (function(exports) {
   function renderFilterBar() {
     const bar = document.getElementById("filterBar");
     bar.innerHTML = "";
+    if (!DATA.filterSpecs?.length) {
+      bar.style.display = "none";
+      return;
+    }
+    bar.style.display = "";
     DATA.filterSpecs.forEach((f) => {
       const lb = document.createElement("label");
       lb.textContent = f.column + ":";
@@ -1174,8 +1179,8 @@ var SmartboardRenderer = (function(exports) {
     });
     const cf = document.createElement("input");
     cf.type = "text";
+    cf.className = "filter-cond-inp";
     cf.placeholder = t("dashboard.conditionPlaceholder") || "e.g. Amount > 100 & Region = Beijing";
-    cf.style.cssText = "padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:200px;background:var(--bg-surface);color:var(--text-primary)";
     cf.oninput = () => {
       condFilter = cf.value;
       refreshAll();
@@ -1183,8 +1188,8 @@ var SmartboardRenderer = (function(exports) {
     bar.appendChild(cf);
     const si = document.createElement("input");
     si.type = "text";
-    si.placeholder = "搜索...";
-    si.style.cssText = "padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;width:120px;background:var(--bg-surface);color:var(--text-primary)";
+    si.className = "filter-search-inp";
+    si.placeholder = t("dashboard.searchPlaceholder") || "搜索...";
     si.oninput = () => {
       searchText = si.value;
       refreshAll();
@@ -1199,6 +1204,9 @@ var SmartboardRenderer = (function(exports) {
       searchText = "";
       cf.value = "";
       si.value = "";
+      bar.querySelectorAll("select").forEach((s) => {
+        s.value = "";
+      });
       refreshAll();
     };
     bar.appendChild(rb);
@@ -1209,10 +1217,6 @@ var SmartboardRenderer = (function(exports) {
     tb.title = document.documentElement.getAttribute("data-theme") === "dark" ? "切换亮色主题" : "切换暗色主题";
     tb.onclick = toggleTheme;
     bar.appendChild(tb);
-    const sp = document.createElement("span");
-    sp.className = "filter-count";
-    sp.id = "fc";
-    bar.appendChild(sp);
   }
   function renderDateRangeBar() {
     const dr = DATA.dateRange;
@@ -1278,6 +1282,11 @@ var SmartboardRenderer = (function(exports) {
       pw.appendChild(btn);
     });
     bar.appendChild(pw);
+    const fc = document.createElement("span");
+    fc.className = "filter-count";
+    fc.id = "fc";
+    fc.style.cssText = "margin-left:auto";
+    bar.appendChild(fc);
     updateDrInfo();
   }
   function buildDatePresets(dr) {
@@ -2175,6 +2184,59 @@ var SmartboardRenderer = (function(exports) {
     tb.appendChild(csvBtn);
     renderTableContent(rows, el, tb);
   }
+  function augmentRows(rows) {
+    const cc = DATA.tableComputedColumns?.filter((c) => c.selected !== false && c.name && c.expression);
+    if (!cc?.length) return rows;
+    const aggs = {};
+    for (const c of cc) {
+      for (const v of c.variables) {
+        if (!aggs[v.column]) {
+          const vals = rows.map((r) => {
+            const val = r[v.column];
+            return typeof val === "number" ? val : parseFloat(String(val ?? "")) || 0;
+          });
+          const sum = vals.reduce((a, b) => a + b, 0);
+          aggs[v.column] = {
+            SUM: sum,
+            AVG: vals.length ? sum / vals.length : 0,
+            COUNT: vals.length,
+            UNIQUE_COUNT: new Set(vals).size,
+            MIN: vals.length ? Math.min(...vals) : 0,
+            MAX: vals.length ? Math.max(...vals) : 0
+          };
+        }
+      }
+    }
+    return rows.map((row) => {
+      const aug = { ...row };
+      for (const c of cc) {
+        try {
+          const ctx = {};
+          for (const v of c.variables) {
+            const val = row[v.column];
+            ctx[v.alias] = typeof val === "number" ? val : parseFloat(String(val ?? "")) || 0;
+          }
+          let expr = c.expression;
+          for (const v of c.variables) {
+            const colAggs = aggs[v.column];
+            if (colAggs) {
+              expr = expr.replace(new RegExp(`SUM\\s*\\(\\s*${v.alias}\\s*\\)`, "gi"), String(colAggs.SUM));
+              expr = expr.replace(new RegExp(`AVG\\s*\\(\\s*${v.alias}\\s*\\)`, "gi"), String(colAggs.AVG));
+              expr = expr.replace(new RegExp(`COUNT\\s*\\(\\s*${v.alias}\\s*\\)`, "gi"), String(colAggs.COUNT));
+              expr = expr.replace(new RegExp(`UNIQUE_COUNT\\s*\\(\\s*${v.alias}\\s*\\)`, "gi"), String(colAggs.UNIQUE_COUNT));
+              expr = expr.replace(new RegExp(`MIN\\s*\\(\\s*${v.alias}\\s*\\)`, "gi"), String(colAggs.MIN));
+              expr = expr.replace(new RegExp(`MAX\\s*\\(\\s*${v.alias}\\s*\\)`, "gi"), String(colAggs.MAX));
+            }
+          }
+          const result = new Function(...Object.keys(ctx), "return " + expr)(...Object.values(ctx));
+          aug[c.name] = typeof result === "number" && !isNaN(result) ? result : 0;
+        } catch {
+          aug[c.name] = 0;
+        }
+      }
+      return aug;
+    });
+  }
   function renderTableContent(rows, el, tb) {
     const ot = el.querySelector("div:not(:first-child)");
     if (ot) ot.remove();
@@ -2202,23 +2264,38 @@ var SmartboardRenderer = (function(exports) {
     const scrollWrap = document.createElement("div");
     scrollWrap.className = "table-scroll";
     let html = '<table><thead><tr><th class="rn">#</th>';
-    tblCols.forEach((c) => {
+    const displayCols = [...DATA.tableColumns];
+    if (DATA.tableComputedColumns) {
+      for (const cc of DATA.tableComputedColumns) {
+        if (cc.selected !== false && cc.name && !displayCols.includes(cc.name)) {
+          displayCols.push(cc.name);
+        }
+      }
+    }
+    const order = DATA.tableColumnOrder;
+    if (order && order.length > 0) {
+      const rank = new Map(order.map((c, i) => [c, i]));
+      displayCols.sort((a, b) => (rank.get(a) ?? 999) - (rank.get(b) ?? 999));
+    }
+    displayCols.forEach((c) => {
       const ind = sortCol === c ? sortDir ? " ↓" : " ↑" : "";
       html += `<th onclick="window._sortTable('${c}')">${c}${ind}</th>`;
     });
     html += "</tr></thead><tbody>";
-    sorted.forEach((r, i) => {
+    const augRows = augmentRows(sorted);
+    augRows.forEach((r, i) => {
       html += `<tr><td class="rn">${i + 1}</td>`;
-      tblCols.forEach((c) => {
+      displayCols.forEach((c) => {
         let v = r[c];
         if (v == null || v === "") v = "—";
         else {
           const cl = DATA.classifications[c];
-          if (cl?.type === "numeric" && cl?.role === "metric") {
+          const isComp = (DATA.tableComputedColumns || []).some((cc) => cc.name === c && cc.selected !== false);
+          if (cl?.type === "numeric" && cl?.role === "metric" || isComp) {
             const n = getNumericVal(v);
             if (!isNaN(n)) {
-              const md = DATA.metricDefaults[c];
-              if (md && md.format && md.format !== "global") v = fmtByChart(n, { metricFormats: DATA.metricDefaults }, c);
+              const cf = DATA.tableColumnFormats?.[c] || DATA.metricDefaults?.[c];
+              if (cf && cf.format && cf.format !== "global") v = fmtByChart(n, { format: cf.format, unit: cf.unit, metricFormats: { [c]: { format: cf.format, unit: cf.unit, decimals: cf.decimals } } }, c);
               else v = fmt(n);
             }
           }
@@ -2230,15 +2307,15 @@ var SmartboardRenderer = (function(exports) {
     html += "</tbody>";
     if (tblSummaryAggs && Object.keys(tblSummaryAggs).length > 0) {
       html += '<tfoot class="summary-foot"><tr class="summary-row"><td class="rn summary-label">' + (t("config.summaryRow") || "Summary") + "</td>";
-      tblCols.forEach((c) => {
+      displayCols.forEach((c) => {
         const agg = tblSummaryAggs[c];
         if (agg) {
           let val = 0;
           if (agg === "unique_count") {
-            const raw = sorted.map((r) => String(r[c] ?? "")).filter((v) => v !== "");
+            const raw = augRows.map((r) => String(r[c] ?? "")).filter((v) => v !== "");
             val = new Set(raw).size;
           } else {
-            const vals = sorted.map((r) => getNumericVal(r[c])).filter((v) => !isNaN(v));
+            const vals = augRows.map((r) => getNumericVal(r[c])).filter((v) => !isNaN(v));
             if (vals.length > 0) {
               switch (agg) {
                 case "sum":
@@ -2263,9 +2340,10 @@ var SmartboardRenderer = (function(exports) {
           if (agg === "count" || agg === "unique_count") sv = String(val);
           else if (typeof val === "number") {
             const cl = DATA.classifications[c];
-            if (cl?.type === "numeric" && cl?.role === "metric") {
-              const md = DATA.metricDefaults[c];
-              if (md && md.format && md.format !== "global") sv = fmtByChart(val, { metricFormats: DATA.metricDefaults }, c);
+            const isComp = (DATA.tableComputedColumns || []).some((cc) => cc.name === c && cc.selected !== false);
+            if (cl?.type === "numeric" && cl?.role === "metric" || isComp) {
+              const cf = DATA.tableColumnFormats?.[c] || DATA.metricDefaults?.[c];
+              if (cf && cf.format && cf.format !== "global") sv = fmtByChart(val, { format: cf.format, unit: cf.unit, metricFormats: { [c]: { format: cf.format, unit: cf.unit, decimals: cf.decimals } } }, c);
               else sv = fmt(val);
             } else sv = String(val);
           } else sv = String(val);

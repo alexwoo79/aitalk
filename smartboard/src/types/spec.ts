@@ -109,6 +109,8 @@ export interface TableSpec {
   columnOrder?: string[]
   /** 计算列 */
   computedColumns?: { name: string; variables: { alias: string; column: string; filter?: string }[]; expression: string; filter?: string; selected?: boolean }[]
+  /** 列格式（仅指标列） */
+  columnFormats?: Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi'; prefix?: string; decimals?: number }>
 }
 
 /** 分析结果（时序/十分位/聚类） */

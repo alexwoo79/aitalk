@@ -39,7 +39,8 @@
       <div class="upload-section-header">
         <h2>{{ t('upload.title') }}</h2>
         <p class="subtitle" v-if="!dataStore.dataSet">{{ t('upload.subtitle') }}</p>
-        <button v-if="dataStore.dataSet && uploadCollapsed" class="btn-link expand-upload" @click="uploadCollapsed = false">
+        <button v-if="dataStore.dataSet && uploadCollapsed" class="btn-link expand-upload"
+          @click="uploadCollapsed = false">
           + {{ t('upload.addMoreFiles', '添加更多文件') }}
         </button>
       </div>
@@ -158,7 +159,7 @@ const methodTabs = computed(() => {
   return tabs
 })
 
-// Tab state: 默认预览，多表时可切换到「关联」
+// Tab state: 默认预览，可切换到「关联」
 const activeTab = ref<'data' | 'relation'>('data')
 
 // 切换表时回到数据预览

@@ -10,11 +10,20 @@
           @click.stop="dataStore.setMainTable(dataStore.mainTableId === dataSet.id ? null : dataSet.id)">⭐{{
             dataStore.mainTableId === dataSet.id ? t('upload.mainTable') : t('upload.setMainTable') }}</button>
       </div>
-      <button class="btn-next" @click="$emit('next')">{{ t('upload.nextStep') }}</button>
+      <div class="preview-header-right">
+        <label class="adv-toggle-switch" :title="t('upload.advancedConfig', '高级数据定义')">
+          <span class="adv-toggle-label">{{ t('upload.advancedConfig', '高级数据定义') }}</span>
+          <div class="toggle-track" :class="{ active: showAdvancedColConfig }"
+            @click="showAdvancedColConfig = !showAdvancedColConfig">
+            <div class="toggle-knob"></div>
+          </div>
+        </label>
+        <button class="btn-next" @click="$emit('next')">{{ t('upload.nextStep') }}</button>
+      </div>
     </div>
 
-    <!-- 列分类结果 -->
-    <div class="section">
+    <!-- 列数据定义 -->
+    <div v-show="!showAdvancedColConfig" class="section">
       <div class="section-head">
         <h4>{{ t('upload.columnClassification') }}</h4>
         <span class="section-hint">{{ t('upload.clickToExclude') }}</span>
@@ -63,15 +72,16 @@
           <div class="ctt-header">{{ hoveredCol }}</div>
           <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.type') }}</span>{{ colTooltip.type }}</div>
           <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.nonNull') }}</span>{{ colTooltip.nonNull }}
-            / {{ colTooltip.total }}<span v-if="colTooltip.nullCount > 0" class="ctt-null"> · 空值 {{ colTooltip.nullCount }}</span></div>
+            / {{ colTooltip.total }}<span v-if="colTooltip.nullCount > 0" class="ctt-null"> · 空值 {{ colTooltip.nullCount
+              }}</span></div>
           <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.unique') }}</span>{{ colTooltip.unique }}
           </div>
           <div v-if="colTooltip.isNumeric" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.min')
-          }}</span>{{ colTooltip.min }}</div>
+              }}</span>{{ colTooltip.min }}</div>
           <div v-if="colTooltip.isNumeric" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.max')
-          }}</span>{{ colTooltip.max }}</div>
+              }}</span>{{ colTooltip.max }}</div>
           <div v-if="colTooltip.isNumeric" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.avg')
-          }}</span>{{ colTooltip.avg }}</div>
+              }}</span>{{ colTooltip.avg }}</div>
           <div v-if="colTooltip.dirtyCount" class="ctt-row ctt-dirty"><span class="ctt-label">⚠️ {{
             t('upload.tooltip.dirty') }}</span>{{ colTooltip.dirtyCount }}</div>
           <div v-if="colTooltip.samples.length" class="ctt-samples">
@@ -82,21 +92,33 @@
       </Teleport>
     </div>
 
-    <!-- 指标摘要 -->
-    <div v-if="dataSet.primaryMetric" class="section">
+    <!-- 高级列配置 -->
+    <div v-show="showAdvancedColConfig" class="section">
+      <div class="section-head">
+        <h4>高级数据定义 <span class="section-hint">💡 点击卡片空白位置，可补充定义</span></h4>
+        <div class="section-actions" @click.stop>
+          <button class="btn-save" :class="{ saved: configStore.isSectionSaved('table') }"
+            @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾' }}</button>
+          <button class="btn-reset" @click="configStore.resetSectionToAuto('table')"
+            :title="t('config.resetAll')">↺</button>
+        </div>
+      </div>
+      <ColumnConfigPanel />
+    </div>
+
+    <!-- 自动检测 -->
+    <div class="section">
       <h4>{{ t('upload.autoDetect') }}</h4>
       <p class="detect-text">
-        {{ t('upload.primaryMetric') }}：<strong>{{ dataStore.excludedColumns.has(dataSet.primaryMetric) ?
-          t('upload.excludedHint') : dataSet.primaryMetric }}</strong>
+        {{ t('upload.primaryMetric') }}：<strong>{{ effectiveMetricCols.join('、') || '—' }}</strong>
         &nbsp;|&nbsp;
-        {{ t('upload.chartDimensions') }}：<strong>{{dataSet.chartDimensions.filter(d =>
-          !dataStore.excludedColumns.has(d)).join(', ') || t('upload.noDimensions')}}</strong>
+        {{ t('upload.chartDimensions') }}：<strong>{{ effectiveDimensionCols.join('、') || '—' }}</strong>
       </p>
     </div>
 
-    <!-- 样本数据 -->
-    <div class="section">
-      <h4>{{ t('upload.sampleData', { cols: visibleHeaders.length }) }}</h4>
+    <!-- 样本数据（原始） -->
+    <div v-show="!showAdvancedColConfig" class="section">
+      <h4>样本数据（前5行，{{ visibleHeaders.length }}列）</h4>
       <div class="sample-table-wrap">
         <table class="sample-table">
           <thead>
@@ -113,23 +135,68 @@
         </table>
       </div>
     </div>
+
+    <!-- 样本数据（高级） -->
+    <div v-show="showAdvancedColConfig" class="section">
+      <h4>样本数据（前{{ advRows.length }}行，{{ advCols.length }}列）</h4>
+      <div class="sample-table-wrap">
+        <table class="sample-table">
+          <thead>
+            <tr>
+              <th v-for="col in advCols" :key="col">
+                {{ col }}
+                <span v-if="isPreviewComputedCol(col)" class="computed-col-badge">计算</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, i) in advancedPreviewRows" :key="i">
+              <td v-for="col in advancedPreviewCols" :key="col" :style="getPreviewCellStyle(col, row[col])">{{
+                formatPreviewValue(col, row[col]) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { DataSet } from '@/types/data'
 import { useDataStore } from '@/stores/data-store'
+import { useConfigStore } from '@/stores/config-store'
+import { usePreviewStore } from '@/stores/preview-store'
+import { augmentComputedCols } from '@/core/formula-engine'
+import ColumnConfigPanel from '@/components/config/ColumnConfigPanel.vue'
 
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-defineProps<{ dataSet: DataSet }>()
+const props = defineProps<{ dataSet: DataSet }>()
 const emit = defineEmits<{ next: []; toggleExclude: [] }>()
 
 const dataStore = useDataStore()
+const configStore = useConfigStore()
+const previewStore = usePreviewStore()
 const showQualityDetail = ref(false)
+const ADVANCED_CONFIG_KEY = 'smartboard-advanced-config'
+const showAdvancedColConfig = ref(localStorage.getItem(ADVANCED_CONFIG_KEY) === '1')
+watch(showAdvancedColConfig, (val) => {
+  localStorage.setItem(ADVANCED_CONFIG_KEY, val ? '1' : '0')
+  // toggle OFF → 取消所有计算列的选中并从列表中移除
+  if (!val) {
+    const cc = configStore.config.table.computedColumns
+    if (cc) {
+      for (const c of cc) {
+        c.selected = false
+        const idx = configStore.config.table.columns.indexOf(c.name)
+        if (idx !== -1) configStore.config.table.columns.splice(idx, 1)
+      }
+    }
+  }
+})
 
 // ====== 列悬停 Tooltip ======
 const hoveredCol = ref('')
@@ -250,6 +317,30 @@ function effectiveRole(col: string): string {
   return dataStore.roleOverrides[col] || dataStore.dataSet?.classifications[col]?.role || 'ignore'
 }
 
+/** 动态主指标列（含角色覆盖 + 计算列，排除已排除列） */
+const effectiveMetricCols = computed(() => {
+  const ds = dataStore.dataSet
+  if (!ds) return [] as string[]
+  const cols = ds.headers.filter(h => effectiveRole(h) === 'metric' && !dataStore.excludedColumns.has(h))
+  // 追加已选中的计算列（计算列默认视为指标）
+  const cc = configStore.config.table.computedColumns
+  if (cc) {
+    for (const c of cc) {
+      if (c.selected !== false && c.name && !cols.includes(c.name)) {
+        cols.push(c.name)
+      }
+    }
+  }
+  return cols
+})
+
+/** 动态图表维度列（含角色覆盖，排除已排除列） */
+const effectiveDimensionCols = computed(() => {
+  const ds = dataStore.dataSet
+  if (!ds) return [] as string[]
+  return ds.headers.filter(h => effectiveRole(h) === 'dimension' && !dataStore.excludedColumns.has(h))
+})
+
 const ROLE_CYCLE = ['metric', 'dimension', 'time_axis', 'label', 'ignore']
 
 function cycleRole(col: string) {
@@ -282,6 +373,87 @@ function truncate(val: string | number | undefined): string {
   if (val === undefined || val === null || val === '') return '—'
   const s = String(val)
   return s.length > 30 ? s.slice(0, 27) + '...' : s
+}
+
+// ====== 高级设置后数据预览 ======
+const advancedPreviewCols = computed(() => {
+  const cols = [...configStore.config.table.columns]
+  const cc = configStore.config.table.computedColumns
+  if (cc) {
+    for (const c of cc) {
+      if (c.selected !== false && c.name && !cols.includes(c.name)) {
+        cols.push(c.name)
+      }
+    }
+  }
+  return cols
+})
+
+function isPreviewComputedCol(col: string): boolean {
+  return (configStore.config.table.computedColumns || []).some(c => c.name === col && c.selected !== false)
+}
+
+const advancedPreviewRows = computed(() => {
+  const rows = previewStore.effectiveRows.slice(0, 5)
+  // 优先使用 Rust 后端计算列数据，与 Dashboard 保持一致
+  const rustCC = previewStore.computedColumnData
+  if (rustCC && Object.keys(rustCC).length > 0) {
+    return rows.map((row, idx) => {
+      const aug = { ...row }
+      for (const [col, values] of Object.entries(rustCC)) {
+        aug[col] = values[idx] ?? 0
+      }
+      return aug
+    })
+  }
+  return augmentComputedCols(rows, configStore.config.table.computedColumns || [])
+})
+
+/** 高级预览使用的列头（columns 为空时回退到 visibleHeaders） */
+const advCols = computed(() => advancedPreviewCols.value.length > 0 ? advancedPreviewCols.value : visibleHeaders.value)
+/** 高级预览使用的行数据 */
+const advRows = computed(() => advancedPreviewCols.value.length > 0 ? advancedPreviewRows.value : props.dataSet.rows.slice(0, 5).map((r: Record<string, any>) => {
+  const row: Record<string, any> = {}
+  for (const h of visibleHeaders.value) row[h] = r[h]
+  return row
+}))
+
+function getPreviewCellStyle(col: string, val: any): Record<string, string> {
+  const style: Record<string, string> = {}
+  const colors = configStore.config.table.columnColors
+  const textColors = configStore.config.table.columnTextColors
+  if (colors?.[col]) style.backgroundColor = colors[col]
+  if (textColors?.[col]) style.color = textColors[col]
+  // 条件着色
+  const rules = configStore.config.table.columnTextRules?.[col]
+  if (rules && typeof val === 'number') {
+    for (const rule of rules) {
+      try {
+        if (rule.condition && new Function('v', 'return ' + rule.condition)(val)) {
+          style.color = rule.color
+          break
+        }
+      } catch { /* ignore invalid expressions */ }
+    }
+  }
+  return style
+}
+
+function formatPreviewValue(col: string, val: any): string {
+  if (val === undefined || val === null || val === '') return '—'
+  const fmt = configStore.config.table.columnFormats?.[col]
+  if (fmt?.format && typeof val === 'number') {
+    if (fmt.format === 'integer') return Math.round(val).toLocaleString()
+    if (fmt.format === 'percent') return (val * 100).toFixed(fmt.decimals ?? 1) + '%'
+    if (fmt.format === 'currency') {
+      const prefix = fmt.prefix || ''
+      if (fmt.unit === 'wan') return prefix + (val / 10000).toFixed(fmt.decimals ?? 2).toLocaleString() + '万'
+      if (fmt.unit === 'yi') return prefix + (val / 100000000).toFixed(fmt.decimals ?? 2).toLocaleString() + '亿'
+      return prefix + val.toFixed(fmt.decimals ?? 2).toLocaleString()
+    }
+    return val.toFixed(fmt.decimals ?? 2).toLocaleString()
+  }
+  return truncate(val)
 }
 </script>
 
@@ -341,6 +513,59 @@ function truncate(val: string | number | undefined): string {
   opacity: 1;
 }
 
+.preview-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* ── 高级数据定义 Toggle Switch ── */
+.adv-toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.adv-toggle-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.toggle-track {
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--border, #d1d5db);
+  position: relative;
+  transition: background 0.2s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-track.active {
+  background: var(--primary, #3B82F6);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.toggle-track.active .toggle-knob {
+  transform: translateX(16px);
+}
+
 .btn-next {
   padding: 0 24px;
   height: 38px;
@@ -352,7 +577,6 @@ function truncate(val: string | number | undefined): string {
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s;
-  margin-left: auto;
 }
 
 .btn-next:hover {
@@ -389,6 +613,40 @@ function truncate(val: string | number | undefined): string {
 .section-hint {
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+.section-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.btn-save,
+.btn-reset {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.btn-save:hover,
+.btn-reset:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-save.saved {
+  color: #16a34a;
+  border-color: transparent;
 }
 
 .btn-link {
@@ -658,5 +916,17 @@ function truncate(val: string | number | undefined): string {
   text-overflow: ellipsis;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.computed-col-badge {
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  margin-left: 4px;
+  vertical-align: middle;
 }
 </style>

@@ -37,527 +37,250 @@
         <p class="subtitle">{{ t('config.hint') }}</p>
       </div>
 
-      <!-- 配置 Tab 切换 -->
-      <div class="config-tabs">
-        <button class="config-tab" :class="{ active: activeConfigTab === 'enrich' }"
-          @click="activeConfigTab = 'enrich'">{{ t('config.tabEnrich') }}</button>
-        <button class="config-tab" :class="{ active: activeConfigTab === 'dashboard' }"
-          @click="activeConfigTab = 'dashboard'">{{ t('config.tabDashboard') }}</button>
+      <div class="config-bottom-head">
+        <button class="btn btn-primary btn-sm" @click="goToDashboard">{{ t('config.generateArrow') }}</button>
       </div>
-
-      <!-- ====== 2.1 数据补充定义 & 计算指标设定 ====== -->
-      <div v-show="activeConfigTab === 'enrich'" class="config-top">
-        <div class="config-top-head">
-          <h2 class="config-top-title">2.1 {{ t('config.dataEnrichment') }}</h2>
-          <button class="btn btn-sm btn-primary" @click="activeConfigTab = 'dashboard'">{{ t('config.gotoDashboardTab')
-            }}</button>
-        </div>
-        <div class="config-top-inner">
-          <div class="config-top-row">
-
-            <!-- 表格 -->
-            <section class="config-section">
-              <div class="section-header-row" @click="toggleConfigSection('table')">
-                <span class="sec-arrow">{{ isSectionOpen('table') ? '▼' : '▶' }}</span>
-                <h3>{{ t('config.sections.table') }}</h3>
-                <div class="section-actions" @click.stop>
-                  <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('table') }"
-                    @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾'
-                    }}</button>
-                  <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('table')">↺</button>
-                </div>
+      <div class="config-layout">
+        <div class="config-panel">
+          <!-- 标题 -->
+          <section class="config-section">
+            <div class="section-header-row" @click="toggleConfigSection('title')">
+              <span class="sec-arrow">{{ isSectionOpen('title') ? '▼' : '▶' }}</span>
+              <h3>{{ t('config.dashboardTitle') }}</h3>
+              <div class="section-actions" @click.stop>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('title') }"
+                  @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾'
+                  }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('title')">↺</button>
               </div>
-              <div v-show="isSectionOpen('table')" class="section-body">
+            </div>
+            <div v-show="isSectionOpen('title')" class="section-body">
+              <input v-model="configStore.config.title" class="input" :placeholder="t('config.titlePlaceholder')" />
+            </div>
+          </section>
 
-                <!-- 显示列 -->
-                <div class="table-col-header">
-                  <span>{{ t('config.displayColumns') }} ({{ configStore.config.table.columns.length }}/{{
-                    allHeaders.length }})</span>
-                  <button class="btn-link" @click="configStore.config.table.columns = allHeaders.slice()">{{
-                    t('common.selectAll') }}</button>
-                  <button class="btn-link" @click="configStore.config.table.columns = []">{{ t('common.clearAll')
-                    }}</button>
-                </div>
-                <div class="table-col-table" data-drag-list="table">
-                  <div class="tct-header">
-                    <span class="tct-col-drag"></span>
-                    <span class="tct-col-name">{{ t('config.columnName') }}</span>
-                    <span class="tct-col-type">{{ t('config.columnType') }}</span>
-                    <span class="tct-col-role">{{ t('config.columnRole') }}</span>
-                    <span class="tct-col-bgcolor">{{ t('config.columnBgColor') }}</span>
-                    <span class="tct-col-txtcolor">{{ t('config.columnFontColor') }}</span>
-                    <span class="tct-col-summary">{{ t('config.summaryRow') }}</span>
-                    <span class="tct-col-rules">{{ t('config.columnTextRule') }}</span>
-                    <span class="tct-col-cb"></span>
-                  </div>
-                  <template v-for="(col, ci) in orderedTableCols" :key="col">
-                    <div class="tct-row" :class="[
-                      'role-' + effRole(col),
-                      { selected: configStore.config.table.columns.includes(col), 'drag-placeholder': dragPlaceholder === ci && dragList === 'table' }
-                    ]" :data-drag-idx="ci" @click="configStore.toggleTableColumn(col)">
-                      <span class="tct-col-drag drag-handle tct-drag" :title="t('config.dragTitle')"
-                        @pointerdown.prevent="onPointerDown($event, ci, 'table')">⋮⋮</span>
-                      <span class="tct-col-name"><span class="tct-icon">{{ roleIcon(effRole(col)) }}</span>{{ col
-                        }}</span>
-                      <span class="tct-col-type">{{ colTypeLabel(col) }}</span>
-                      <span class="tct-col-role" @click.stop="cycleRole(col)">{{ roleLabel(effRole(col)) }} <span
-                          class="role-edit-hint">🖉</span></span>
-                      <span class="tct-col-bgcolor" @click.stop><input type="color" class="color-picker-mini"
-                          :value="configStore.config.table.columnColors?.[col] || '#ffffff'"
-                          @input="(e) => configStore.setColumnColor(col, (e.target as HTMLInputElement).value)"
-                          :title="t('config.columnColor')" /></span>
-                      <span class="tct-col-txtcolor" @click.stop><input type="color" class="color-picker-mini"
-                          :value="configStore.config.table.columnTextColors?.[col] || '#000000'"
-                          @input="(e) => configStore.setColumnTextColor(col, (e.target as HTMLInputElement).value)"
-                          :title="t('config.columnTextColor')" /><button
-                          v-if="configStore.config.table.columnColors?.[col] || configStore.config.table.columnTextColors?.[col]"
-                          class="tct-color-clear"
-                          @click.stop="configStore.setColumnColor(col, ''); configStore.setColumnTextColor(col, '')"
-                          :title="t('config.removeColor')">✕</button></span>
-                      <span class="tct-col-summary" @click.stop><select class="tct-summary-sel"
-                          :value="(configStore.config.table.summaryAggs || {})[col] || ''"
-                          @change="(e) => configStore.setSummaryAgg(col, (e.target as HTMLSelectElement).value as any)"
-                          :title="t('config.summaryRow')">
-                          <option value="">{{ t('common.none') }}</option>
-                          <option value="sum">{{ t('config.aggSum') }}</option>
-                          <option value="avg">{{ t('config.aggAvg') }}</option>
-                          <option value="count">{{ t('config.aggCount') }}</option>
-                          <option value="unique_count">{{ t('config.aggUniqueCount') }}</option>
-                          <option value="min">{{ t('config.aggMin') }}</option>
-                          <option value="max">{{ t('config.aggMax') }}</option>
-                        </select></span>
-                      <span class="tct-col-rules" @click.stop><button v-if="isNumericCol(col)" class="tct-rule-toggle"
-                          :class="{ active: expandedColRules.has(col) }" @click="toggleColRules(col)"
-                          :title="t('config.columnTextRule')"><span v-if="ruleCount(col)" class="tct-rule-count">{{
-                            ruleCount(col) }}</span><span v-else class="tct-rule-add-icon">+</span></button><span v-else
-                          class="tct-na">—</span></span>
-                      <span class="tct-col-cb" @click.stop><input type="checkbox"
-                          :checked="configStore.config.table.columns.includes(col)"
-                          @change="configStore.toggleTableColumn(col)" /></span>
-                    </div>
-                    <div v-if="expandedColRules.has(col) && isNumericCol(col)" class="tct-rule-expand" @click.stop>
-                      <div v-for="(rule, ri) in (configStore.config.table.columnTextRules?.[col] || [])" :key="ri"
-                        class="tct-rule-row">
-                        <input type="text" class="input input-xs tct-rule-cond" :value="rule.condition"
-                          :placeholder="t('config.columnTextRulePlaceholder')"
-                          @input="(e) => configStore.setColumnTextRule(col, ri, { condition: (e.target as HTMLInputElement).value, color: rule.color })" />
-                        <input type="color" class="color-picker-mini rule-text-color" :value="rule.color"
-                          @input="(e) => configStore.setColumnTextRule(col, ri, { condition: rule.condition, color: (e.target as HTMLInputElement).value })"
-                          :title="t('config.columnTextColor')" />
-                        <button class="btn-icon tct-rule-remove"
-                          @click="configStore.removeColumnTextRule(col, ri)">✕</button>
-                      </div>
-                      <button class="btn-link tct-rule-add-btn"
-                        @click="configStore.setColumnTextRule(col, (configStore.config.table.columnTextRules?.[col]?.length || 0), { condition: '', color: '#333333' })">{{
-                          t('config.columnTextRuleAdd') }}</button>
-                    </div>
-                  </template>
-                </div>
+          <!-- 筛选 -->
+          <section class="config-section">
+            <div class="section-header-row" @click="toggleConfigSection('filters')">
+              <span class="sec-arrow">{{ isSectionOpen('filters') ? '▼' : '▶' }}</span>
+              <h3>{{ t('config.filters') }} ({{ configStore.config.filters.length }})</h3>
+              <div class="section-actions" @click.stop>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('filters') }"
+                  @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾'
+                  }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('filters')">↺</button>
+              </div>
+            </div>
+            <div v-show="isSectionOpen('filters')" class="section-body">
+              <div class="filter-chips">
+                <label v-for="col in dimensionCols" :key="col" class="chip"
+                  :class="{ active: configStore.config.filters.includes(col) }">
+                  <input type="checkbox" :checked="configStore.config.filters.includes(col)"
+                    @change="configStore.toggleFilter(col)" class="sr-only" />
+                  {{ col }}
+                </label>
+              </div>
+            </div>
+          </section>
 
-                <!-- 行条件颜色 -->
-                <div class="table-config-bottom">
-                  <div class="table-row-cond-wrap">
-                    <label>{{ t('config.rowConditionColor') }}</label>
-                    <div class="row-colors-list">
-                      <div v-for="(rule, ri) in (configStore.config.table.rowConditionColors || [])" :key="'rc-' + ri"
-                        class="color-rule-row">
-                        <span class="rule-index">{{ ri + 1 }}</span>
-                        <input type="text" class="input input-xs rule-cond-input" :value="rule.condition"
-                          :placeholder="t('config.rowConditionPlaceholder')" list="row-cond-cols"
-                          @input="(e) => rule.condition = (e.target as HTMLInputElement).value" />
-                        <input type="color" class="color-picker-mini" :value="rule.color"
-                          @input="(e) => rule.color = (e.target as HTMLInputElement).value"
-                          :title="t('config.columnColor')" />
-                        <input type="color" class="color-picker-mini rule-text-color"
-                          :value="rule.textColor || '#000000'"
-                          @input="(e) => rule.textColor = (e.target as HTMLInputElement).value"
-                          :title="t('config.columnTextColor')" />
-                        <button class="btn-icon rule-remove" @click="configStore.removeRowConditionColor(ri)"
-                          :title="t('config.removeColor')">✕</button>
-                      </div>
-                      <button class="btn-link tcc-rule-add"
-                        @click="configStore.addRowConditionColor({ condition: '', color: '#ffff00' })">{{
-                          t('config.rowConditionColorAdd') }}</button>
-                      <datalist id="row-cond-cols">
-                        <template v-for="col in filterableColumns" :key="col">
-                          <option :value="col + ' = '" />
-                          <option :value="col + ' != '" />
-                          <option v-if="isNumericCol(col)" :value="col + ' > '" />
-                          <option v-if="isNumericCol(col)" :value="col + ' < '" />
-                          <option v-if="!isNumericCol(col)" :value="col + ' in '" />
-                          <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
-                        </template>
-                      </datalist>
+          <!-- 时间切片 -->
+          <section class="config-section" v-if="dateCols.length > 0">
+            <div class="section-header-row" @click="toggleConfigSection('dateColumn')">
+              <span class="sec-arrow">{{ isSectionOpen('dateColumn') ? '▼' : '▶' }}</span>
+              <h3>{{ t('config.timeSlice') }} ({{ selectedDateCols.length || dateCols.length }})</h3>
+              <div class="section-actions" @click.stop>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('dateColumn') }"
+                  @click="configStore.saveSection('dateColumn')">{{ configStore.isSectionSaved('dateColumn') ? '✅' :
+                    '💾'
+                  }}</button>
+                <button class="btn btn-sm btn-reset-sec"
+                  @click="configStore.resetSectionToAuto('dateColumn')">↺</button>
+              </div>
+            </div>
+            <div v-show="isSectionOpen('dateColumn')" class="section-body">
+              <p class="sec-desc">{{ t('config.timeSliceHint') }}</p>
+              <div class="filter-chips">
+                <label v-for="col in dateCols" :key="col" class="chip"
+                  :class="{ active: selectedDateCols.includes(col) }">
+                  <input type="checkbox" :checked="selectedDateCols.includes(col)" @change="toggleDateCol(col)"
+                    class="sr-only" />
+                  {{ col }}
+                </label>
+              </div>
+              <p v-if="selectedDateCols.length > 0" class="sec-desc" style="margin-top:6px">
+                {{ t('config.date') }}{{ previewSpec?.dateRange?.min }} ~ {{ previewSpec?.dateRange?.max }}
+              </p>
+            </div>
+          </section>
+
+          <!-- KPI 指标卡片 -->
+          <section class="config-section">
+            <div class="section-header-row" @click="toggleConfigSection('kpis')">
+              <span class="sec-arrow">{{ isSectionOpen('kpis') ? '▼' : '▶' }}</span>
+              <h3>{{ t('config.kpiCards') }} ({{ configStore.config.kpis.length }})</h3>
+              <div class="section-actions" @click.stop>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('kpis') }"
+                  @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾'
+                  }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('kpis')">↺</button>
+              </div>
+            </div>
+            <div v-show="isSectionOpen('kpis')" class="section-body">
+              <div class="kpi-list" data-drag-list="kpi">
+                <div v-for="(kpi, i) in configStore.config.kpis" :key="i" class="kpi-item" :data-drag-idx="i"
+                  :class="{ 'drag-placeholder': dragPlaceholder === i && dragList === 'kpi' }">
+                  <span class="drag-handle" :title="t('config.dragTitle')"
+                    @pointerdown.prevent="onPointerDown($event, i, 'kpi')">⋮⋮</span>
+                  <div class="kpi-item-main">
+                    <div class="kpi-item-row">
+                      <span class="kpi-item-label">{{ kpi.label }}</span>
+                      <span v-if="kpi.formula" class="kpi-formula-tag">{{ t('config.formula') }}</span>
+                      <span v-else class="kpi-col-tag">{{ kpi.column }}</span>
+                      <span class="kpi-agg-tag">{{ aggLabel(kpi.agg) }}</span>
+                      <button class="btn-icon" @click="openEditKpi(i)" :title="t('config.edit')">✎</button>
+                      <button class="btn-icon" @click="configStore.removeKpi(i)" :title="t('config.remove')">✕</button>
                     </div>
                   </div>
                 </div>
               </div>
-            </section>
-          </div>
+              <button class="btn btn-sm btn-add" @click="openAddKpi">{{ t('config.addKPICard') }}</button>
+            </div>
+          </section>
 
-          <!-- 计算列/全局指标格式 | KPI -->
-          <div class="config-top-row">
-            <div class="config-right-col">
-              <div class="config-col-stack">
-                <!-- 计算列 -->
-                <section class="config-section">
-                  <div class="section-header-row" @click="toggleConfigSection('computedCols')">
-                    <span class="sec-arrow">{{ isSectionOpen('computedCols') ? '▼' : '▶' }}</span>
-                    <h3>{{ t('config.computedCols') }}</h3>
-                    <div class="section-actions" @click.stop>
-                      <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('computedCols') }"
-                        @click="configStore.saveSection('computedCols')">{{ configStore.isSectionSaved('computedCols') ?
-                          '✅' : '💾'
-                        }}</button>
-                      <button class="btn btn-sm btn-reset-sec"
-                        @click="configStore.resetSectionToAuto('computedCols')">↺</button>
-                    </div>
-                  </div>
-                  <div v-show="isSectionOpen('computedCols')" class="section-body">
-                    <div class="cc-item" v-for="(cc, cci) in (configStore.config.table.computedColumns || [])"
-                      :key="cci">
-                      <span class="cc-item-name">{{ cc.name || t('config.unnamedCol') }}</span>
-                      <span class="cc-item-expr">{{ cc.expression || '—' }}</span>
-                      <button class="btn-icon" @click="openComputedColEditor(cci)" :title="t('config.edit')">✎</button>
-                      <button class="btn-icon" @click="configStore.removeComputedCol(cci)"
+          <!-- 图表 -->
+          <section class="config-section">
+            <div class="section-header-row" @click="toggleConfigSection('charts')">
+              <span class="sec-arrow">{{ isSectionOpen('charts') ? '▼' : '▶' }}</span>
+              <h3>{{ t('config.charts') }} ({{ configStore.config.charts.length }}) <span class="drag-hint">{{
+                t('config.dragHint') }}</span></h3>
+              <div class="section-actions" @click.stop>
+                <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('charts') }"
+                  @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾'
+                  }}</button>
+                <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('charts')">↺</button>
+              </div>
+            </div>
+            <div v-show="isSectionOpen('charts')" class="section-body">
+              <div class="chart-quick-actions">
+                <span>{{ t('config.displayColumns') }} ({{ selectedChartCount }}/{{ configStore.config.charts.length
+                  }})</span>
+                <button class="btn-link" @click="configStore.selectAllCharts()">{{ t('common.selectAll') }}</button>
+                <button class="btn-link" @click="configStore.clearAllCharts()">{{ t('common.clearAll') }}</button>
+              </div>
+              <div class="chart-list" data-drag-list="chart">
+                <div v-for="(chart, ci) in configStore.config.charts" :key="chart.id" class="chart-item"
+                  :data-drag-idx="ci" :class="{ 'drag-placeholder': dragPlaceholder === ci && dragList === 'chart' }">
+                  <span class="drag-handle" :title="t('config.dragTitle')"
+                    @pointerdown.prevent="onPointerDown($event, ci, 'chart')">⋮⋮</span>
+                  <div class="chart-item-body">
+                    <div class="chart-item-header">
+                      <span class="chart-type-badge">{{ chartTypeLabel(chart.type) }}</span>
+                      <span class="chart-title">{{ chart.title }}</span>
+                      <button class="btn-icon" @click="openEditChart(chart)" :title="t('config.edit')">✎</button>
+                      <button class="btn-icon" @click="configStore.removeChart(chart.id)"
                         :title="t('config.remove')">✕</button>
-                      <label class="cc-cb" :title="t('config.showInTable')"><input type="checkbox"
-                          :checked="cc.selected !== false" @change="toggleComputedColSelected(cc)"
-                          @click.stop /></label>
                     </div>
-                    <button class="btn btn-sm btn-add" @click="openComputedColEditor(-1)">{{ t('config.addComputedCol')
-                    }}</button>
-                  </div>
-                </section>
-
-                <!-- 全局指标格式 -->
-                <section class="config-section">
-                  <div class="section-header-row" @click="toggleConfigSection('metricDefaults')">
-                    <span class="sec-arrow">{{ isSectionOpen('metricDefaults') ? '▼' : '▶' }}</span>
-                    <h3>{{ t('config.globalMetricFormat') }}</h3>
-                    <div class="section-actions" @click.stop>
-                      <button class="btn btn-sm btn-save"
-                        :class="{ saved: configStore.isSectionSaved('metricDefaults') }" @click="saveMetricDefaults">{{
-                          configStore.isSectionSaved('metricDefaults') ? '✅' : '💾'
-                        }}</button>
-                      <button class="btn btn-sm btn-reset-sec" @click="resetMetricDefaults">↺</button>
+                    <div class="chart-item-detail">
+                      <span v-if="chart.dimension">{{ t('config.dimension') }}: {{ chart.dimension }}</span>
+                      <span v-if="chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metrics.join(', ')
+                        }}</span>
+                      <span v-if="chart.metric && !chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metric
+                        }}</span>
+                      <span v-if="chart.dateColumn">{{ t('config.date') }} {{ chart.dateColumn }}</span>
+                      <span v-if="chart.k">K: {{ chart.k }}</span>
                     </div>
+                    <label class="chart-select-cb" @click.stop>
+                      <input type="checkbox" :checked="chart.selected !== false"
+                        @change="configStore.toggleChartSelected(chart.id)" />
+                    </label>
                   </div>
-                  <div v-show="isSectionOpen('metricDefaults')" class="section-body">
-                    <p class="sec-desc">{{ t('config.globalMetricHint') }}</p>
-                    <div class="metric-defaults-table">
-                      <div class="md-header">
-                        <span class="md-col-name">{{ t('config.metricColumn') }}</span>
-                        <span class="md-col-fmt">{{ t('config.format') }}</span>
-                        <span class="md-col-unit">{{ t('config.unit') }}</span>
-                        <span class="md-col-prefix">{{ t('config.prefix') }}</span>
-                        <span class="md-col-dec">{{ t('config.decimals') }}</span>
-                        <span class="md-col-cb" @click.stop>
-                          <input type="checkbox" :checked="isSectionAllSelected('kpi')"
-                            @change="toggleSectionAll('kpi')" />
-                          <label>&nbsp;KPI</label>
-                        </span>
-                        <span class="md-col-cb" @click.stop>
-                          <input type="checkbox" :checked="isSectionAllSelected('chart')"
-                            @change="toggleSectionAll('chart')" />
-                          <label>&nbsp;{{ t('config.sections.chart') }}</label>
-                        </span>
-                        <span class="md-col-cb" @click.stop>
-                          <input type="checkbox" :checked="isSectionAllSelected('table')"
-                            @change="toggleSectionAll('table')" />
-                          <label>&nbsp;{{ t('config.sections.table') }}</label>
-                        </span>
-                      </div>
-                      <div v-for="col in allMetricCols" :key="col" class="md-row">
-                        <span class="md-col-name">{{ col }}</span>
-                        <select v-model="metricDefaultsForm[col].format" class="input input-xs md-sel">
-                          <option value="">{{ t('config.formatOptions.unset') }}</option>
-                          <option value="number">{{ t('config.formatOptions.number') }}</option>
-                          <option value="integer">{{ t('config.formatOptions.integer') }}</option>
-                          <option value="percent">{{ t('config.formatOptions.percent') }}</option>
-                          <option value="currency">{{ t('config.formatOptions.currency') }}</option>
-                        </select>
-                        <select v-if="metricDefaultsForm[col].format === 'currency'"
-                          v-model="metricDefaultsForm[col].unit" class="input input-xs md-sel">
-                          <option value="yuan">{{ t('config.unitOptions.yuan') }}</option>
-                          <option value="wan">{{ t('config.unitOptions.wan') }}</option>
-                          <option value="yi">{{ t('config.unitOptions.yi') }}</option>
-                        </select>
-                        <span v-else class="md-na">—</span>
-                        <select v-if="metricDefaultsForm[col].format === 'currency'"
-                          v-model="metricDefaultsForm[col].prefix" class="input input-xs md-sel">
-                          <option value="">{{ t('common.none') }}</option>
-                          <option value="¥">¥</option>
-                          <option value="$">$</option>
-                          <option value="€">€</option>
-                          <option value="£">£</option>
-                        </select>
-                        <span v-else class="md-na">—</span>
-                        <input v-model.number="metricDefaultsForm[col].decimals" type="number"
-                          class="input input-xs md-dec" min="0" max="6" step="1" />
-                        <label class="md-cb"><input type="checkbox" :checked="hasSection(col, 'kpi')"
-                            @change="toggleSection(col, 'kpi')" /></label>
-                        <label class="md-cb"><input type="checkbox" :checked="hasSection(col, 'chart')"
-                            @change="toggleSection(col, 'chart')" /></label>
-                        <label class="md-cb"><input type="checkbox" :checked="hasSection(col, 'table')"
-                            @change="toggleSection(col, 'table')" /></label>
-                      </div>
-                    </div>
-                  </div>
-                </section>
+                </div>
               </div>
-
-              <!-- KPI -->
-              <section class="config-section">
-                <div class="section-header-row" @click="toggleConfigSection('kpis')">
-                  <span class="sec-arrow">{{ isSectionOpen('kpis') ? '▼' : '▶' }}</span>
-                  <h3>{{ t('config.kpiCards') }} ({{ configStore.config.kpis.length }})</h3>
-                  <div class="section-actions" @click.stop>
-                    <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('kpis') }"
-                      @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾'
-                      }}</button>
-                    <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('kpis')">↺</button>
-                  </div>
-                </div>
-                <div v-show="isSectionOpen('kpis')" class="section-body">
-                  <div class="kpi-list" data-drag-list="kpi">
-                    <div v-for="(kpi, i) in configStore.config.kpis" :key="i" class="kpi-item" :data-drag-idx="i"
-                      :class="{ 'drag-placeholder': dragPlaceholder === i && dragList === 'kpi' }">
-                      <span class="drag-handle" :title="t('config.dragTitle')"
-                        @pointerdown.prevent="onPointerDown($event, i, 'kpi')">⋮⋮</span>
-                      <div class="kpi-item-main">
-                        <div class="kpi-item-row">
-                          <span class="kpi-item-label">{{ kpi.label }}</span>
-                          <span v-if="kpi.formula" class="kpi-formula-tag">{{ t('config.formula') }}</span>
-                          <span v-else class="kpi-col-tag">{{ kpi.column }}</span>
-                          <span class="kpi-agg-tag">{{ aggLabel(kpi.agg) }}</span>
-                          <button class="btn-icon" @click="openEditKpi(i)" :title="t('config.edit')">✎</button>
-                          <button class="btn-icon" @click="configStore.removeKpi(i)"
-                            :title="t('config.remove')">✕</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <button class="btn btn-sm btn-add" @click="openAddKpi">{{ t('config.addKPICard') }}</button>
-                </div>
-              </section>
+              <button class="btn btn-sm btn-add" @click="openAddChart">{{ t('config.addChart') }}</button>
             </div>
-          </div>
+          </section>
+
         </div>
-      </div>
 
-      <!-- ====== 2.2 看板配置 & 预览 ====== -->
-      <div v-show="activeConfigTab === 'dashboard'">
-        <div class="config-bottom-head">
-          <h2 class="config-bottom-title">2.2 {{ t('config.dashboardConfig') }}</h2>
-          <button class="btn btn-primary btn-sm" @click="goToDashboard">{{ t('config.generateArrow') }}</button>
-        </div>
-        <div class="config-layout">
-          <div class="config-panel">
-            <!-- 标题 -->
-            <section class="config-section">
-              <div class="section-header-row" @click="toggleConfigSection('title')">
-                <span class="sec-arrow">{{ isSectionOpen('title') ? '▼' : '▶' }}</span>
-                <h3>{{ t('config.dashboardTitle') }}</h3>
-                <div class="section-actions" @click.stop>
-                  <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('title') }"
-                    @click="configStore.saveSection('title')">{{ configStore.isSectionSaved('title') ? '✅' : '💾'
-                    }}</button>
-                  <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('title')">↺</button>
-                </div>
-              </div>
-              <div v-show="isSectionOpen('title')" class="section-body">
-                <input v-model="configStore.config.title" class="input" :placeholder="t('config.titlePlaceholder')" />
-              </div>
-            </section>
+        <!-- 右侧：实时预览 -->
+        <div class="config-preview">
+          <div class="preview-dash">
+            <div class="preview-dash-header">
+              <h3>{{ configStore.config.title || t('common.preview') }}</h3>
+            </div>
+            <div class="save-status" v-if="allSaved">{{ t('config.savedAll') }}</div>
+            <div class="save-status unsaved" v-else>{{ t('config.savedPartial', {
+              n: savedCount, total: totalSections
+            })
+              }}
+            </div>
 
-            <!-- 筛选 -->
-            <section class="config-section">
-              <div class="section-header-row" @click="toggleConfigSection('filters')">
-                <span class="sec-arrow">{{ isSectionOpen('filters') ? '▼' : '▶' }}</span>
-                <h3>{{ t('config.filters') }} ({{ configStore.config.filters.length }})</h3>
-                <div class="section-actions" @click.stop>
-                  <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('filters') }"
-                    @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾'
-                    }}</button>
-                  <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('filters')">↺</button>
-                </div>
+            <!-- 筛选条件预览 -->
+            <div v-if="configStore.config.filters.length > 0" class="preview-section">
+              <h4 class="ps-title">{{ t('config.filters') }}</h4>
+              <div class="preview-filters">
+                <span v-for="f in configStore.config.filters" :key="f" class="pf-chip">{{ f }}</span>
               </div>
-              <div v-show="isSectionOpen('filters')" class="section-body">
-                <div class="filter-chips">
-                  <label v-for="col in dimensionCols" :key="col" class="chip"
-                    :class="{ active: configStore.config.filters.includes(col) }">
-                    <input type="checkbox" :checked="configStore.config.filters.includes(col)"
-                      @change="configStore.toggleFilter(col)" class="sr-only" />
-                    {{ col }}
-                  </label>
-                </div>
-              </div>
-            </section>
+            </div>
 
-            <!-- 时间切片 -->
-            <section class="config-section" v-if="dateCols.length > 0">
-              <div class="section-header-row" @click="toggleConfigSection('dateColumn')">
-                <span class="sec-arrow">{{ isSectionOpen('dateColumn') ? '▼' : '▶' }}</span>
-                <h3>{{ t('config.timeSlice') }} ({{ selectedDateCols.length || dateCols.length }})</h3>
-                <div class="section-actions" @click.stop>
-                  <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('dateColumn') }"
-                    @click="configStore.saveSection('dateColumn')">{{ configStore.isSectionSaved('dateColumn') ? '✅' :
-                      '💾'
-                    }}</button>
-                  <button class="btn btn-sm btn-reset-sec"
-                    @click="configStore.resetSectionToAuto('dateColumn')">↺</button>
-                </div>
+            <!-- 时间切片预览 -->
+            <div v-if="previewSpec?.dateRange" class="preview-section">
+              <h4 class="ps-title">{{ t('config.timeSlice') }}</h4>
+              <div class="preview-filters">
+                <span class="pf-chip">{{ previewSpec!.dateRange!.min }} ~ {{ previewSpec!.dateRange!.max }}</span>
               </div>
-              <div v-show="isSectionOpen('dateColumn')" class="section-body">
-                <p class="sec-desc">{{ t('config.timeSliceHint') }}</p>
-                <div class="filter-chips">
-                  <label v-for="col in dateCols" :key="col" class="chip"
-                    :class="{ active: selectedDateCols.includes(col) }">
-                    <input type="checkbox" :checked="selectedDateCols.includes(col)"
-                      @change="toggleDateCol(col)" class="sr-only" />
-                    {{ col }}
-                  </label>
-                </div>
-                <p v-if="selectedDateCols.length > 0" class="sec-desc" style="margin-top:6px">
-                  {{ t('config.date') }}{{ previewSpec?.dateRange?.min }} ~ {{ previewSpec?.dateRange?.max }}
-                </p>
-              </div>
-            </section>
+            </div>
 
-            <!-- 图表 -->
-            <section class="config-section">
-              <div class="section-header-row" @click="toggleConfigSection('charts')">
-                <span class="sec-arrow">{{ isSectionOpen('charts') ? '▼' : '▶' }}</span>
-                <h3>{{ t('config.charts') }} ({{ configStore.config.charts.length }}) <span class="drag-hint">{{
-                  t('config.dragHint') }}</span></h3>
-                <div class="section-actions" @click.stop>
-                  <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('charts') }"
-                    @click="configStore.saveSection('charts')">{{ configStore.isSectionSaved('charts') ? '✅' : '💾'
-                    }}</button>
-                  <button class="btn btn-sm btn-reset-sec" @click="configStore.resetSectionToAuto('charts')">↺</button>
-                </div>
-              </div>
-              <div v-show="isSectionOpen('charts')" class="section-body">
-                <div class="chart-quick-actions">
-                  <span>{{ t('config.displayColumns') }} ({{ selectedChartCount }}/{{ configStore.config.charts.length
-                    }})</span>
-                  <button class="btn-link" @click="configStore.selectAllCharts()">{{ t('common.selectAll') }}</button>
-                  <button class="btn-link" @click="configStore.clearAllCharts()">{{ t('common.clearAll') }}</button>
-                </div>
-                <div class="chart-list" data-drag-list="chart">
-                  <div v-for="(chart, ci) in configStore.config.charts" :key="chart.id" class="chart-item"
-                    :data-drag-idx="ci" :class="{ 'drag-placeholder': dragPlaceholder === ci && dragList === 'chart' }">
-                    <span class="drag-handle" :title="t('config.dragTitle')"
-                      @pointerdown.prevent="onPointerDown($event, ci, 'chart')">⋮⋮</span>
-                    <div class="chart-item-body">
-                      <div class="chart-item-header">
-                        <span class="chart-type-badge">{{ chartTypeLabel(chart.type) }}</span>
-                        <span class="chart-title">{{ chart.title }}</span>
-                        <button class="btn-icon" @click="openEditChart(chart)" :title="t('config.edit')">✎</button>
-                        <button class="btn-icon" @click="configStore.removeChart(chart.id)"
-                          :title="t('config.remove')">✕</button>
-                      </div>
-                      <div class="chart-item-detail">
-                        <span v-if="chart.dimension">{{ t('config.dimension') }}: {{ chart.dimension }}</span>
-                        <span v-if="chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metrics.join(', ')
-                          }}</span>
-                        <span v-if="chart.metric && !chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metric
-                          }}</span>
-                        <span v-if="chart.dateColumn">{{ t('config.date') }} {{ chart.dateColumn }}</span>
-                        <span v-if="chart.k">K: {{ chart.k }}</span>
-                      </div>
-                      <label class="chart-select-cb" @click.stop>
-                        <input type="checkbox" :checked="chart.selected !== false"
-                          @change="configStore.toggleChartSelected(chart.id)" />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <button class="btn btn-sm btn-add" @click="openAddChart">{{ t('config.addChart') }}</button>
-              </div>
-            </section>
-
-          </div>
-
-          <!-- 右侧：实时预览 -->
-          <div class="config-preview">
-            <div class="preview-dash">
-              <div class="preview-dash-header">
-                <h3>{{ configStore.config.title || t('common.preview') }}</h3>
-              </div>
-              <div class="save-status" v-if="allSaved">{{ t('config.savedAll') }}</div>
-              <div class="save-status unsaved" v-else>{{ t('config.savedPartial', {
-                n: savedCount, total: totalSections
-              })
-                }}
-              </div>
-
-              <!-- 筛选条件预览 -->
-              <div v-if="configStore.config.filters.length > 0" class="preview-section">
-                <h4 class="ps-title">{{ t('config.filters') }}</h4>
-                <div class="preview-filters">
-                  <span v-for="f in configStore.config.filters" :key="f" class="pf-chip">{{ f }}</span>
-                </div>
-              </div>
-
-              <!-- 时间切片预览 -->
-              <div v-if="previewSpec?.dateRange" class="preview-section">
-                <h4 class="ps-title">{{ t('config.timeSlice') }}</h4>
-                <div class="preview-filters">
-                  <span class="pf-chip">{{ previewSpec!.dateRange!.min }} ~ {{ previewSpec!.dateRange!.max }}</span>
-                </div>
-              </div>
-
-              <!-- KPI 预览 -->
-              <div v-if="previewKpis.length > 0" class="preview-section">
-                <h4 class="ps-title">{{ t('config.kpiCards') }} ({{ previewKpis.length }})</h4>
-                <div class="preview-kpi-row">
-                  <div v-for="(kpi, i) in previewKpis" :key="'pk-' + i" class="preview-kpi-card">
-                    <div class="pk-label">{{ kpi.label }}</div>
-                    <div class="pk-value" style="font-size:16px">{{ formatPreviewValue(kpi) }}</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 图表占位预览 -->
-              <div v-if="selectedCharts.length > 0" class="preview-section">
-                <h4 class="ps-title">{{ t('config.charts') }} ({{ selectedCharts.length }})</h4>
-                <div class="preview-chart-grid">
-                  <div v-for="(chart, i) in selectedCharts" :key="chart.id || i" class="preview-chart-card">
-                    <span class="pc-type">{{ chartTypeLabel(chart.type) }}</span>
-                    <span class="pc-title">{{ chart.title }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 数据表摘要 -->
-              <div v-if="configStore.config.table.columns.length > 0" class="preview-section">
-                <h4 class="ps-title">{{ t('config.sections.table') }}</h4>
-                <div class="preview-table-info">
-                  <span>{{ t('config.displayColumns') }}: {{ configStore.config.table.columns.length }}</span>
-                  <span>{{ t('config.dataRows') }}: {{ previewStore.effectiveRows.length }}</span>
-                </div>
-                <div class="preview-table-mini-wrap">
-                  <table class="preview-table-mini">
-                    <thead>
-                      <tr>
-                        <th v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, true)">{{ col }}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="(row, ri) in previewTableRows" :key="ri">
-                        <td v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, false)">{{ previewCellValue(row[col]) }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+            <!-- KPI 预览 -->
+            <div v-if="previewKpis.length > 0" class="preview-section">
+              <h4 class="ps-title">{{ t('config.kpiCards') }} ({{ previewKpis.length }})</h4>
+              <div class="preview-kpi-row">
+                <div v-for="(kpi, i) in previewKpis" :key="'pk-' + i" class="preview-kpi-card">
+                  <div class="pk-label">{{ kpi.label }}</div>
+                  <div class="pk-value" style="font-size:16px">{{ formatPreviewValue(kpi) }}</div>
                 </div>
               </div>
             </div>
-            <button class="btn btn-refresh-preview" @click="refreshPreview" :title="t('common.refresh')">↻ {{
-              t('common.refresh')
-              }}</button>
+
+            <!-- 图表占位预览 -->
+            <div v-if="selectedCharts.length > 0" class="preview-section">
+              <h4 class="ps-title">{{ t('config.charts') }} ({{ selectedCharts.length }})</h4>
+              <div class="preview-chart-grid">
+                <div v-for="(chart, i) in selectedCharts" :key="chart.id || i" class="preview-chart-card">
+                  <span class="pc-type">{{ chartTypeLabel(chart.type) }}</span>
+                  <span class="pc-title">{{ chart.title }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 数据表摘要 -->
+            <div v-if="configStore.config.table.columns.length > 0" class="preview-section">
+              <h4 class="ps-title">{{ t('config.sections.table') }}</h4>
+              <div class="preview-table-info">
+                <span>{{ t('config.displayColumns') }}: {{ configStore.config.table.columns.length }}</span>
+                <span>{{ t('config.dataRows') }}: {{ previewStore.effectiveRows.length }}</span>
+              </div>
+              <div class="preview-table-mini-wrap">
+                <table class="preview-table-mini">
+                  <thead>
+                    <tr>
+                      <th v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, true)">{{ col }}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, ri) in previewTableRows" :key="ri">
+                      <td v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, false)">{{
+                        previewCellValue(row[col], col) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
+          <button class="btn btn-refresh-preview" @click="refreshPreview" :title="t('common.refresh')">↻ {{
+            t('common.refresh')
+            }}</button>
         </div>
       </div>
     </template>
@@ -913,99 +636,6 @@
         </div>
       </div>
     </Teleport>
-
-    <!-- 计算列编辑器弹窗 -->
-    <Teleport to="body">
-      <div v-if="showComputedColEditor" class="modal-overlay" @click.self="cancelComputedColEdit">
-        <div class="modal-dialog modal-sm">
-          <div class="modal-header">
-            <h3>{{ editingComputedColIdx >= 0 ? t('config.editComputedCol') : t('config.addComputedCol') }}</h3>
-            <button class="btn-icon" @click="cancelComputedColEdit">✕</button>
-          </div>
-          <div class="modal-body">
-            <label class="cc-field-label">{{ t('config.colName') }}</label>
-            <input v-model="computedColForm.name" class="input" :placeholder="t('config.colName')" />
-            <p class="sec-desc" style="margin-top:4px;margin-bottom:10px">💡 {{ t('config.compColNameHint') }}</p>
-
-            <div class="cc-section-title">{{ t('config.variables') }}</div>
-            <div v-for="(v, vi) in computedColForm.variables" :key="vi" class="formula-var-row">
-              <span class="var-alias">{{ v.alias }}</span>
-              <select v-model="v.column" class="input input-sm" style="flex:1">
-                <option value="">{{ t('config.selectColumnPlaceholder') }}</option>
-                <option v-for="col in allDataCols" :key="col" :value="col">{{ col }}</option>
-              </select>
-              <input v-model="v.filter" class="input input-sm formula-filter" :placeholder="t('config.columnFilter')"
-                list="cc-filter-cols" />
-              <button v-if="computedColForm.variables.length > 1" class="btn-icon"
-                @click="computedColForm.variables.splice(vi, 1)" :title="t('config.remove')">✕</button>
-            </div>
-            <button class="btn-link" @click="addComputedColVariable" style="margin-bottom:6px">{{
-              t('config.addVariable')
-            }}</button>
-
-            <div class="cc-section-title" style="margin-top:14px">{{ t('config.sharedFilter') }} <span
-                class="formula-hint">{{
-                  t('config.sharedFilterHint') }}</span></div>
-            <div class="filter-wrap" style="margin-bottom:14px">
-              <input v-model="computedColForm.filter" class="input filter-input"
-                :placeholder="t('config.leaveEmptyAll')" list="cc-filter-shared" />
-            </div>
-
-            <datalist id="cc-filter-shared">
-              <template v-for="col in filterableColumns" :key="col">
-                <option :value="col + ' = '" />
-                <option :value="col + ' != '" />
-                <option v-if="isNumericCol(col)" :value="col + ' > '" />
-                <option v-if="isNumericCol(col)" :value="col + ' < '" />
-                <option v-if="!isNumericCol(col)" :value="col + ' in '" />
-                <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
-              </template>
-            </datalist>
-            <datalist id="cc-filter-cols">
-              <template v-for="col in filterableColumns" :key="col">
-                <option :value="col + ' = '" />
-                <option :value="col + ' != '" />
-                <option v-if="isNumericCol(col)" :value="col + ' > '" />
-                <option v-if="isNumericCol(col)" :value="col + ' < '" />
-                <option v-if="!isNumericCol(col)" :value="col + ' in '" />
-                <option v-if="!isNumericCol(col)" :value="col + ' ~ '" />
-              </template>
-            </datalist>
-
-            <div class="cc-section-title" style="margin-top:14px">{{ t('config.colExpr') }}</div>
-            <div class="formula-btns">
-              <button v-for="v in computedColForm.variables" :key="v.alias" class="period-btn"
-                @click="computedColForm.expression += v.alias">{{ v.alias }}</button>
-              <span v-if="computedColForm.variables.length" class="toggle-sep" style="margin:0 4px"></span>
-              <button class="period-btn func-btn" @click="insertCCFunc('SUM')">SUM</button>
-              <button class="period-btn func-btn" @click="insertCCFunc('AVG')">AVG</button>
-              <button class="period-btn func-btn" @click="insertCCFunc('COUNT')">CNT</button>
-              <button class="period-btn func-btn" @click="insertCCFunc('UNIQUE_COUNT')">UNIQ</button>
-              <button class="period-btn func-btn" @click="insertCCFunc('MIN')">MIN</button>
-              <button class="period-btn func-btn" @click="insertCCFunc('MAX')">MAX</button>
-              <span class="toggle-sep" style="margin:0 4px"></span>
-              <button class="period-btn" @click="insertCCOp('+')">+</button>
-              <button class="period-btn" @click="insertCCOp('-')">−</button>
-              <button class="period-btn" @click="insertCCOp('*')">×</button>
-              <button class="period-btn" @click="insertCCOp('/')">÷</button>
-              <button class="period-btn" @click="insertCCOp('(')">(</button>
-              <button class="period-btn" @click="insertCCOp(')')">)</button>
-            </div>
-            <input v-model="computedColForm.expression" class="input" :placeholder="t('config.colExprPlaceholder')"
-              style="margin-top:6px" />
-
-            <label class="cc-modal-cb" style="margin-top:12px">
-              <input type="checkbox" v-model="computedColForm.selected" />
-              {{ t('config.showInTable') }}
-            </label>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-primary" @click="saveComputedCol">{{ t('common.save') }}</button>
-            <button class="btn" @click="cancelComputedColEdit">{{ t('common.cancel') }}</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
   </div>
 </template>
 
@@ -1016,7 +646,6 @@ import { useRouter } from 'vue-router'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { usePreviewStore } from '@/stores/preview-store'
-import { applyFilter } from '@/core/filter'
 import { augmentComputedCols } from '@/core/formula-engine'
 import type { ConfigSection } from '@/stores/config-store'
 import { CHART_TYPES, AGG_OPTIONS, KPI_FORMAT_OPTIONS } from '@/types/config'
@@ -1037,12 +666,12 @@ const { roleOverrides } = storeToRefs(dataStore)
 
 // 全部区域是否都已保存（与快照一致）
 const allSaved = computed(() => {
-  const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'metricDefaults', 'kpis', 'charts', 'table']
+  const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'computedCols']
   return sections.every((s) => configStore.isSectionSaved(s))
 })
 
 const savedCount = computed(() => {
-  const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'metricDefaults', 'kpis', 'charts', 'table']
+  const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'computedCols']
   return sections.filter((s) => configStore.isSectionSaved(s)).length
 })
 const totalSections = 7
@@ -1054,9 +683,6 @@ function toggleResetHint() {
   showResetHint.value = !showResetHint.value
   localStorage.setItem(RESET_HINT_KEY, '1')
 }
-
-// Config tab switching
-const activeConfigTab = ref<'enrich' | 'dashboard'>('enrich')
 
 // Config export/import
 const configMsg = ref('')
@@ -1104,7 +730,7 @@ async function importConfig(e: Event) {
 }
 
 // ====== Accordion state ======
-const expandedSections = ref(new Set<ConfigSection>(['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'metricDefaults']))
+const expandedSections = ref(new Set<ConfigSection>(['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'computedCols']))
 function toggleConfigSection(section: ConfigSection) {
   if (expandedSections.value.has(section)) {
     expandedSections.value.delete(section)
@@ -1174,10 +800,21 @@ const associatedColumnMap = computed(() => {
 })
 
 function getAssocColStyle(col: string, isHeader: boolean): Record<string, string> {
-  const idx = associatedColumnMap.value.get(col)
-  if (idx === undefined) return {}
-  const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
-  return { backgroundColor: isHeader ? p.headerBg : p.cellBg }
+  const style: Record<string, string> = {}
+  // 用户自定义列颜色（优先级高于关联表着色）
+  const userBg = configStore.config.table.columnColors?.[col]
+  const userFg = configStore.config.table.columnTextColors?.[col]
+  if (userBg) {
+    style.backgroundColor = isHeader ? userBg : (userBg + '40')
+  } else {
+    const idx = associatedColumnMap.value.get(col)
+    if (idx !== undefined) {
+      const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
+      style.backgroundColor = isHeader ? p.headerBg : p.cellBg
+    }
+  }
+  if (userFg) style.color = isHeader ? userFg : (userFg + 'c0')
+  return style
 }
 
 /** 预览表格的排序列 */
@@ -1198,15 +835,39 @@ const previewTableCols = computed(() => {
   return [...cols].sort((a, b) => (rank.get(a) ?? Infinity) - (rank.get(b) ?? Infinity))
 })
 
-/** 前 3 行数据预览（含计算列） */
+/** 前 3 行数据预览（含计算列），优先 Rust 后端数据 */
 const previewTableRows = computed(() => {
   const rows = previewStore.effectiveRows.slice(0, 3)
+  const rustCC = previewStore.computedColumnData
+  if (rustCC && Object.keys(rustCC).length > 0) {
+    return rows.map((row, idx) => {
+      const aug = { ...row }
+      for (const [col, values] of Object.entries(rustCC)) {
+        aug[col] = values[idx] ?? 0
+      }
+      return aug
+    })
+  }
   return augmentComputedCols(rows, configStore.config.table.computedColumns || [])
 })
 
-function previewCellValue(val: any): string {
+function previewCellValue(val: any, col?: string): string {
   if (val === undefined || val === null || val === '') return '—'
   if (typeof val === 'number') {
+    if (col) {
+      const fmt = configStore.config.table.columnFormats?.[col]
+      if (fmt?.format) {
+        if (fmt.format === 'integer') return Math.round(val).toLocaleString()
+        if (fmt.format === 'percent') return val.toFixed(fmt.decimals ?? 1) + '%'
+        if (fmt.format === 'currency') {
+          const prefix = fmt.prefix || ''
+          if (fmt.unit === 'wan') return prefix + (val / 10000).toFixed(fmt.decimals ?? 2).toLocaleString() + '万'
+          if (fmt.unit === 'yi') return prefix + (val / 100000000).toFixed(fmt.decimals ?? 2).toLocaleString() + '亿'
+          return prefix + val.toFixed(fmt.decimals ?? 2).toLocaleString()
+        }
+        return val.toFixed(fmt.decimals ?? 2).toLocaleString()
+      }
+    }
     const s = val.toLocaleString(undefined, { maximumFractionDigits: 4 })
     return s.length > 30 ? s.slice(0, 28) + '…' : s
   }
@@ -1381,71 +1042,6 @@ function isNumericCol(col: string): boolean {
   return (dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col])?.type === 'numeric'
 }
 
-// Role cycling (same as DataPreview)
-const ROLE_CYCLE = ['metric', 'dimension', 'time_axis', 'label', 'ignore']
-
-function cycleRole(col: string) {
-  const current = effRole(col)
-  const idx = ROLE_CYCLE.indexOf(current)
-  const next = ROLE_CYCLE[(idx + 1) % ROLE_CYCLE.length]
-  dataStore.setRoleOverride(col, next)
-}
-
-// ====== Column conditional text rules ======
-const expandedColRules = ref(new Set<string>())
-function toggleColRules(col: string) {
-  if (expandedColRules.value.has(col)) {
-    expandedColRules.value.delete(col)
-  } else {
-    expandedColRules.value.add(col)
-  }
-  // trigger reactivity
-  expandedColRules.value = new Set(expandedColRules.value)
-}
-function ruleCount(col: string): number {
-  return configStore.config.table.columnTextRules?.[col]?.length || 0
-}
-
-// ====== Column card helpers (参考首页列信息卡片) ======
-const roleIcons: Record<string, string> = {
-  metric: '📊',
-  dimension: '📋',
-  time_axis: '📅',
-  label: '🏷️',
-  ignore: '—',
-}
-function roleIcon(role?: string): string {
-  return role ? (roleIcons[role] ?? '') : ''
-}
-function typeLabel(type?: string): string {
-  if (!type) return ''
-  const map: Record<string, string> = {
-    numeric: t('classification.type.numeric'),
-    categorical: t('classification.type.categorical'),
-    date: t('classification.type.date'),
-    text: t('classification.type.text'),
-  }
-  return map[type] ?? type
-}
-
-/** 获取列的类型标签（含计算列） */
-function colTypeLabel(col: string): string {
-  if (isComputedCol(col)) return t('classification.type.numeric')
-  const cls = dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col]
-  return typeLabel(cls?.type)
-}
-function roleLabel(role?: string): string {
-  if (!role) return ''
-  const map: Record<string, string> = {
-    metric: t('classification.role.metric'),
-    dimension: t('classification.role.dimension'),
-    time_axis: t('classification.role.time_axis'),
-    label: t('classification.role.label'),
-    ignore: t('classification.role.ignore'),
-  }
-  return map[role] ?? role
-}
-
 function chartTypeLabel(type: string): string {
   return t(CHART_TYPES.find((ct) => ct.value === type)?.labelKey ?? type)
 }
@@ -1478,120 +1074,6 @@ const kpiForm = reactive({
 })
 
 const ALIAS_POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
-
-// ====== 计算列编辑器 ======
-const showComputedColEditor = ref(false)
-const editingComputedColIdx = ref(-1)
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-const computedColForm = reactive({
-  name: '',
-  variables: [] as { alias: string; column: string; filter?: string }[],
-  expression: '',
-  filter: '',
-  selected: true,
-})
-
-function addComputedColVariable() {
-  const idx = computedColForm.variables.length
-  computedColForm.variables.push({ alias: ALPHABET[idx] || 'V' + idx, column: '' })
-}
-
-function insertCCFunc(func: string) {
-  computedColForm.expression += func + '()'
-}
-
-function insertCCOp(op: string) {
-  computedColForm.expression += ` ${op} `
-}
-
-function openComputedColEditor(idx: number) {
-  editingComputedColIdx.value = idx
-  if (idx >= 0) {
-    const cc = configStore.config.table.computedColumns?.[idx]
-    if (cc) {
-      computedColForm.name = cc.name
-      computedColForm.variables = cc.variables ? [...cc.variables] : []
-      computedColForm.expression = cc.expression
-      computedColForm.filter = (cc as any).filter || ''
-      computedColForm.selected = cc.selected !== false
-    }
-  } else {
-    computedColForm.name = ''
-    computedColForm.variables = []
-    computedColForm.expression = ''
-    computedColForm.filter = ''
-    computedColForm.selected = true
-  }
-  showComputedColEditor.value = true
-}
-
-function saveComputedCol() {
-  const name = computedColForm.name.trim()
-  if (!name) return
-  const cc = {
-    name,
-    variables: computedColForm.variables.filter(v => v.column),
-    expression: computedColForm.expression,
-    filter: computedColForm.filter.trim() || undefined,
-    selected: computedColForm.selected,
-  }
-  if (editingComputedColIdx.value >= 0) {
-    const cols = configStore.config.table.computedColumns
-    if (cols) cols[editingComputedColIdx.value] = cc
-  } else {
-    if (!configStore.config.table.computedColumns) {
-      configStore.config.table.computedColumns = []
-    }
-    configStore.config.table.computedColumns.push(cc)
-  }
-  if (cc.selected && !configStore.config.table.columns.includes(name)) {
-    configStore.config.table.columns.push(name)
-  } else if (!cc.selected) {
-    const ci = configStore.config.table.columns.indexOf(name)
-    if (ci !== -1) configStore.config.table.columns.splice(ci, 1)
-  }
-  showComputedColEditor.value = false
-}
-
-function cancelComputedColEdit() {
-  showComputedColEditor.value = false
-}
-
-function toggleComputedColSelected(cc: { selected?: boolean; name: string }) {
-  cc.selected = !cc.selected
-  if (cc.selected) {
-    if (!configStore.config.table.columns.includes(cc.name)) {
-      configStore.config.table.columns.push(cc.name)
-    }
-  } else {
-    const idx = configStore.config.table.columns.indexOf(cc.name)
-    if (idx !== -1) configStore.config.table.columns.splice(idx, 1)
-  }
-}
-
-function setMetricFormat(col: string, format: string) {
-  if (!configStore.config.metricDefaults) configStore.config.metricDefaults = {}
-  if (!format) {
-    delete configStore.config.metricDefaults[col]
-  } else {
-    configStore.config.metricDefaults[col] = {
-      format,
-      unit: configStore.config.metricDefaults[col]?.unit || 'yuan',
-      decimals: configStore.config.metricDefaults[col]?.decimals ?? 2,
-      sections: ['kpi', 'chart', 'table'],
-    }
-  }
-}
-
-function setMetricUnit(col: string, unit: string) {
-  if (!configStore.config.metricDefaults?.[col]) return
-  configStore.config.metricDefaults[col].unit = unit as any
-}
-
-function setMetricDecimals(col: string, decimals: number) {
-  if (!configStore.config.metricDefaults?.[col]) return
-  configStore.config.metricDefaults[col].decimals = decimals
-}
 
 // 已保存的 KPI 标签（可复用参数：含公式和单列计算）
 const calculatedParams = computed(() => {
@@ -1861,92 +1343,7 @@ function toggleDateCol(col: string) {
   }
 }
 
-// ====== 全局指标聚合 ======
-function initMetricDefaultsForm() {
-  const form: Record<string, { format: string; unit: string; prefix: string; decimals: number; sections: string[] }> = {}
-  const cfg = configStore.config.metricDefaults || {}
-  for (const col of allMetricCols.value) {
-    const d = cfg[col] || {}
-    form[col] = {
-      format: d.format || 'global',
-      unit: d.unit || 'yuan',
-      prefix: d.prefix || '',
-      decimals: d.decimals !== undefined ? d.decimals : 2,
-      sections: d.sections ? [...d.sections] : [],
-    }
-  }
-  return form
-}
-const metricDefaultsForm = reactive(initMetricDefaultsForm())
-// Re-init when data changes (new columns)
-watch(allMetricCols, () => {
-  const newForm = initMetricDefaultsForm()
-  for (const key of Object.keys(newForm)) {
-    if (!metricDefaultsForm[key]) {
-      metricDefaultsForm[key] = newForm[key]
-    }
-  }
-})
-
-function hasSection(col: string, section: string): boolean {
-  return metricDefaultsForm[col]?.sections.includes(section)
-}
-function toggleSection(col: string, section: string) {
-  const arr = metricDefaultsForm[col].sections
-  const idx = arr.indexOf(section)
-  if (idx !== -1) arr.splice(idx, 1)
-  else arr.push(section)
-}
-
-function selectAllSection(section: string) {
-  for (const col of allMetricCols.value) {
-    if (!metricDefaultsForm[col].sections.includes(section)) {
-      metricDefaultsForm[col].sections.push(section)
-    }
-  }
-}
-function clearAllSection(section: string) {
-  for (const col of allMetricCols.value) {
-    const arr = metricDefaultsForm[col].sections
-    const idx = arr.indexOf(section)
-    if (idx !== -1) arr.splice(idx, 1)
-  }
-}
-function isSectionAllSelected(section: string): boolean {
-  return allMetricCols.value.length > 0 && allMetricCols.value.every(col => metricDefaultsForm[col]?.sections.includes(section))
-}
-function toggleSectionAll(section: string) {
-  if (isSectionAllSelected(section)) {
-    clearAllSection(section)
-  } else {
-    selectAllSection(section)
-  }
-}
-
-// ====== 保存/重置全局格式 ======
-function saveMetricDefaults() {
-  const cfg: Record<string, any> = {}
-  for (const col of allMetricCols.value) {
-    const f = metricDefaultsForm[col]
-    if (!f || !f.format || f.format === 'global') continue
-    cfg[col] = {
-      format: f.format,
-      unit: f.format === 'currency' ? f.unit : undefined,
-      prefix: f.format === 'currency' ? (f.prefix || '') : undefined,
-      decimals: f.decimals,
-      sections: f.sections.length > 0 ? [...f.sections] : undefined,
-    }
-  }
-  configStore.config.metricDefaults = Object.keys(cfg).length > 0 ? cfg : undefined
-  configStore.saveSection('metricDefaults')
-}
-function resetMetricDefaults() {
-  configStore.resetSectionToAuto('metricDefaults')
-  const newForm = initMetricDefaultsForm()
-  for (const key of Object.keys(newForm)) {
-    metricDefaultsForm[key] = { ...newForm[key] }
-  }
-}
+// ====== 图表编辑器相关 ======
 
 function isBasicChart(type: string): boolean {
   return ['bar', 'horizontal_bar', 'doughnut'].includes(type)
@@ -2436,7 +1833,7 @@ function cancelChartEdit() {
 .config-bottom-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 8px;
 }
 
@@ -3442,37 +2839,6 @@ function cancelChartEdit() {
   gap: 2px;
 }
 
-.cc-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  background: var(--bg);
-  border-radius: 6px;
-  border: 1px solid transparent;
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-.cc-item-name {
-  font-weight: 600;
-  min-width: 48px;
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cc-item-expr {
-  flex: 1;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 12px;
-}
-
 .cc-modal-chips {
   margin-top: 8px;
 }
@@ -3554,27 +2920,6 @@ function cancelChartEdit() {
   border-color: var(--primary);
   color: var(--primary);
   background: var(--primary-light);
-}
-
-.cc-cb {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.cc-cb input {
-  margin: 0;
-}
-
-.cc-remove {
-  flex-shrink: 0;
-  opacity: 0.4;
-}
-
-.cc-remove:hover {
-  opacity: 1;
 }
 
 .cc-add-btn {
@@ -4060,5 +3405,461 @@ function cancelChartEdit() {
   font-size: 12px;
   margin-top: -4px;
   margin-bottom: 4px;
+}
+
+/* ====== Column Card Grid（参考 Upload 页面 DataPreview 风格） ====== */
+.col-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.col-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.col-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.col-card.is-expanded {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, .2);
+}
+
+.col-card.role-metric {
+  background: var(--role-metric-bg);
+}
+
+.col-card.role-dimension {
+  background: var(--role-dimension-bg);
+}
+
+.col-card.role-time_axis {
+  background: var(--role-time-bg);
+}
+
+.col-card.role-label {
+  background: var(--role-label-bg);
+}
+
+.col-card.role-ignore {
+  background: var(--role-ignore-bg);
+  opacity: 0.6;
+}
+
+.col-card.is-computed {
+  border-left: 3px solid #f59e0b;
+}
+
+/* 虚拟卡片：新增计算列 */
+.col-card-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 2px dashed var(--border);
+  background: transparent !important;
+  cursor: pointer;
+  min-height: 64px;
+  transition: all 0.15s;
+}
+
+.col-card-add:hover {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, .04) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.col-add-icon {
+  font-size: 20px;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.col-add-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.col-card.drag-placeholder {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, .25);
+  background: rgba(59, 130, 246, .06);
+}
+
+.col-drag {
+  cursor: grab;
+  color: var(--text-secondary);
+  font-size: 12px;
+  user-select: none;
+  opacity: 0.3;
+  flex-shrink: 0;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.col-drag:hover {
+  opacity: 0.7;
+}
+
+.col-drag:active {
+  cursor: grabbing;
+}
+
+.col-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.col-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.col-name {
+  font-weight: 600;
+  font-size: 13px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-computed-badge {
+  display: inline-flex;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  margin-left: 4px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.col-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: block;
+  margin-top: 1px;
+}
+
+.col-meta:hover {
+  color: var(--primary);
+}
+
+.col-vis-cb {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.col-vis-cb input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  margin: 0;
+}
+
+.col-expand-icon {
+  font-size: 10px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.col-expand-icon.is-edit {
+  font-size: 13px;
+  opacity: 0.5;
+}
+
+.col-card:hover .col-expand-icon {
+  opacity: 0.7;
+}
+
+.col-card:hover .col-expand-icon.is-edit {
+  opacity: 0.9;
+}
+
+/* ====== 卡片原位展开的设置面板（绝对定位） ====== */
+.col-card-wrap {
+  position: relative;
+}
+
+.col-settings-inline {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 340px;
+  z-index: 20;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  animation: csp-slide-down 0.15s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes csp-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.csi-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.csi-icon {
+  font-size: 15px;
+}
+
+.csi-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.csi-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.csi-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.csi-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.csi-body {
+  padding: 10px 12px;
+}
+
+/* ====== 纵向设置行 ====== */
+.col-card-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ccs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ccs-label {
+  width: 48px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.ccs-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ccs-control-inline {
+  flex-wrap: wrap;
+}
+
+.color-picker-sm {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px;
+  cursor: pointer;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.ccs-clear {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  border-radius: 3px;
+}
+
+.ccs-clear:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, .08);
+}
+
+.ccs-select {
+  font-size: 12px;
+  padding: 4px 24px 4px 8px;
+  height: 28px;
+  line-height: 28px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+  cursor: pointer;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.ccs-select-sm {
+  width: 64px;
+  min-width: 64px;
+}
+
+.ccs-input-sm {
+  font-size: 12px;
+  padding: 4px 8px;
+  height: 28px;
+  line-height: 28px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+  width: 64px;
+  text-align: center;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.ccs-input-sm::placeholder {
+  color: #999;
+}
+
+.ccs-input-sm::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+/* ====== 条件着色规则面板 ====== */
+.col-card-rules-panel {
+  margin-top: 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.ccrp-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ccrp-header:hover {
+  background: var(--bg-hover);
+}
+
+.ccrp-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.ccrp-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0 5px;
+}
+
+.ccrp-arrow {
+  font-size: 10px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.ccrp-body {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ccrp-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ccrp-cond {
+  flex: 1;
+  min-width: 120px;
+}
+
+.ccrp-add-btn {
+  font-size: 12px;
+  padding: 4px 0;
+  text-align: left;
 }
 </style>
