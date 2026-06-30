@@ -4,7 +4,7 @@
     <div class="table-col-header">
       <span>{{ t('config.displayColumns') }} ({{ configStore.config.table.columns.length }}/{{ allHeaders.length +
         computedTableCols.length
-      }})</span>
+        }})</span>
       <button class="btn-link" @click="selectAllColumns">{{ t('common.selectAll') }}</button>
       <button class="btn-link" @click="clearAllColumns">{{ t('common.clearAll') }}</button>
     </div>
@@ -12,7 +12,7 @@
     <!-- 数据列卡片网格 -->
     <div class="col-grid" data-drag-list="table">
       <template v-for="(col, ci) in regularTableCols" :key="col">
-        <div class="col-card-wrap">
+        <div class="col-card-wrap" :style="colSourceStyle(col)">
           <div class="col-card" :class="[
             'role-' + effRole(col),
             { 'is-computed': isComputedCol(col), 'is-expanded': isColCardOpen(col), 'drag-placeholder': dragPlaceholder === ci && dragList === 'table' }
@@ -23,6 +23,7 @@
             <div class="col-text">
               <span class="col-name">
                 {{ col }}
+                <span v-if="isJoinKey(col)" class="col-key-badge">KEY</span>
                 <span v-if="isComputedCol(col)" class="col-computed-badge">计算</span>
               </span>
               <span class="col-meta" @click.stop="cycleRole(col)">
@@ -163,7 +164,7 @@
     <div v-if="computedTableCols.length" class="col-grid-label">计算列 ({{ computedTableCols.length }})</div>
     <div class="col-grid" data-drag-list="table-computed">
       <template v-for="(col, ci) in computedTableCols" :key="col">
-        <div class="col-card-wrap">
+        <div class="col-card-wrap" :style="colSourceStyle(col)">
           <div class="col-card" :class="[
             'role-' + effRole(col),
             { 'is-computed': true, 'is-expanded': isColCardOpen(col), 'drag-placeholder': dragPlaceholder === ci && dragList === 'table-computed' }
@@ -176,7 +177,7 @@
                 <span class="col-computed-badge">计算</span>
               </span>
               <div class="col-text">
-                <span class="col-name">{{ col }}</span>
+                <span class="col-name">{{ col }}<span v-if="isJoinKey(col)" class="col-key-badge">KEY</span></span>
                 <span class="col-meta">
                   {{ colTypeLabel(col) }} · {{ roleLabel(effRole(col)) }}
                 </span>
@@ -350,7 +351,7 @@
             </div>
             <button class="btn-link" @click="addComputedColVariable" style="margin-bottom:6px">{{
               t('config.addVariable')
-              }}</button>
+            }}</button>
 
             <div class="cc-section-title" style="margin-top:14px">{{ t('config.sharedFilter') }} <span
                 class="formula-hint">{{
@@ -431,17 +432,80 @@ const configStore = useConfigStore()
 const dataStore = useDataStore()
 const previewStore = usePreviewStore()
 
+const props = defineProps<{
+  /** 是否使用跨表合并后的列头（关联页使用），默认 false 仅显示当前表列 */
+  useMergedHeaders?: boolean
+}>()
+
 const { roleOverrides } = storeToRefs(dataStore)
 
 // ====== Headers ======
 const allHeaders = computed(() => {
-  if (dataStore.hasRelations) return previewStore.effectiveHeaders
+  if (props.useMergedHeaders && dataStore.hasRelations) return previewStore.effectiveHeaders
   return dataStore.dataSet?.headers ?? []
 })
 
 const filterableColumns = computed(() =>
   allHeaders.value.filter((h) => !dataStore.excludedColumns.has(h)),
 )
+
+/** 合并模式下，每列的来源表映射（用于卡片边框着色） */
+const SOURCE_BORDER_COLORS: Record<string, string> = {
+  computed: '#b57edc',  // 计算列：紫边框
+  assoc1: '#7ea8e4',    // 关联表1：蓝边框
+  assoc2: '#e47ea8',    // 关联表2：粉边框
+  assoc3: '#7ec8e4',    // 关联表3：青边框
+}
+
+const colSourceMap = computed(() => {
+  const map = new Map<string, string>()
+  if (!props.useMergedHeaders || !dataStore.hasRelations) return map
+  const ds = dataStore.dataSet
+  if (!ds) return map
+  const cc = configStore.config.table.computedColumns || []
+  for (const c of cc) { if (c.selected !== false && c.name) map.set(c.name, 'computed') }
+
+  const mainHeaders = new Set(ds.headers)
+  let assocIdx = 0
+  const usedPrefixes = new Map<string, number>()
+  for (const rel of dataStore.relations) {
+    const otherId = rel.leftTableId === ds.id ? rel.rightTableId : rel.rightTableId === ds.id ? rel.leftTableId : null
+    if (!otherId) continue
+    const otherDs = dataStore.tables[otherId]
+    if (!otherDs) continue
+    const thisJoinCol = rel.leftTableId === ds.id ? rel.leftColumn : rel.rightColumn
+    const otherJoinCol = rel.leftTableId === ds.id ? rel.rightColumn : rel.leftColumn
+    const prefix = dataStore.getTableDisplayName(otherDs)
+    if (!usedPrefixes.has(prefix)) usedPrefixes.set(prefix, assocIdx++)
+    const idx = usedPrefixes.get(prefix)!
+    // 标记本侧关联 key（主表侧）
+    joinKeyNames.value.add(thisJoinCol)
+    for (const h of otherDs.headers) {
+      const effectiveName = mainHeaders.has(h) ? (prefix + '.' + h) : h
+      map.set(effectiveName, 'assoc' + (idx + 1))
+      // 标记对侧关联 key
+      if (h === otherJoinCol) joinKeyNames.value.add(effectiveName)
+    }
+  }
+  return map
+})
+
+/** 关联 key 列名集合 */
+const joinKeyNames = ref(new Set<string>())
+
+function isJoinKey(col: string): boolean {
+  return joinKeyNames.value.has(col)
+}
+
+function colSourceStyle(col: string): Record<string, string> {
+  const src = colSourceMap.value.get(col)
+  if (!src) return {}
+  const borderColor = SOURCE_BORDER_COLORS[src] || SOURCE_BORDER_COLORS.computed
+  return {
+    border: '2px solid ' + borderColor,
+    borderRadius: '8px',
+  }
+}
 
 const orderedTableCols = computed(() => {
   const headers = [...allHeaders.value]
@@ -1084,6 +1148,17 @@ function onPointerUp(e: PointerEvent) {
   padding: 1px 5px;
   border-radius: 3px;
   background: #f59e0b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.col-key-badge {
+  display: inline-flex;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #3b82f6;
   color: #fff;
   font-size: 9px;
   font-weight: 600;

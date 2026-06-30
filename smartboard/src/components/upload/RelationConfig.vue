@@ -301,6 +301,56 @@
       </div>
     </div>
   </Teleport>
+
+  <!-- 合并表列定义：关联建立后出现，显示合并后的全字段列表 -->
+  <div v-if="dataStore.relations.length > 0" class="merged-col-section">
+    <!-- ① 列数据定义 -->
+    <div class="merged-card">
+      <div class="section-head">
+        <h4>{{ t('upload.mergedColumnDef') }} <span class="section-hint">💡 {{ t('upload.mergedColumnDefDesc') }}</span>
+        </h4>
+        <div class="section-actions">
+          <button class="btn-save" :class="{ saved: configStore.isSectionSaved('table') }"
+            @click="configStore.saveSection('table')">{{ configStore.isSectionSaved('table') ? '✅' : '💾' }}</button>
+          <button class="btn-reset" @click="configStore.resetSectionToAuto('table')"
+            :title="t('config.resetAll')">↺</button>
+        </div>
+      </div>
+      <ColumnConfigPanel :use-merged-headers="true" />
+    </div>
+
+    <!-- ② 自动检测 -->
+    <div class="merged-card">
+      <h4>{{ t('upload.autoDetect') }}</h4>
+      <p class="detect-text">
+        {{ t('upload.primaryMetric') }}：<strong>{{ mergedMetricCols.join('、') || '—' }}</strong>
+        &nbsp;|&nbsp;
+        {{ t('upload.chartDimensions') }}：<strong>{{ mergedDimCols.join('、') || '—' }}</strong>
+      </p>
+    </div>
+
+    <!-- ③ 样本数据 -->
+    <div class="merged-card">
+      <h4>样本数据（前{{ mergedSampleRows.length }}行，{{ mergedSampleCols.length }}列）</h4>
+      <div class="sample-table-wrap">
+        <table class="sample-table">
+          <thead>
+            <tr>
+              <th v-for="col in mergedSampleCols" :key="col" :style="mergedColThStyle(col)">
+                {{ col }}<span v-if="isJoinKey(col)" class="key-tag">🔑</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, i) in mergedSampleRows" :key="i">
+              <td v-for="col in mergedSampleCols" :key="col" :style="mergedColTdStyle(col)">{{ formatMergedCell(col,
+                row[col]) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -308,13 +358,20 @@ import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useDataStore } from '@/stores/data-store'
+import { useConfigStore } from '@/stores/config-store'
+import { usePreviewStore } from '@/stores/preview-store'
 import { suggestJoins, type JoinSuggestion } from '@/core/classifier'
 import { joinDatasets, isTauri } from '@/composables/use-rust-bridge'
 import type { ChartPayload } from '@/types/data'
+import ColumnConfigPanel from '@/components/config/ColumnConfigPanel.vue'
+import { augmentComputedCols } from '@/core/formula-engine'
+import { fmtByChart, getNumericVal } from '@/core/chart-options'
 
 const router = useRouter()
 const { t } = useI18n()
 const dataStore = useDataStore()
+const configStore = useConfigStore()
+const previewStore = usePreviewStore()
 
 function goToConfig() {
   router.push('/config')
@@ -340,14 +397,22 @@ const form = ref<RelationForm>({
 })
 
 const joinTypes = [
-  { value: 'left' as const, label: 'LEFT JOIN', desc: '保留左表所有行',
-    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#fff" stroke="#93c5fd" stroke-width="1.2"/><circle cx="9" cy="7" r="5.5" fill="#3b82f6" opacity="0.35"/></svg>' },
-  { value: 'inner' as const, label: 'INNER JOIN', desc: '仅保留匹配行',
-    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><ellipse cx="12" cy="7" rx="2" ry="4.5" fill="#3b82f6" opacity="0.5"/></svg>' },
-  { value: 'right' as const, label: 'RIGHT JOIN', desc: '保留右表所有行',
-    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#fff" stroke="#93c5fd" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="5.5" fill="#3b82f6" opacity="0.35"/></svg>' },
-  { value: 'outer' as const, label: 'FULL JOIN', desc: '保留两表所有行',
-    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/></svg>' },
+  {
+    value: 'left' as const, label: 'LEFT JOIN', desc: '保留左表所有行',
+    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#fff" stroke="#93c5fd" stroke-width="1.2"/><circle cx="9" cy="7" r="5.5" fill="#3b82f6" opacity="0.35"/></svg>'
+  },
+  {
+    value: 'inner' as const, label: 'INNER JOIN', desc: '仅保留匹配行',
+    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><ellipse cx="12" cy="7" rx="2" ry="4.5" fill="#3b82f6" opacity="0.5"/></svg>'
+  },
+  {
+    value: 'right' as const, label: 'RIGHT JOIN', desc: '保留右表所有行',
+    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#fff" stroke="#93c5fd" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="5.5" fill="#3b82f6" opacity="0.35"/></svg>'
+  },
+  {
+    value: 'outer' as const, label: 'FULL JOIN', desc: '保留两表所有行',
+    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/></svg>'
+  },
 ]
 
 // ── 预览状态 ──
@@ -740,6 +805,149 @@ function onPointerUp(e: PointerEvent) {
     card.releasePointerCapture(e.pointerId)
   }
   dragNodeId.value = null
+}
+
+// ====== 合并表列定义：自动检测 & 样本数据 ======
+const mergedHeaders = computed(() => {
+  if (dataStore.relations.length === 0) return dataStore.dataSet?.headers ?? []
+  return previewStore.effectiveHeaders
+})
+
+function effRole(col: string): string {
+  return dataStore.roleOverrides[col] || dataStore.getEffectiveClassification(col)?.role || 'ignore'
+}
+
+const mergedMetricCols = computed(() =>
+  mergedHeaders.value.filter(h => effRole(h) === 'metric' && !dataStore.excludedColumns.has(h))
+)
+
+const mergedDimCols = computed(() =>
+  mergedHeaders.value.filter(h => effRole(h) === 'dimension' && !dataStore.excludedColumns.has(h))
+)
+
+/** 合并样本列：显示列 + 已选中计算列 */
+const mergedSampleCols = computed(() => {
+  const cols = configStore.config.table.columns.length > 0
+    ? [...configStore.config.table.columns]
+    : [...mergedHeaders.value]
+  const cc = configStore.config.table.computedColumns
+  if (cc) {
+    for (const c of cc) {
+      if (c.selected !== false && c.name && !cols.includes(c.name)) {
+        cols.push(c.name)
+      }
+    }
+  }
+  return cols.filter(h => !dataStore.excludedColumns.has(h))
+})
+
+/** 合并样本数据（前5行，含计算列） */
+const mergedSampleRows = computed(() => {
+  const rows = previewStore.effectiveRows.slice(0, 5)
+  const rustCC = previewStore.computedColumnData
+  const cc = configStore.config.table.computedColumns?.filter(c => c.selected !== false && c.name) || []
+  if (rustCC && Object.keys(rustCC).length > 0) {
+    return rows.map((row, idx) => {
+      const aug = { ...row }
+      for (const [col, values] of Object.entries(rustCC)) {
+        aug[col] = values[idx] ?? 0
+      }
+      return aug
+    })
+  }
+  if (cc.length === 0) return rows
+  // JS fallback: 使用公式引擎
+  return augmentComputedCols(rows, cc)
+})
+
+function truncateVal(val: any): string {
+  if (val === undefined || val === null || val === '') return '—'
+  const s = String(val)
+  return s.length > 30 ? s.slice(0, 27) + '...' : s
+}
+
+/** 合并表预览单元格格式化（应用 columnFormats） */
+function formatMergedCell(col: string, val: any): string {
+  if (val === undefined || val === null || val === '') return '—'
+  const fmt = configStore.config.table.columnFormats?.[col]
+  if (fmt?.format && typeof val === 'number') {
+    const n = getNumericVal(val)
+    if (!isNaN(n)) {
+      return fmtByChart(n, { format: fmt.format, unit: fmt.unit as any, metricFormats: { [col]: { format: fmt.format, unit: fmt.unit as any, decimals: fmt.decimals } } }, col)
+    }
+  }
+  return truncateVal(val)
+}
+
+/** 列来源着色（th 用全色，td 用浅色） */
+const SOURCE_COLORS: Record<string, { bg: string; light: string }> = {
+  computed: { bg: '#e8d5f5', light: '#f5edfa' },   // 计算列：淡紫
+  assoc1: { bg: '#dce8fc', light: '#edf3fd' },   // 关联表1：淡蓝
+  assoc2: { bg: '#fcdce8', light: '#fde8ef' },   // 关联表2：淡粉
+  assoc3: { bg: '#dcecfc', light: '#edf5fd' },   // 关联表3：浅蓝
+}
+
+/** 关联 key 列名（JOIN 用到的列） */
+const joinKeyNames = ref(new Set<string>())
+function isJoinKey(col: string): boolean { return joinKeyNames.value.has(col) }
+
+const mergedColSourceMap = computed(() => {
+  const map = new Map<string, 'computed' | 'assoc1' | 'assoc2' | 'assoc3'>()
+  if (!dataStore.hasRelations) return map
+  const ds = dataStore.dataSet
+  if (!ds) return map
+
+  // 计算列
+  const cc = configStore.config.table.computedColumns || []
+  for (const c of cc) { if (c.selected !== false && c.name) map.set(c.name, 'computed') }
+
+  // 主表列名集合
+  const mainHeaders = new Set(ds.headers)
+  // 收集每个关联表的列（含其在合并后的实际名称）
+  let assocIdx = 0
+  const usedPrefixes = new Map<string, number>()
+  joinKeyNames.value.clear()
+
+  for (const rel of dataStore.relations) {
+    const otherId = rel.leftTableId === ds.id ? rel.rightTableId : rel.rightTableId === ds.id ? rel.leftTableId : null
+    if (!otherId) continue
+    const otherDs = dataStore.tables[otherId]
+    if (!otherDs) continue
+    const thisJoinCol = rel.leftTableId === ds.id ? rel.leftColumn : rel.rightColumn
+    const otherJoinCol = rel.leftTableId === ds.id ? rel.rightColumn : rel.leftColumn
+    const prefix = dataStore.getTableDisplayName(otherDs)
+    if (!usedPrefixes.has(prefix)) usedPrefixes.set(prefix, assocIdx++)
+    const idx = usedPrefixes.get(prefix)!
+    const sourceKey = ('assoc' + (idx + 1)) as 'assoc1' | 'assoc2' | 'assoc3'
+    // 标记关联 key
+    joinKeyNames.value.add(thisJoinCol)
+    joinKeyNames.value.add(mainHeaders.has(otherJoinCol) ? (prefix + '.' + otherJoinCol) : otherJoinCol)
+
+    for (const h of otherDs.headers) {
+      const effectiveName = mainHeaders.has(h) ? (prefix + '.' + h) : h
+      map.set(effectiveName, sourceKey)
+    }
+  }
+  return map
+})
+
+function mergedColThStyle(col: string): Record<string, string> {
+  const userBg = configStore.config.table.columnColors?.[col]
+  if (userBg) return { backgroundColor: userBg }
+  const src = mergedColSourceMap.value.get(col)
+  if (!src) return {}
+  return { backgroundColor: SOURCE_COLORS[src].bg }
+}
+
+function mergedColTdStyle(col: string): Record<string, string> {
+  const userBg = configStore.config.table.columnColors?.[col]
+  if (userBg) return { backgroundColor: userBg + '40' }
+  const userFg = configStore.config.table.columnTextColors?.[col]
+  const style: Record<string, string> = {}
+  const src = mergedColSourceMap.value.get(col)
+  if (src) style.backgroundColor = SOURCE_COLORS[src].light
+  if (userFg) style.color = userFg + 'c0'
+  return style
 }
 </script>
 
@@ -1371,8 +1579,15 @@ function onPointerUp(e: PointerEvent) {
 }
 
 @keyframes bounce-arrow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(6px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(6px);
+  }
 }
 
 .relation-card {
@@ -1666,5 +1881,112 @@ function onPointerUp(e: PointerEvent) {
 .preview-table th {
   background: var(--bg-hover);
   font-weight: 500;
+}
+
+/* 合并表列定义区域 */
+.merged-col-section {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 2px solid var(--border);
+}
+
+.merged-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.merged-card h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-head h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.section-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.section-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-save,
+.btn-reset {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-save.saved {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.detect-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.sample-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.sample-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.sample-table th,
+.sample-table td {
+  padding: 6px 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sample-table th {
+  background: var(--bg-hover);
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+}
+
+.sample-table td {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.key-tag {
+  font-size: 10px;
+  margin-left: 3px;
+  opacity: 0.7;
 }
 </style>

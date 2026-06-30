@@ -1,0 +1,129 @@
+{
+  "version": 2,
+  "config": {
+    "title": "设计业务收入-支出关联分析看板",
+    "filters": [{ "column": "区域" }, { "column": "支出类别" }],
+    "dateRange": {
+      "column": "签订日期",
+      "min": "2024-01-01",
+      "max": "2024-12-31"
+    },
+    "kpis": [
+      {
+        "column": "合同总金额",
+        "label": "合同总收入",
+        "agg": "sum",
+        "format": "currency",
+        "unit": "wan"
+      },
+      {
+        "column": "外委合同额",
+        "label": "外委总支出",
+        "agg": "sum",
+        "format": "currency",
+        "unit": "wan"
+      },
+      {
+        "column": "合同编号",
+        "label": "合同数量",
+        "agg": "unique_count",
+        "format": "integer"
+      },
+      {
+        "column": "合同编号",
+        "label": "外委合同数",
+        "agg": "count",
+        "format": "integer"
+      }
+    ],
+    "charts": [
+      {
+        "type": "bar",
+        "title": "各区域收入与支出对比",
+        "dimension": "区域",
+        "metrics": ["合同总金额", "外委合同额"]
+      },
+      {
+        "type": "doughnut",
+        "title": "支出类别占比",
+        "dimension": "支出类别",
+        "metric": "外委合同额"
+      },
+      {
+        "type": "line",
+        "title": "月度合同金额趋势",
+        "dateColumn": "签订日期",
+        "metric": "合同总金额"
+      },
+      {
+        "type": "horizontal_bar",
+        "title": "合同收入排行",
+        "dimension": "项目名称",
+        "metric": "合同总金额"
+      }
+    ],
+    "table": {
+      "columns": [
+        "合同编号",
+        "签订日期",
+        "甲方单位名称",
+        "项目名称",
+        "合同总金额",
+        "乙方单位名称",
+        "外委合同额",
+        "支出类别",
+        "区域"
+      ],
+      "sortBy": "合同总金额",
+      "summaryAggs": {
+        "合同总金额": "sum",
+        "外委合同额": "sum"
+      },
+      "computedColumns": [],
+      "columnFormats": {
+        "合同总金额": { "format": "currency", "unit": "wan" },
+        "外委合同额": { "format": "currency", "unit": "wan" }
+      }
+    }
+  },
+  "relations": [
+    {
+      "leftTableId": "_income_",
+      "leftColumn": "合同编号",
+      "rightTableId": "_expense_",
+      "rightColumn": "合同编号",
+      "joinType": "left"
+    }
+  ],
+  "mainTableId": "_income_",
+  "tableMeta": [
+    {
+      "id": "_income_",
+      "name": "收入合同表",
+      "filePath": "test_data/收入合同表.csv",
+      "headers": [
+        "合同编号",
+        "签订日期",
+        "甲方单位名称",
+        "合同总金额",
+        "区域",
+        "项目名称"
+      ],
+      "rows": 15
+    },
+    {
+      "id": "_expense_",
+      "name": "外委支出表",
+      "filePath": "test_data/外委支出表.csv",
+      "headers": [
+        "合同编号",
+        "乙方单位名称",
+        "外委合同额",
+        "支出日期",
+        "支出类别"
+      ],
+      "rows": 20
+    }
+  ],
+  "exportedAt": "2026-07-01T12:00:00.000Z"
+}

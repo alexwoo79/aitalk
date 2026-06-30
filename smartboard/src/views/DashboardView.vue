@@ -7,14 +7,14 @@
     <div v-if="!spec" class="no-data">
       <p>{{ t('dashboard.noData') }}</p>
       <button class="btn btn-sm btn-primary" @click="$router.push('/config')">{{ t('dashboard.backToConfigText')
-      }}</button>
+        }}</button>
     </div>
 
     <template v-else>
       <!-- 工具栏 -->
       <div class="dashboard-toolbar">
         <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← {{ t('dashboard.backToConfigText')
-        }}</button>
+          }}</button>
         <h2 class="dashboard-title">{{ spec.title }}</h2>
         <span class="layout-size">{{ layoutW }} × {{ layoutH }}</span>
       </div>
@@ -99,7 +99,7 @@
             </button>
           </div>
           <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
-          }}</span>
+            }}</span>
         </div>
       </div> <!-- .sticky-filters -->
 
@@ -212,7 +212,7 @@
                 <div class="picker-panel">
                   <div class="picker-actions">
                     <button class="btn-link" @click="activeColumns = allColumns.slice()">{{ t('common.selectAll')
-                    }}</button>
+                      }}</button>
                     <button class="btn-link" @click="activeColumns = []">{{ t('common.clearAll') }}</button>
                   </div>
                   <div class="picker-chips">
@@ -260,7 +260,7 @@
                         tableRows.length
                     }) }}</span>
                     <button class="btn btn-sm btn-primary sentinel-btn" @click="loadAllRows">{{ t('dashboard.showAll')
-                      }} ({{
+                    }} ({{
                         tableRows.length }})</button>
                   </td>
                 </tr>
@@ -457,12 +457,13 @@ const allColumns = computed(() => {
 
 /** 关联列颜色调色板（按关联表顺序：淡蓝 → 淡粉 → 浅绿） */
 const ASSOC_PALETTE = [
-  { headerBg: '#c5dcff', cellBg: '#e3efff' },  // 淡蓝
-  { headerBg: '#ffcdd9', cellBg: '#ffe3ea' },  // 淡粉
-  { headerBg: '#c5ecc5', cellBg: '#e3f6e3' },  // 浅绿
+  { headerBg: '#dce8fc', cellBg: '#edf3fd' },  // 淡蓝
+  { headerBg: '#fcdce8', cellBg: '#fde8ef' },  // 淡粉
+  { headerBg: '#dcecfc', cellBg: '#edf5fd' },  // 浅蓝
 ]
 
 /** 关联表列 → 表序号映射（带 "表名." 前缀的列，用于按表着色） */
+/** 关联表列 → 表序号映射（含前缀和非前缀列，用于按表着色，支持双向） */
 const associatedColumnMap = computed(() => {
   const map = new Map<string, number>()
   if (!dataStore.hasRelations) return map
@@ -471,14 +472,19 @@ const associatedColumnMap = computed(() => {
   const mainHeaders = new Set(ds.headers)
   let relIdx = 0
   for (const rel of dataStore.relations) {
-    const rightDs = dataStore.tables[rel.rightTableId]
-    if (!rightDs) { relIdx++; continue }
-    const prefix = dataStore.getTableDisplayName(rightDs)
-    for (const rh of rightDs.headers) {
-      // 跳过连接键列（与主表列名相同则无前缀，不算关联特有列）
-      if (rh === rel.rightColumn && mainHeaders.has(rh)) continue
+    // 双向：确定对端表
+    const otherId = rel.leftTableId === ds.id ? rel.rightTableId : rel.rightTableId === ds.id ? rel.leftTableId : null
+    if (!otherId) { relIdx++; continue }
+    const otherDs = dataStore.tables[otherId]
+    if (!otherDs) { relIdx++; continue }
+    const otherJoinCol = rel.leftTableId === ds.id ? rel.rightColumn : rel.leftColumn
+    const prefix = dataStore.getTableDisplayName(otherDs)
+    for (const rh of otherDs.headers) {
+      if (rh === otherJoinCol && mainHeaders.has(rh)) continue
       if (mainHeaders.has(rh)) {
         map.set(prefix + '.' + rh, relIdx)
+      } else {
+        map.set(rh, relIdx)
       }
     }
     relIdx++
@@ -715,6 +721,9 @@ async function saveDashboard() {
   const tblSummaryAggs = s.table?.summaryAggs || {}
   const tblColColors = s.table?.columnColors || {}
   const tblColTextColors = s.table?.columnTextColors || {}
+  // 自动为不同来源的列附加背景色（用户自定义颜色优先）
+  const autoSourceColors = computeSourceColumnColors(tblCols, dataStore)
+  const mergedColColors = { ...autoSourceColors, ...tblColColors }
   const tblRowCondColors = s.table?.rowConditionColors || []
   const tblColumnFormats = s.table?.columnFormats || {}
   const tblComputedColumns = s.table?.computedColumns || []
@@ -804,7 +813,7 @@ async function saveDashboard() {
       tableSortBy: tblSort,
       tableRowLimit: tblRowLimit,
       tableSummaryAggs: tblSummaryAggs,
-      tableColColors: tblColColors,
+      tableColColors: mergedColColors,
       tableColTextColors: tblColTextColors,
       tableRowCondColors: tblRowCondColors,
       tableColumnFormats: tblColumnFormats,
@@ -1078,7 +1087,7 @@ function formatCellValue(val: string | number | undefined, col: string): string 
   if ((cls?.type === 'numeric' && cls.role === 'metric') || isCompCol) {
     const n = getNumericVal(val)
     if (!isNaN(n)) {
-      const def = spec.value?.metricDefaults?.[col]
+      const def = configStore.config.table.columnFormats?.[col] || spec.value?.metricDefaults?.[col]
       if (def && def.format) {
         return fmtByChart(n, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
       }
@@ -1104,10 +1113,15 @@ function getColumnHeaderStyle(col: string): Record<string, string> {
   const fg = configStore.config.table.columnTextColors?.[col]
   if (bg) { s.backgroundColor = bg }
   else {
-    const idx = associatedColumnMap.value.get(col)
-    if (idx !== undefined) {
-      const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
-      s.backgroundColor = p.headerBg
+    const isComp = (configStore.config.table.computedColumns || []).some(cc => cc.name === col && cc.selected !== false)
+    if (isComp) {
+      s.backgroundColor = '#e8d5f5'
+    } else {
+      const idx = associatedColumnMap.value.get(col)
+      if (idx !== undefined) {
+        const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
+        s.backgroundColor = p.headerBg
+      }
     }
   }
   if (fg) s.color = fg
@@ -1120,10 +1134,15 @@ function getColumnCellStyle(col: string, val: any): Record<string, string> {
   const fg = configStore.config.table.columnTextColors?.[col]
   if (bg) { s.backgroundColor = bg + '20' }
   else {
-    const idx = associatedColumnMap.value.get(col)
-    if (idx !== undefined) {
-      const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
-      s.backgroundColor = p.cellBg
+    const isComp = (configStore.config.table.computedColumns || []).some(cc => cc.name === col && cc.selected !== false)
+    if (isComp) {
+      s.backgroundColor = '#f5edfa'
+    } else {
+      const idx = associatedColumnMap.value.get(col)
+      if (idx !== undefined) {
+        const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
+        s.backgroundColor = p.cellBg
+      }
     }
   }
   // 列条件字体色优先于静态字体色
@@ -1357,7 +1376,7 @@ function formatSummaryValue(col: string): string {
     default: result = vals.reduce((a, b) => a + b, 0)
   }
   if (agg === 'count') return String(result)
-  const def = spec.value?.metricDefaults?.[col]
+  const def = configStore.config.table.columnFormats?.[col] || spec.value?.metricDefaults?.[col]
   if (def && def.format) {
     return fmtByChart(result, { format: def.format, unit: def.unit, metricFormats: { [col]: { format: def.format, unit: def.unit, decimals: def.decimals } } }, col)
   }
@@ -1486,6 +1505,55 @@ function isAnalysisChart(chart: ChartSpec): boolean {
   return chart.type === 'timeseries' || chart.type === 'decile' || chart.type === 'cluster'
 }
 
+/** 关联调色板 — 不同来源表 + 计算列的自动背景色 */
+const SOURCE_PALETTE = [
+  '#dce8fc', // 关联表1：淡蓝
+  '#fcdce8', // 关联表2：淡粉
+  '#dcecfc', // 关联表3：浅蓝
+]
+const COMPUTED_COLOR = '#e8d5f5' // 计算列：淡紫
+
+/** 根据列的数据来源自动生成背景色，用户自定义颜色优先级更高（调用处用展开合并） */
+function computeSourceColumnColors(
+  displayCols: string[],
+  dStore: ReturnType<typeof useDataStore>,
+): Record<string, string> {
+  const colors: Record<string, string> = {}
+  const ds = dStore.dataSet
+  if (!ds || !dStore.hasRelations) return colors
+
+  const mainHeaders = new Set(ds.headers)
+  // 计算列名称
+  const cc = configStore.config.table.computedColumns || []
+  const computedNames = new Set(cc.filter((c: any) => c.selected !== false && c.name).map((c: any) => c.name))
+
+  // 建立 "合并列名 → 来源色" 完整映射（含非前缀列）
+  const colToColor = new Map<string, string>()
+  let idx = 0
+  for (const rel of dStore.relations) {
+    const otherId = rel.leftTableId === ds.id ? rel.rightTableId : rel.rightTableId === ds.id ? rel.leftTableId : null
+    if (!otherId) continue
+    const otherDs = dStore.tables[otherId]
+    if (!otherDs) continue
+    const prefix = dStore.getTableDisplayName(otherDs)
+    const color = SOURCE_PALETTE[idx % SOURCE_PALETTE.length]
+    idx++
+    for (const h of otherDs.headers) {
+      const effectiveName = mainHeaders.has(h) ? (prefix + '.' + h) : h
+      colToColor.set(effectiveName, color)
+    }
+  }
+
+  for (const col of displayCols) {
+    if (computedNames.has(col)) {
+      colors[col] = COMPUTED_COLOR
+      continue
+    }
+    const c = colToColor.get(col)
+    if (c) colors[col] = c
+  }
+  return colors
+}
 
 </script>
 

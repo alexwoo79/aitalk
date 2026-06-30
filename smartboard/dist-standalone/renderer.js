@@ -2259,6 +2259,27 @@ var SmartboardRenderer = (function(exports) {
     }
     const h3 = tb.querySelector("h3");
     h3.textContent = `${t("dashboard.dataTable")} · ${sorted.length} / ${filtered.length} ${t("common.rows")}`;
+    const computedCols = (DATA.tableComputedColumns || []).filter((c) => c.selected !== false && c.name);
+    const computedNames = new Set(computedCols.map((c) => c.name));
+    const mainHeaders = new Set(DATA.headers || []);
+    function colStyle(c, isHeader) {
+      const st = [];
+      const bg = DATA.tableColColors?.[c];
+      const fg = DATA.tableColTextColors?.[c];
+      if (bg) {
+        st.push("background-color:" + (isHeader ? bg : bg + "40"));
+      } else if (computedNames.has(c)) {
+        st.push("background-color:" + (isHeader ? "#e8d5f5" : "#f5edfa"));
+      } else if (c.includes(".") && !mainHeaders.has(c)) {
+        st.push("background-color:" + (isHeader ? "#dce8fc" : "#edf3fd"));
+      } else if (!mainHeaders.has(c) && !computedNames.has(c) && DATA.tableColumnSources) {
+        const src = DATA.tableColumnSources[c];
+        if (src === "assoc1") st.push("background-color:" + (isHeader ? "#dce8fc" : "#edf3fd"));
+        else if (src === "assoc2") st.push("background-color:" + (isHeader ? "#fcdce8" : "#fde8ef"));
+      }
+      if (fg) st.push("color:" + (isHeader ? fg : fg + "c0"));
+      return st.length ? ' style="' + st.join(";") + '"' : "";
+    }
     const tw = document.createElement("div");
     tw.style.overflowX = "auto";
     const scrollWrap = document.createElement("div");
@@ -2279,7 +2300,7 @@ var SmartboardRenderer = (function(exports) {
     }
     displayCols.forEach((c) => {
       const ind = sortCol === c ? sortDir ? " ↓" : " ↑" : "";
-      html += `<th onclick="window._sortTable('${c}')">${c}${ind}</th>`;
+      html += `<th onclick="window._sortTable('${c}')"${colStyle(c, true)}>${c}${ind}</th>`;
     });
     html += "</tr></thead><tbody>";
     const augRows = augmentRows(sorted);
@@ -2300,7 +2321,7 @@ var SmartboardRenderer = (function(exports) {
             }
           }
         }
-        html += `<td>${v}</td>`;
+        html += `<td${colStyle(c, false)}>${v}</td>`;
       });
       html += "</tr>";
     });
@@ -2348,9 +2369,9 @@ var SmartboardRenderer = (function(exports) {
             } else sv = String(val);
           } else sv = String(val);
           const aggLabel = getAggLabel(agg, DATA.locale) || "";
-          html += `<td class="summary-cell"><span class="sc-val">${sv}</span><span class="sc-agg">${aggLabel}</span></td>`;
+          html += `<td class="summary-cell"${colStyle(c, false)}><span class="sc-val">${sv}</span><span class="sc-agg">${aggLabel}</span></td>`;
         } else {
-          html += "<td></td>";
+          html += `<td${colStyle(c, false)}></td>`;
         }
       });
       html += "</tr></tfoot>";

@@ -50,22 +50,37 @@ export const usePreviewStore = defineStore('preview', () => {
     const rels = dataStore.relations; if (rels.length === 0) return ds
     let mergedRows = [...ds.rows]; const mergedHeaders = [...ds.headers]; const mergedClass: Record<string, any> = { ...ds.classifications }
     for (const rel of rels) {
-      const rightDs = dataStore.tables[rel.rightTableId]; if (!rightDs) continue
-      const rightIndex = new Map<string, Record<string, string | number>>()
-      for (const row of rightDs.rows) { const key = String(row[rel.rightColumn] ?? ''); if (key) rightIndex.set(key, row) }
+      // 确定对端表：活跃表可能是左表也可能是右表
+      let otherDs: import('@/types/data').DataSet | undefined
+      let thisJoinCol: string
+      let otherJoinCol: string
+      if (rel.leftTableId === ds.id) {
+        otherDs = dataStore.tables[rel.rightTableId]
+        thisJoinCol = rel.leftColumn
+        otherJoinCol = rel.rightColumn
+      } else if (rel.rightTableId === ds.id) {
+        otherDs = dataStore.tables[rel.leftTableId]
+        thisJoinCol = rel.rightColumn
+        otherJoinCol = rel.leftColumn
+      } else {
+        continue
+      }
+      if (!otherDs) continue
+      const otherIndex = new Map<string, Record<string, string | number>>()
+      for (const row of otherDs.rows) { const key = String(row[otherJoinCol] ?? ''); if (key) otherIndex.set(key, row) }
       const newRows: Record<string, string | number>[] = []
-      for (const leftRow of mergedRows) {
-        const key = String(leftRow[rel.leftColumn] ?? ''); const rightRow = rightIndex.get(key)
-        if (rightRow) {
-          const merged = { ...leftRow }
-          for (const rh of rightDs.headers) {
-            if (rh === rel.rightColumn && mergedHeaders.includes(rh)) continue
-            const pk = mergedHeaders.includes(rh) ? dataStore.getTableDisplayName(rightDs) + '.' + rh : rh
-            merged[pk] = rightRow[rh]
-            if (!mergedHeaders.includes(pk)) { mergedHeaders.push(pk); if (rightDs.classifications[rh]) mergedClass[pk] = rightDs.classifications[rh] }
+      for (const thisRow of mergedRows) {
+        const key = String(thisRow[thisJoinCol] ?? ''); const otherRow = otherIndex.get(key)
+        if (otherRow) {
+          const merged = { ...thisRow }
+          for (const rh of otherDs.headers) {
+            if (rh === otherJoinCol && mergedHeaders.includes(rh)) continue
+            const pk = mergedHeaders.includes(rh) ? dataStore.getTableDisplayName(otherDs) + '.' + rh : rh
+            merged[pk] = otherRow[rh]
+            if (!mergedHeaders.includes(pk)) { mergedHeaders.push(pk); if (otherDs.classifications[rh]) mergedClass[pk] = otherDs.classifications[rh] }
           }
           newRows.push(merged)
-        } else if (rel.joinType !== 'inner') { newRows.push({ ...leftRow }) }
+        } else if (rel.joinType !== 'inner') { newRows.push({ ...thisRow }) }
       }
       mergedRows = newRows
     }

@@ -131,6 +131,9 @@ export default {
     updateRelation: '更新关联',
     previewing: '正在预览...',
     previewResult: '预览结果',
+    // 合并表列定义
+    mergedColumnDef: '📐 合并表列定义',
+    mergedColumnDefDesc: '基于主表与外关联表合并后的全字段列定义。关联表字段冲突时自动添加表名前缀。',
     // Excel 工作表选择
     selectSheets: '选择工作表',
     selectSheetsHint: '文件 "{name}" 包含多个工作表，请选择要导入的表：',

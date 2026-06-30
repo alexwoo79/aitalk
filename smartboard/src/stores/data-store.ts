@@ -561,24 +561,38 @@ export const useDataStore = defineStore('data', () => {
   })
 
   /** 跨表合并后的有效列头（与 buildEffectiveDS 合并逻辑一致：
-   *  右表列仅在名称冲突时添加 "表名." 前缀） */
+   *  右表列仅在名称冲突时添加 "表名." 前缀）
+   *  支持活跃表为左表或右表的双向场景 */
   const effectiveHeaders = computed<string[]>(() => {
     const ds = dataSet.value
     if (!ds) return []
     if (relations.value.length === 0) return [...ds.headers]
 
     const headers = [...ds.headers]
+    const seen = new Set(headers)
     for (const rel of relations.value) {
-      const rightDs = tables.value[rel.rightTableId]
-      if (!rightDs) continue
-      for (const rh of rightDs.headers) {
-        // 跳过连接键列（与左表列名相同）
-        if (rh === rel.rightColumn && headers.includes(rh)) continue
-        const prefixedKey = headers.includes(rh)
-          ? getTableDisplayName(rightDs) + '.' + rh
+      // 确定对端表：活跃表可能是左表也可能是右表
+      let otherDs: DataSet | undefined
+      let otherJoinCol: string
+      if (rel.leftTableId === ds.id) {
+        otherDs = tables.value[rel.rightTableId]
+        otherJoinCol = rel.rightColumn
+      } else if (rel.rightTableId === ds.id) {
+        otherDs = tables.value[rel.leftTableId]
+        otherJoinCol = rel.leftColumn
+      } else {
+        continue // 活跃表不在这个关联中
+      }
+      if (!otherDs) continue
+      for (const rh of otherDs.headers) {
+        // 跳过连接键列（与活跃表列名相同）
+        if (rh === otherJoinCol && seen.has(rh)) continue
+        const prefixedKey = seen.has(rh)
+          ? getTableDisplayName(otherDs) + '.' + rh
           : rh
-        if (!headers.includes(prefixedKey)) {
+        if (!seen.has(prefixedKey)) {
           headers.push(prefixedKey)
+          seen.add(prefixedKey)
         }
       }
     }

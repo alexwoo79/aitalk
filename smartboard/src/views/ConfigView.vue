@@ -25,7 +25,7 @@
               ? t('config.saved') : t('config.saveAll') }}</button>
             <span class="reset-wrap">
               <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">{{ t('config.resetAll')
-              }}</button>
+                }}</button>
               <button class="reset-info-btn" @click.stop="toggleResetHint" :title="t('config.resetHint')">💡</button>
               <div v-if="showResetHint" class="reset-popup">
                 {{ t('config.resetHint') }}
@@ -163,7 +163,7 @@
             <div v-show="isSectionOpen('charts')" class="section-body">
               <div class="chart-quick-actions">
                 <span>{{ t('config.displayColumns') }} ({{ selectedChartCount }}/{{ configStore.config.charts.length
-                  }})</span>
+                }})</span>
                 <button class="btn-link" @click="configStore.selectAllCharts()">{{ t('common.selectAll') }}</button>
                 <button class="btn-link" @click="configStore.clearAllCharts()">{{ t('common.clearAll') }}</button>
               </div>
@@ -183,9 +183,9 @@
                     <div class="chart-item-detail">
                       <span v-if="chart.dimension">{{ t('config.dimension') }}: {{ chart.dimension }}</span>
                       <span v-if="chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metrics.join(', ')
-                        }}</span>
+                      }}</span>
                       <span v-if="chart.metric && !chart.metrics?.length">{{ t('config.metric') }}: {{ chart.metric
-                        }}</span>
+                      }}</span>
                       <span v-if="chart.dateColumn">{{ t('config.date') }} {{ chart.dateColumn }}</span>
                       <span v-if="chart.k">K: {{ chart.k }}</span>
                     </div>
@@ -280,7 +280,7 @@
           </div>
           <button class="btn btn-refresh-preview" @click="refreshPreview" :title="t('common.refresh')">↻ {{
             t('common.refresh')
-            }}</button>
+          }}</button>
         </div>
       </div>
     </template>
@@ -356,7 +356,7 @@
                     :title="t('config.remove')">✕</button>
                 </div>
                 <button class="btn btn-sm" @click="addVariable" style="margin-bottom:12px">{{ t('config.addVariable')
-                }}</button>
+                  }}</button>
 
                 <div class="formula-label">{{ t('config.sharedFilter') }} <span class="formula-hint">{{
                   t('config.sharedFilterHint') }}</span></div>
@@ -770,13 +770,14 @@ function formatPreviewValue(kpi: KpiPreview): string {
 }
 
 /** 关联列颜色调色板（按关联表顺序：淡蓝 → 淡粉 → 浅绿） */
+/** 关联列颜色调色板（按关联表顺序：淡蓝 → 淡粉 → 浅蓝） */
 const ASSOC_PALETTE = [
-  { headerBg: '#c5dcff', cellBg: '#e3efff' },  // 淡蓝
-  { headerBg: '#ffcdd9', cellBg: '#ffe3ea' },  // 淡粉
-  { headerBg: '#c5ecc5', cellBg: '#e3f6e3' },  // 浅绿
+  { headerBg: '#dce8fc', cellBg: '#edf3fd' },  // 淡蓝
+  { headerBg: '#fcdce8', cellBg: '#fde8ef' },  // 淡粉
+  { headerBg: '#dcecfc', cellBg: '#edf5fd' },  // 浅蓝
 ]
 
-/** 关联表列 → 表序号映射（带 "表名." 前缀的列，用于按表着色） */
+/** 关联表列 → 表序号映射（含前缀和非前缀列，支持双向） */
 const associatedColumnMap = computed(() => {
   const map = new Map<string, number>()
   if (!dataStore.hasRelations) return map
@@ -785,13 +786,22 @@ const associatedColumnMap = computed(() => {
   const mainHeaders = new Set(ds.headers)
   let relIdx = 0
   for (const rel of dataStore.relations) {
-    const rightDs = dataStore.tables[rel.rightTableId]
-    if (!rightDs) { relIdx++; continue }
-    const prefix = dataStore.getTableDisplayName(rightDs)
-    for (const rh of rightDs.headers) {
-      if (rh === rel.rightColumn && mainHeaders.has(rh)) continue
+    // 双向：确定对端表
+    const otherId = rel.leftTableId === ds.id ? rel.rightTableId : rel.rightTableId === ds.id ? rel.leftTableId : null
+    if (!otherId) { relIdx++; continue }
+    const otherDs = dataStore.tables[otherId]
+    if (!otherDs) { relIdx++; continue }
+    const otherJoinCol = rel.leftTableId === ds.id ? rel.rightColumn : rel.leftColumn
+    const prefix = dataStore.getTableDisplayName(otherDs)
+    for (const rh of otherDs.headers) {
+      // 跳过连接键列
+      if (rh === otherJoinCol && mainHeaders.has(rh)) continue
       if (mainHeaders.has(rh)) {
+        // 主表有同名 → 带前缀
         map.set(prefix + '.' + rh, relIdx)
+      } else {
+        // 主表无同名 → 直接原名（不冲突）
+        map.set(rh, relIdx)
       }
     }
     relIdx++
@@ -801,16 +811,22 @@ const associatedColumnMap = computed(() => {
 
 function getAssocColStyle(col: string, isHeader: boolean): Record<string, string> {
   const style: Record<string, string> = {}
-  // 用户自定义列颜色（优先级高于关联表着色）
+  // 用户自定义列颜色（优先级高于自动着色）
   const userBg = configStore.config.table.columnColors?.[col]
   const userFg = configStore.config.table.columnTextColors?.[col]
   if (userBg) {
     style.backgroundColor = isHeader ? userBg : (userBg + '40')
   } else {
-    const idx = associatedColumnMap.value.get(col)
-    if (idx !== undefined) {
-      const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
-      style.backgroundColor = isHeader ? p.headerBg : p.cellBg
+    // 计算列：淡紫色
+    const isComp = (configStore.config.table.computedColumns || []).some(cc => cc.name === col && cc.selected !== false)
+    if (isComp) {
+      style.backgroundColor = isHeader ? '#e8d5f5' : '#f5edfa'
+    } else {
+      const idx = associatedColumnMap.value.get(col)
+      if (idx !== undefined) {
+        const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
+        style.backgroundColor = isHeader ? p.headerBg : p.cellBg
+      }
     }
   }
   if (userFg) style.color = isHeader ? userFg : (userFg + 'c0')

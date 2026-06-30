@@ -130,6 +130,9 @@ export default {
     updateRelation: 'Update Relation',
     previewing: 'Previewing...',
     previewResult: 'Preview Result',
+    // Merged column definition
+    mergedColumnDef: '📐 Merged Column Definition',
+    mergedColumnDefDesc: 'Full field column definition based on the merged result of the main table and associated tables. Conflicting field names from associated tables are prefixed with the table name.',
     // Excel sheet selection
     selectSheets: 'Select Sheets',
     selectSheetsHint: 'File "{name}" has multiple sheets. Choose which to import:',
