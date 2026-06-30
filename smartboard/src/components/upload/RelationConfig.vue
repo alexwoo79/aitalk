@@ -26,37 +26,67 @@
       </div>
 
       <!-- 智能推荐 -->
-      <div v-if="suggestions.length > 0" class="suggestions-bar" :class="{ collapsed: !showSuggestions }">
-        <div class="suggest-label-row">
-          <button class="suggest-toggle" @click="showSuggestions = !showSuggestions"
-            :title="showSuggestions ? '收起推荐' : '展开推荐'">
-            <span class="suggest-bulb">💡</span>
-            <span>{{ t('upload.suggestedJoins') }}</span>
-            <span class="suggest-count">({{ suggestions.length }})</span>
-          </button>
+      <div v-if="suggestions.length > 0" class="suggestions-panel" :class="{ collapsed: !showSuggestions }">
+        <div class="suggestions-header">
+          <div class="suggest-title-row">
+            <span class="suggest-icon">🔍</span>
+            <h4>{{ t('upload.suggestedJoins') }} <span class="suggest-count-badge">{{ suggestions.length }}</span></h4>
+            <span class="suggest-desc">{{ t('upload.suggestionDesc') }}</span>
+          </div>
+          <div class="suggest-actions">
+            <label class="suggest-toggle-switch">
+              <span>{{ t('upload.smartRecommend') }}</span>
+              <input type="checkbox" v-model="showSuggestions" />
+              <span class="toggle-slider"></span>
+            </label>
+            <button class="btn-icon btn-help" :title="t('upload.suggestionHelp')">?</button>
+            <button class="btn-icon btn-collapse" @click="showSuggestions = !showSuggestions">
+              {{ showSuggestions ? '∧' : '∨' }}
+            </button>
+          </div>
         </div>
-        <div v-show="showSuggestions" class="suggest-chips">
-          <button v-for="(s, i) in suggestions.slice(0, 5)" :key="i" class="suggest-chip" @click="applySuggestion(s)">
-            {{ s.leftTableName }}.{{ s.leftColumn }} ↔ {{ s.rightTableName }}.{{ s.rightColumn }}
+        <div v-show="showSuggestions" class="suggestion-cards">
+          <div v-for="(s, i) in suggestions.slice(0, showAllSuggestions ? suggestions.length : 4)" :key="i"
+            class="suggestion-card" :class="{ selected: isSuggestionApplied(s) }" @click="applySuggestion(s)">
+            <div class="sc-header">
+              <span class="sc-tables">{{ s.leftTableName }} → {{ s.rightTableName }}</span>
+              <span v-if="isSuggestionApplied(s)" class="sc-checkmark">✓</span>
+            </div>
+            <div class="sc-fields">{{ s.leftColumn }} = {{ s.rightColumn }}</div>
+            <div class="sc-footer">
+              <span class="sc-confidence" :class="getConfidenceClass(s.score)">{{ getConfidenceLabel(s.score) }}</span>
+              <button class="sc-preview-btn" @click.stop="previewSuggestion(s)">{{ t('upload.viewPreview') }}</button>
+            </div>
+          </div>
+        </div>
+        <div v-if="suggestions.length > 4 && !showAllSuggestions" class="show-more-wrap">
+          <button class="btn-show-more" @click="showAllSuggestions = true">
+            {{ t('upload.showMoreSuggestions') }} ∨
           </button>
         </div>
       </div>
 
-      <!-- 关联拓扑图 -->
+      <!-- 关联预览 -->
       <div v-if="graphNodes.length > 0" class="relation-graph" :class="{ collapsed: !graphExpanded }">
         <div class="graph-top-bar">
           <button class="graph-collapse-btn" @click="graphExpanded = !graphExpanded"
             :title="graphExpanded ? '折叠' : '展开'">
             <span class="gc-arrow">{{ graphExpanded ? '▼' : '▶' }}</span>
-            <h4 class="graph-title">🗺️ {{ t('upload.relationGraph') }}</h4>
-            <span class="gc-summary">{{ dataStore.tableCount }}表 · {{ dataStore.relations.length }}关联</span>
+            <h4 class="graph-title">{{ t('upload.relationPreview') }}</h4>
+            <span class="gc-summary">{{ t('upload.tablesCount', { n: dataStore.tableCount }) }} · {{ t('upload.relationsCount', { n: dataStore.relations.length }) }}</span>
           </button>
-          <div v-if="graphExpanded" class="graph-zoom-controls">
-            <button class="zoom-btn" @click="zoomOut" :disabled="graphZoom <= 0.4" title="缩小">−</button>
-            <span class="zoom-label">{{ Math.round(graphZoom * 100) }}%</span>
-            <button class="zoom-btn" @click="zoomIn" :disabled="graphZoom >= 2.0" title="放大">+</button>
-            <button class="zoom-btn zoom-reset" @click="graphZoom = 1" :disabled="graphZoom === 1" title="重置">↺</button>
-            <button class="zoom-btn zoom-popout" @click="showGraphPopup = true" title="弹出窗口">⛶</button>
+          <div v-if="graphExpanded" class="graph-controls">
+            <label class="show-fields-toggle">
+              <input type="checkbox" v-model="showFieldDetails" />
+              <span>{{ t('upload.showFieldDetails') }}</span>
+            </label>
+            <div class="graph-zoom-controls">
+              <button class="zoom-btn" @click="zoomOut" :disabled="graphZoom <= 0.4" title="缩小">−</button>
+              <span class="zoom-label">{{ Math.round(graphZoom * 100) }}%</span>
+              <button class="zoom-btn" @click="zoomIn" :disabled="graphZoom >= 2.0" title="放大">+</button>
+              <button class="zoom-btn zoom-reset" @click="graphZoom = 1" :disabled="graphZoom === 1" title="重置"></button>
+              <button class="zoom-btn zoom-popout" @click="showGraphPopup = true" title="弹出窗口">⛶</button>
+            </div>
           </div>
         </div>
         <div v-show="graphExpanded" class="graph-flow-wrap" ref="graphWrapRef">
@@ -81,7 +111,7 @@
 
             <!-- 表卡片（绝对定位） -->
             <div v-for="node in graphNodes" :key="node.key" class="graph-card"
-              :class="{ 'is-main': node.id === dataStore.mainTableId, dragging: dragNodeId === node.id }"
+              :class="{ 'is-main': node.id === dataStore.mainTableId, dragging: dragNodeId === node.id, ['table-color-' + tableColorIndex[node.id]]: true }"
               :style="{ left: node.x + 'px', top: node.y + 'px' }" @pointerdown="onNodePointerDown($event, node.id)">
               <div class="gc-header">
                 <span class="gc-drag-handle" title="拖拽移动">⋮⋮</span>
@@ -109,20 +139,30 @@
 
   <!-- 已有关联列表 -->
   <div class="relation-list">
+    <div v-if="dataStore.relations.length > 0" class="relation-list-header">
+      <h4>{{ t('upload.definedRelations') }}</h4>
+      <span class="relation-count">{{ dataStore.relations.length }} 条</span>
+    </div>
     <div v-for="rel in dataStore.relations" :key="rel.id" class="relation-card"
       :class="{ editing: editingId === rel.id }">
-      <div class="rel-info">
-        <span class="rel-table">{{ getTableName(rel.leftTableId) }}</span>
-        <span class="rel-col">.{{ rel.leftColumn }}</span>
-        <span class="rel-arrow">→</span>
-        <span class="rel-type" :class="rel.joinType">{{ rel.joinType }}</span>
-        <span class="rel-arrow">→</span>
-        <span class="rel-table">{{ getTableName(rel.rightTableId) }}</span>
-        <span class="rel-col">.{{ rel.rightColumn }}</span>
+      <div class="rel-left-table">
+        <span class="rel-tbl-name">{{ getTableName(rel.leftTableId) }}</span>
+        <span class="rel-role-badge main">{{ t('upload.mainTableBadge') }}</span>
+        <span class="rel-row-count">~ {{ getTableRowCount(rel.leftTableId).toLocaleString() }} 行</span>
+      </div>
+      <span class="rel-join-icon" :title="getJoinTypeLabel(rel.joinType)">∞</span>
+      <div class="rel-right-table">
+        <span class="rel-tbl-name">{{ getTableName(rel.rightTableId) }}</span>
+        <span class="rel-role-badge dim">{{ t('upload.dimTableBadge') }}</span>
+        <span class="rel-row-count">~ {{ getTableRowCount(rel.rightTableId).toLocaleString() }} 行</span>
+      </div>
+      <div class="rel-key-fields">
+        <span class="rel-key-label">{{ t('upload.keyFields') }}</span>
+        <span class="rel-key-value">{{ rel.leftColumn }} = {{ rel.rightColumn }}</span>
       </div>
       <div class="rel-actions">
         <button class="btn-icon btn-edit" @click="startEdit(rel)" :title="t('config.edit')">✎</button>
-        <button class="btn-icon btn-delete" @click="dataStore.removeRelation(rel.id)">✕</button>
+        <button class="btn-icon btn-delete" @click="confirmRemoveRelation(rel.id)" :title="t('common.delete')">✕</button>
       </div>
     </div>
     <div v-if="dataStore.relations.length === 0" class="relation-empty">
@@ -133,16 +173,16 @@
         <span class="empty-arrow">↓</span>
       </div>
     </div>
+    <button class="btn-add-relation" @click="showForm = true; editingId = null; resetFormFields()">
+      + {{ t('upload.addRelation') }}
+    </button>
   </div>
 
   <!-- 新建/编辑关联表单 -->
-  <div class="relation-form">
-    <h4>{{ showForm ? (editingId ? t('upload.editRelation') : t('upload.newRelation')) : '' }}</h4>
-    <button v-if="!showForm" class="btn btn-primary" @click="showForm = true">
-      + {{ t('upload.addRelation') }}
-    </button>
+  <div v-if="showForm" class="relation-form">
+    <h4>{{ editingId ? t('upload.editRelation') : t('upload.newRelation') }}</h4>
 
-    <div v-if="showForm" class="form-body">
+    <div class="form-body">
       <div class="form-row">
         <div class="form-group">
           <label>{{ t('upload.leftTable') }}</label>
@@ -210,30 +250,63 @@
         </button>
       </div>
 
-      <!-- 预览结果 -->
-      <div v-if="previewLoading" class="preview-loading">
-        <div class="spinner-sm"></div>
-        {{ t('upload.previewing') }}
-      </div>
-      <div v-if="previewData" class="preview-table-wrap">
-        <p class="preview-info">{{ t('upload.previewResult') }} ({{ previewData.rows.length }} / {{
-          previewData.total_rows }})</p>
-        <table class="preview-table">
-          <thead>
-            <tr>
-              <th v-for="col in previewData.columns.slice(0, 8)" :key="col.name">{{ col.name }}</th>
-              <th v-if="previewData.columns.length > 8">...</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, i) in previewData.rows.slice(0, 10)" :key="i">
-              <td v-for="col in previewData.columns.slice(0, 8)" :key="col.name">
-                {{ row[col.name] ?? '' }}
-              </td>
-              <td v-if="previewData.columns.length > 8">...</td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- 预览结果 (Tab 切换) -->
+      <div v-if="previewData || previewLoading" class="preview-section">
+        <div class="preview-tabs">
+          <button class="preview-tab" :class="{ active: previewTab === 'data' }" @click="previewTab = 'data'">
+            {{ t('upload.dataPreview') }}
+          </button>
+          <button class="preview-tab" :class="{ active: previewTab === 'quality' }" @click="previewTab = 'quality'">
+            {{ t('upload.relationQuality') }}
+          </button>
+        </div>
+        <div v-if="previewLoading" class="preview-loading">
+          <div class="spinner-sm"></div>
+          {{ t('upload.previewing') }}
+        </div>
+        <div v-else-if="previewTab === 'data' && previewData" class="preview-table-wrap">
+          <p class="preview-info">{{ t('upload.previewResult') }} ({{ previewData.rows.length }} / {{
+            previewData.total_rows }})</p>
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th v-for="col in previewData.columns.slice(0, 8)" :key="col.name">{{ col.name }}</th>
+                <th v-if="previewData.columns.length > 8">...</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, i) in previewData.rows.slice(0, 10)" :key="i">
+                <td v-for="col in previewData.columns.slice(0, 8)" :key="col.name">
+                  {{ row[col.name] ?? '' }}
+                </td>
+                <td v-if="previewData.columns.length > 8">...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else-if="previewTab === 'quality' && previewData" class="preview-quality">
+          <div class="quality-metrics">
+            <div class="quality-item">
+              <span class="quality-label">{{ t('upload.matchRate') }}</span>
+              <span class="quality-value">{{ relationQuality.matchRate }}%</span>
+            </div>
+            <div class="quality-item">
+              <span class="quality-label">{{ t('upload.leftNullRate') }}</span>
+              <span class="quality-value">{{ relationQuality.leftNullRate }}%</span>
+            </div>
+            <div class="quality-item">
+              <span class="quality-label">{{ t('upload.rightNullRate') }}</span>
+              <span class="quality-value">{{ relationQuality.rightNullRate }}%</span>
+            </div>
+            <div class="quality-item">
+              <span class="quality-label">{{ t('upload.totalRows') }}</span>
+              <span class="quality-value">{{ previewData.total_rows.toLocaleString() }}</span>
+            </div>
+          </div>
+          <div v-if="cardinalityWarning" class="quality-warning">
+            ⚠️ {{ cardinalityWarning }}
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -274,7 +347,7 @@
               </g>
             </svg>
             <div v-for="node in graphNodes" :key="node.key" class="graph-card"
-              :class="{ 'is-main': node.id === dataStore.mainTableId, dragging: dragNodeId === node.id }"
+              :class="{ 'is-main': node.id === dataStore.mainTableId, dragging: dragNodeId === node.id, ['table-color-' + tableColorIndex[node.id]]: true }"
               :style="{ left: node.x + 'px', top: node.y + 'px' }" @pointerdown="onNodePointerDown($event, node.id)">
               <div class="gc-header">
                 <span class="gc-drag-handle" title="拖拽移动">⋮⋮</span>
@@ -419,9 +492,11 @@ const joinTypes = [
 const previewLoading = ref(false)
 const previewData = ref<ChartPayload | null>(null)
 const cardinalityWarning = ref('')
+const previewTab = ref<'data' | 'quality'>('data')
 
 // ── 智能推荐 ──
 const showSuggestions = ref(true)
+const showAllSuggestions = ref(false)
 const suggestions = computed<JoinSuggestion[]>(() => {
   if (dataStore.tableCount < 2) return []
   const tables: Record<string, { name: string; headers: string[] }> = {}
@@ -505,6 +580,33 @@ function applySuggestion(s: JoinSuggestion) {
   form.value.rightTableId = s.rightTableId
   form.value.rightColumn = s.rightColumn
   showForm.value = true
+}
+
+function isSuggestionApplied(s: JoinSuggestion): boolean {
+  return dataStore.relations.some(r =>
+    r.leftTableId === s.leftTableId && r.leftColumn === s.leftColumn &&
+    r.rightTableId === s.rightTableId && r.rightColumn === s.rightColumn
+  )
+}
+
+function getConfidenceClass(score: number): string {
+  if (score >= 0.8) return 'high'
+  if (score >= 0.6) return 'medium'
+  return 'low'
+}
+
+function getConfidenceLabel(score: number): string {
+  if (score >= 0.8) return t('upload.highConfidence')
+  if (score >= 0.6) return t('upload.mediumConfidence')
+  return t('upload.lowConfidence')
+}
+
+function previewSuggestion(s: JoinSuggestion) {
+  applySuggestion(s)
+  // Auto-preview after applying
+  setTimeout(() => {
+    if (canSubmit.value) previewJoin()
+  }, 100)
 }
 
 // ── 基数检测 ──
@@ -594,9 +696,58 @@ function getTableName(id: string): string {
   return ds ? dataStore.getTableDisplayName(ds) : '未命名'
 }
 
+function getTableRowCount(id: string): number {
+  const ds = dataStore.tables[id]
+  return ds ? (ds.totalRows ?? ds.rows.length) : 0
+}
+
+function getJoinTypeLabel(type: string): string {
+  const jt = joinTypes.find(j => j.value === type)
+  return jt ? `${jt.label} - ${jt.desc}` : type
+}
+
+function confirmRemoveRelation(id: string) {
+  if (confirm('确定要删除这个关联吗？')) {
+    dataStore.removeRelation(id)
+  }
+}
+
+function resetFormFields() {
+  form.value = { leftTableId: '', leftColumn: '', rightTableId: '', rightColumn: '', joinType: 'left' }
+  previewData.value = null
+  cardinalityWarning.value = ''
+}
+
+/** 关联质量指标 */
+const relationQuality = computed(() => {
+  if (!previewData.value) return { matchRate: 0, leftNullRate: 0, rightNullRate: 0 }
+  const rows = previewData.value.rows
+  const cols = previewData.value.columns
+  if (rows.length === 0) return { matchRate: 0, leftNullRate: 0, rightNullRate: 0 }
+
+  // 估算匹配率：非空行 / 总行数
+  const nonEmptyRows = rows.filter(r => {
+    return cols.some(c => r[c.name] !== undefined && r[c.name] !== null && r[c.name] !== '')
+  }).length
+  const matchRate = Math.round((nonEmptyRows / rows.length) * 100)
+
+  // 估算左右表空值率（简化：检查前几个字段）
+  const leftCols = cols.filter((_, i) => i < cols.length / 2)
+  const rightCols = cols.filter((_, i) => i >= cols.length / 2)
+  const leftNullCount = rows.filter(r => leftCols.every(c => r[c.name] === undefined || r[c.name] === null || r[c.name] === '')).length
+  const rightNullCount = rows.filter(r => rightCols.every(c => r[c.name] === undefined || r[c.name] === null || r[c.name] === '')).length
+
+  return {
+    matchRate,
+    leftNullRate: Math.round((leftNullCount / rows.length) * 100),
+    rightNullRate: Math.round((rightNullCount / rows.length) * 100),
+  }
+})
+
 // ── 关联拓扑图 ──
 const graphExpanded = ref(true)
 const graphZoom = ref(1)
+const showFieldDetails = ref(true)
 const showGraphPopup = ref(false)
 const graphWrapRef = ref<HTMLElement | null>(null)
 
@@ -658,6 +809,14 @@ interface NodePos {
   y: number
 }
 const graphPositions = ref<Record<string, { x: number; y: number }>>({})
+const tableColorIndex = computed(() => {
+  const map: Record<string, number> = {}
+  Object.keys(dataStore.tables).forEach((id, idx) => {
+    map[id] = idx % 4
+  })
+  return map
+})
+
 const graphNodes = computed<NodePos[]>(() => {
   const relations = dataStore.relations
   if (relations.length === 0) return []
@@ -1136,13 +1295,32 @@ function mergedColTdStyle(col: string): Record<string, string> {
   color: var(--primary-light, #93c5fd);
 }
 
-/* ── 关联拓扑图 ── */
+/* ── 关联预览 ── */
 .relation-graph {
   margin: 8px 0;
   padding: 16px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 12px;
+}
+
+.graph-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.show-fields-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.show-fields-toggle input {
+  margin: 0;
 }
 
 .relation-graph.collapsed {
@@ -1298,6 +1476,30 @@ function mergedColTdStyle(col: string): Record<string, string> {
 .graph-card.is-main {
   border-color: #f59e0b;
   box-shadow: 0 2px 12px rgba(245, 158, 11, 0.12);
+}
+
+/* Table color differentiation */
+.graph-card.table-color-0 {
+  background: #f0f9ff;
+}
+
+.graph-card.table-color-1 {
+  background: #faf5ff;
+}
+
+.graph-card.table-color-2 {
+  background: #fff7ed;
+}
+
+.graph-card.table-color-3 {
+  background: #f0fdf4;
+}
+
+.graph-card.is-main.table-color-0,
+.graph-card.is-main.table-color-1,
+.graph-card.is-main.table-color-2,
+.graph-card.is-main.table-color-3 {
+  background: #fffbeb;
 }
 
 .graph-card.dragging {
@@ -1536,6 +1738,49 @@ function mergedColTdStyle(col: string): Record<string, string> {
   margin-top: 16px;
 }
 
+.relation-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.relation-list-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.relation-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.btn-add-relation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add-relation:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light, #eff6ff);
+}
+
 .relation-empty {
   margin-top: 0;
   padding: 32px 16px;
@@ -1593,11 +1838,17 @@ function mergedColTdStyle(col: string): Record<string, string> {
 .relation-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
+  gap: 12px;
+  padding: 14px 18px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+
+.relation-card:hover {
+  border-color: var(--border-light, #e5e7eb);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .relation-card.editing {
@@ -1605,55 +1856,73 @@ function mergedColTdStyle(col: string): Record<string, string> {
   background: var(--primary-light, #eff6ff);
 }
 
-.rel-info {
+.rel-left-table,
+.rel-right-table {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-family: monospace;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.rel-table {
-  color: var(--primary);
-  font-weight: 500;
+.rel-tbl-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.rel-col {
-  color: var(--text-secondary);
-}
-
-.rel-arrow {
-  color: var(--text-tertiary);
+.rel-role-badge {
   font-size: 11px;
-}
-
-.rel-type {
-  margin: 0 4px;
-  padding: 1px 8px;
+  padding: 2px 8px;
   border-radius: 4px;
-  font-size: 11px;
-  text-transform: uppercase;
   font-weight: 500;
 }
 
-.rel-type.left {
+.rel-role-badge.main {
   background: #dbeafe;
   color: #1d4ed8;
 }
 
-.rel-type.inner {
-  background: #d1fae5;
-  color: #065f46;
+.rel-role-badge.dim {
+  background: #f3e8ff;
+  color: #7c3aed;
 }
 
-.rel-type.right {
-  background: #fef3c7;
-  color: #92400e;
+.rel-row-count {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
-.rel-type.outer {
-  background: #ede9fe;
-  color: #5b21b6;
+.rel-join-icon {
+  font-size: 20px;
+  color: var(--primary);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.rel-key-fields {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rel-key-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.rel-key-value {
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  padding: 3px 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rel-actions {
@@ -1883,6 +2152,82 @@ function mergedColTdStyle(col: string): Record<string, string> {
   font-weight: 500;
 }
 
+/* Preview Tabs */
+.preview-section {
+  margin-top: 12px;
+}
+
+.preview-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.preview-tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.preview-tab:hover {
+  color: var(--text-primary);
+}
+
+.preview-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.preview-quality {
+  padding: 12px 0;
+}
+
+.quality-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.quality-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+}
+
+.quality-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.quality-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quality-warning {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  color: #92400e;
+  font-size: 12px;
+}
+
 /* 合并表列定义区域 */
 .merged-col-section {
   margin-top: 28px;
@@ -1989,4 +2334,242 @@ function mergedColTdStyle(col: string): Record<string, string> {
   margin-left: 3px;
   opacity: 0.7;
 }
+
+/* Suggestions Panel */
+.suggestions-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.suggestions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.suggest-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.suggest-icon {
+  font-size: 18px;
+}
+
+.suggest-title-row h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.suggest-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: var(--primary);
+  color: white;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.suggest-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.suggest-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.suggest-toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.suggest-toggle-switch input {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--border);
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.suggest-toggle-switch input:checked + .toggle-slider {
+  background: var(--primary);
+}
+
+.suggest-toggle-switch input:checked + .toggle-slider::after {
+  transform: translateX(16px);
+}
+
+.btn-help, .btn-collapse {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-help:hover, .btn-collapse:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Suggestion Cards */
+.suggestion-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.suggestion-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-surface);
+}
+
+.suggestion-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.suggestion-card.selected {
+  border-color: var(--primary);
+  background: var(--primary-light, #eff6ff);
+}
+
+.sc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.sc-tables {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sc-checkmark {
+  width: 22px;
+  height: 22px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sc-fields {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: monospace;
+  margin-bottom: 10px;
+}
+
+.sc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sc-confidence {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.sc-confidence.high {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.sc-confidence.medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.sc-confidence.low {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.sc-preview-btn {
+  font-size: 12px;
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.sc-preview-btn:hover {
+  text-decoration: underline;
+}
+
+.show-more-wrap {
+  text-align: center;
+  margin-top: 12px;
+}
+
+.btn-show-more {
+  font-size: 13px;
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-show-more:hover {
+  text-decoration: underline;
+}
+
 </style>

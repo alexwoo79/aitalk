@@ -55,7 +55,13 @@
               </div>
             </div>
             <div v-show="isSectionOpen('title')" class="section-body">
-              <input v-model="configStore.config.title" class="input" :placeholder="t('config.titlePlaceholder')" />
+              <div class="title-input-wrap">
+                <input v-model="configStore.config.title" class="input" :placeholder="t('config.titlePlaceholder')" />
+                <span class="char-count" :class="{ 'over-limit': configStore.config.title.length > 50 }">
+                  {{ configStore.config.title.length }}/100
+                </span>
+              </div>
+
             </div>
           </section>
 
@@ -63,7 +69,7 @@
           <section class="config-section">
             <div class="section-header-row" @click="toggleConfigSection('filters')">
               <span class="sec-arrow">{{ isSectionOpen('filters') ? '▼' : '▶' }}</span>
-              <h3>{{ t('config.filters') }} ({{ configStore.config.filters.length }})</h3>
+              <h3>{{ t('config.filters') }} <span class="section-count">({{ configStore.config.filters.length }}/{{ dimensionCols.length }})</span></h3>
               <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('filters') }"
                   @click="configStore.saveSection('filters')">{{ configStore.isSectionSaved('filters') ? '✅' : '💾'
@@ -72,9 +78,15 @@
               </div>
             </div>
             <div v-show="isSectionOpen('filters')" class="section-body">
-              <div class="filter-chips">
-                <label v-for="col in dimensionCols" :key="col" class="chip"
-                  :class="{ active: configStore.config.filters.includes(col) }">
+              <p class="sec-desc">{{ t('config.dragToReorder') }}，{{ t('config.maxLimit', { n: 10 }) }}</p>
+              <div class="filter-search-wrap">
+                <input v-model="filterSearch" class="input" :placeholder="t('config.searchFilters')" />
+              </div>
+              <div class="filter-chips" data-drag-list="filter">
+                <label v-for="(col, fi) in filteredDimensionCols" :key="col" class="chip"
+                  :class="{ active: configStore.config.filters.includes(col), 'drag-placeholder': dragPlaceholder === fi && dragList === 'filter' }"
+                  :data-drag-idx="fi">
+                  <span class="drag-handle-sm" @pointerdown.prevent="onPointerDown($event, fi, 'filter')">⋮⋮</span>
                   <input type="checkbox" :checked="configStore.config.filters.includes(col)"
                     @change="configStore.toggleFilter(col)" class="sr-only" />
                   {{ col }}
@@ -87,7 +99,7 @@
           <section class="config-section" v-if="dateCols.length > 0">
             <div class="section-header-row" @click="toggleConfigSection('dateColumn')">
               <span class="sec-arrow">{{ isSectionOpen('dateColumn') ? '▼' : '▶' }}</span>
-              <h3>{{ t('config.timeSlice') }} ({{ selectedDateCols.length || dateCols.length }})</h3>
+              <h3>{{ t('config.timeSlice') }} <span class="section-count">({{ selectedDateCols.length || dateCols.length }})</span></h3>
               <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('dateColumn') }"
                   @click="configStore.saveSection('dateColumn')">{{ configStore.isSectionSaved('dateColumn') ? '✅' :
@@ -107,9 +119,10 @@
                   {{ col }}
                 </label>
               </div>
-              <p v-if="selectedDateCols.length > 0" class="sec-desc" style="margin-top:6px">
-                {{ t('config.date') }}{{ previewSpec?.dateRange?.min }} ~ {{ previewSpec?.dateRange?.max }}
-              </p>
+              <div v-if="selectedDateCols.length > 0" class="date-range-display">
+                <span class="date-range-label">{{ t('config.dateRange') }}:</span>
+                <span class="date-range-value">{{ previewSpec?.dateRange?.min }} ~ {{ previewSpec?.dateRange?.max }}</span>
+              </div>
             </div>
           </section>
 
@@ -117,7 +130,7 @@
           <section class="config-section">
             <div class="section-header-row" @click="toggleConfigSection('kpis')">
               <span class="sec-arrow">{{ isSectionOpen('kpis') ? '▼' : '▶' }}</span>
-              <h3>{{ t('config.kpiCards') }} ({{ configStore.config.kpis.length }})</h3>
+              <h3>{{ t('config.kpiCards') }} <span class="section-count">({{ configStore.config.kpis.length }})</span></h3>
               <div class="section-actions" @click.stop>
                 <button class="btn btn-sm btn-save" :class="{ saved: configStore.isSectionSaved('kpis') }"
                   @click="configStore.saveSection('kpis')">{{ configStore.isSectionSaved('kpis') ? '✅' : '💾'
@@ -126,6 +139,7 @@
               </div>
             </div>
             <div v-show="isSectionOpen('kpis')" class="section-body">
+              <p class="sec-desc">{{ t('config.dragToReorder') }}，{{ t('config.maxLimit', { n: 8 }) }}</p>
               <div class="kpi-list" data-drag-list="kpi">
                 <div v-for="(kpi, i) in configStore.config.kpis" :key="i" class="kpi-item" :data-drag-idx="i"
                   :class="{ 'drag-placeholder': dragPlaceholder === i && dragList === 'kpi' }">
@@ -136,9 +150,12 @@
                       <span class="kpi-item-label">{{ kpi.label }}</span>
                       <span v-if="kpi.formula" class="kpi-formula-tag">{{ t('config.formula') }}</span>
                       <span v-else class="kpi-col-tag">{{ kpi.column }}</span>
-                      <span class="kpi-agg-tag">{{ aggLabel(kpi.agg) }}</span>
+                      <span class="kpi-agg-badge" :class="'agg-' + kpi.agg">{{ aggLabel(kpi.agg) }}</span>
                       <button class="btn-icon" @click="openEditKpi(i)" :title="t('config.edit')">✎</button>
                       <button class="btn-icon" @click="configStore.removeKpi(i)" :title="t('config.remove')">✕</button>
+                    </div>
+                    <div v-if="getKpiPreviewValue(kpi)" class="kpi-preview-value">
+                      预览：{{ getKpiPreviewValue(kpi) }}
                     </div>
                   </div>
                 </div>
@@ -174,7 +191,10 @@
                     @pointerdown.prevent="onPointerDown($event, ci, 'chart')">⋮⋮</span>
                   <div class="chart-item-body">
                     <div class="chart-item-header">
-                      <span class="chart-type-badge">{{ chartTypeLabel(chart.type) }}</span>
+                      <span class="chart-type-badge">
+                        <span v-if="chartTypeIcon(chart.type)" class="chart-type-icon">{{ chartTypeIcon(chart.type) }}</span>
+                        {{ chartTypeLabel(chart.type) }}
+                      </span>
                       <span class="chart-title">{{ chart.title }}</span>
                       <button class="btn-icon" @click="openEditChart(chart)" :title="t('config.edit')">✎</button>
                       <button class="btn-icon" @click="configStore.removeChart(chart.id)"
@@ -208,6 +228,26 @@
             <div class="preview-dash-header">
               <h3>{{ configStore.config.title || t('common.preview') }}</h3>
             </div>
+            
+            <!-- 未保存警告 -->
+            <div v-if="!allSaved" class="unsaved-warning">
+              <span class="warn-icon">⚠</span>
+              <span>{{ t('config.unsavedWarning') }}</span>
+            </div>
+            
+            <!-- 预览设备切换 -->
+            <div class="preview-device-tabs">
+              <button class="preview-device-tab" :class="{ active: previewDevice === 'desktop' }" @click="previewDevice = 'desktop'">
+                 {{ t('config.previewDesktop') }}
+              </button>
+              <button class="preview-device-tab" :class="{ active: previewDevice === 'tablet' }" @click="previewDevice = 'tablet'">
+                📱 {{ t('config.previewTablet') }}
+              </button>
+              <button class="preview-device-tab" :class="{ active: previewDevice === 'mobile' }" @click="previewDevice = 'mobile'">
+                📲 {{ t('config.previewMobile') }}
+              </button>
+            </div>
+            
             <div class="save-status" v-if="allSaved">{{ t('config.savedAll') }}</div>
             <div class="save-status unsaved" v-else>{{ t('config.savedPartial', {
               n: savedCount, total: totalSections
@@ -892,14 +932,23 @@ function previewCellValue(val: any, col?: string): string {
 }
 
 // ====== Drag state ======
-const dragList = ref<'kpi' | 'chart' | 'table' | null>(null)
+const dragList = ref<'kpi' | 'chart' | 'table' | 'filter' | null>(null)
 const dragIdx = ref(-1)
 const dragPlaceholder = ref(-1)
+const filterSearch = ref('')
+const previewDevice = ref<'desktop' | 'tablet' | 'mobile'>('desktop')
+
+const filteredDimensionCols = computed(() => {
+  if (!filterSearch.value) return dimensionCols.value
+  const search = filterSearch.value.toLowerCase()
+  return dimensionCols.value.filter(col => col.toLowerCase().includes(search))
+})
+
 let dragGhost: HTMLElement | null = null
 let dragStartY = 0
 let dragOffY = 0
 
-function onPointerDown(e: PointerEvent, idx: number, list: 'kpi' | 'chart' | 'table') {
+function onPointerDown(e: PointerEvent, idx: number, list: 'kpi' | 'chart' | 'table' | 'filter') {
   const handle = e.currentTarget as HTMLElement
   const item = handle.closest('[data-drag-idx]') as HTMLElement
   if (!item) return
@@ -1062,6 +1111,11 @@ function chartTypeLabel(type: string): string {
   return t(CHART_TYPES.find((ct) => ct.value === type)?.labelKey ?? type)
 }
 
+function chartTypeIcon(type: string): string {
+  const map: Record<string, string> = { bar: '📊', line: '📈', pie: '', scatter: '', table: '📋', funnel: '▽', gauge: '', radar: '✳', heatmap: '▦', treemap: '▤', sankey: '⇌', graph: '', candlestick: '🕯', boxplot: '', parallel: '∥', themeRiver: '≋', sunburst: '', tree: '', wordCloud: '☁', calendar: '📅', custom: '⚙' }
+  return map[type] || ''
+}
+
 // ====== KPI editor ======
 
 const KPI_AGG_OPTIONS = [
@@ -1131,6 +1185,30 @@ const canSaveKpi = computed(() => {
 
 function aggLabel(agg: string): string {
   return t(KPI_AGG_OPTIONS.find((o) => o.value === agg)?.labelKey ?? agg)
+}
+
+function getKpiPreviewValue(kpi: any): string {
+  if (!kpi.column || !previewStore.effectiveRows.length) return ''
+  const rows = previewStore.effectiveRows
+  const vals = rows.map(r => Number(r[kpi.column!])).filter(v => !isNaN(v))
+  if (vals.length === 0) return ''
+  let result = 0
+  switch (kpi.agg) {
+    case 'sum': result = vals.reduce((a, b) => a + b, 0); break
+    case 'avg': result = vals.reduce((a, b) => a + b, 0) / vals.length; break
+    case 'count': result = vals.length; break
+    case 'max': result = Math.max(...vals); break
+    case 'min': result = Math.min(...vals); break
+    default: result = vals.reduce((a, b) => a + b, 0)
+  }
+  return formatNumber(result)
+}
+
+function formatNumber(n: number): string {
+  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿'
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
+  if (n >= 1000) return n.toLocaleString()
+  return String(n)
 }
 
 function addVariable() {
@@ -3878,4 +3956,229 @@ function cancelChartEdit() {
   padding: 4px 0;
   text-align: left;
 }
+
+/* Title input with character count */
+.title-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.title-input-wrap .input {
+  flex: 1;
+  padding-right: 60px;
+}
+
+.char-count {
+  position: absolute;
+  right: 12px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.char-count.over-limit {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.subtitle-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.subtitle-toggle input[type="checkbox"] {
+  margin: 0;
+}
+
+.input-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* Filter section enhancements */
+.filter-search-wrap {
+  margin-bottom: 8px;
+}
+
+.filter-search-wrap .input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.filter-count-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Time slice quick date buttons */
+.quick-date-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.quick-date-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.quick-date-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.quick-date-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+/* Preview device tabs */
+.preview-device-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.preview-device-tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-device-tab:hover {
+  color: var(--text-primary);
+}
+
+.preview-device-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* Unsaved warning banner */
+.unsaved-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  color: #92400e;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.unsaved-warning .warn-icon {
+  font-size: 16px;
+}
+
+/* Chart type icons */
+.chart-type-icon {
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+/* KPI preview value */
+.kpi-preview-value {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* KPI aggregation badge */
+.kpi-agg-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.kpi-agg-badge.agg-sum { background: #dbeafe; color: #1d4ed8; }
+.kpi-agg-badge.agg-avg { background: #d1fae5; color: #065f46; }
+.kpi-agg-badge.agg-count { background: #fef3c7; color: #92400e; }
+.kpi-agg-badge.agg-max { background: #fce7f3; color: #9d174d; }
+.kpi-agg-badge.agg-min { background: #e0e7ff; color: #3730a3; }
+.kpi-agg-badge.agg-distinct { background: #f3e8ff; color: #7c3aed; }
+
+/* Section count badge */
+.section-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* Date range display */
+.date-range-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--bg-hover);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.date-range-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.date-range-value {
+  color: var(--text-primary);
+  font-family: monospace;
+}
+
+/* Drag handle small for filters */
+.drag-handle-sm {
+  cursor: grab;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  margin-right: 4px;
+  user-select: none;
+}
+
+.drag-handle-sm:active {
+  cursor: grabbing;
+}
+
+/* Chart type badge with icon */
+.chart-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 </style>
