@@ -113,6 +113,7 @@ export default {
     mainTableLabel: '分析主表',
     noMainTable: '未设定（点击左侧 ⭐ 设定）',
     noRelations: '暂无关联关系',
+    noRelationsHint: '点击下方「新建关联」建立表间关系，关联后可跨表联合分析',
     addRelation: '新建关联',
     comingSoon: '（关联表单即将上线）',
     newRelation: '新建关联',

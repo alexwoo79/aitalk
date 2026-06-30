@@ -463,6 +463,19 @@ input[type="search"]::placeholder {
   min-height: 0;
 }
 
+/* Screen-reader only — 隐藏但保持可交互（替代 hidden 属性，确保 label 点击能触发 checkbox change） */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Override ECharts toolbox dataView panel in dark mode */
 :root[data-theme="dark"] div[style*="position: absolute"][style*="background-color: rgb(255, 255, 255)"] {
   background-color: var(--bg-surface) !important;

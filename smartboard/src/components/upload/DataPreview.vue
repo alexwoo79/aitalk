@@ -63,14 +63,14 @@
           <div class="ctt-header">{{ hoveredCol }}</div>
           <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.type') }}</span>{{ colTooltip.type }}</div>
           <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.nonNull') }}</span>{{ colTooltip.nonNull }}
-            / {{ colTooltip.total }}</div>
+            / {{ colTooltip.total }}<span v-if="colTooltip.nullCount > 0" class="ctt-null"> · 空值 {{ colTooltip.nullCount }}</span></div>
           <div class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.unique') }}</span>{{ colTooltip.unique }}
           </div>
-          <div v-if="colTooltip.type === 'numeric'" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.min')
+          <div v-if="colTooltip.isNumeric" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.min')
           }}</span>{{ colTooltip.min }}</div>
-          <div v-if="colTooltip.type === 'numeric'" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.max')
+          <div v-if="colTooltip.isNumeric" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.max')
           }}</span>{{ colTooltip.max }}</div>
-          <div v-if="colTooltip.type === 'numeric'" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.avg')
+          <div v-if="colTooltip.isNumeric" class="ctt-row"><span class="ctt-label">{{ t('upload.tooltip.avg')
           }}</span>{{ colTooltip.avg }}</div>
           <div v-if="colTooltip.dirtyCount" class="ctt-row ctt-dirty"><span class="ctt-label">⚠️ {{
             t('upload.tooltip.dirty') }}</span>{{ colTooltip.dirtyCount }}</div>
@@ -137,24 +137,33 @@ const tooltipX = ref(0)
 const tooltipY = ref(0)
 let _hoverTimer: ReturnType<typeof setTimeout> | null = null
 
-interface ColStats { type: string; total: number; nonNull: number; unique: number; min: string; max: string; avg: string; dirtyCount: number; samples: string[] }
+interface ColStats { type: string; total: number; nonNull: number; nullCount: number; unique: number; min: string; max: string; avg: string; dirtyCount: number; samples: string[]; isNumeric: boolean }
 
 const colTooltip = computed((): ColStats => {
   const col = hoveredCol.value
   const ds = dataStore.dataSet
-  if (!col || !ds) return { type: '', total: 0, nonNull: 0, unique: 0, min: '', max: '', avg: '', dirtyCount: 0, samples: [] }
+  if (!col || !ds) return { type: '', total: 0, nonNull: 0, nullCount: 0, unique: 0, min: '', max: '', avg: '', dirtyCount: 0, samples: [], isNumeric: false }
   const cls = ds.classifications[col]
   const typeLabels: Record<string, string> = { numeric: '数值', categorical: '分类', date: '日期', text: '文本' }
   const type = typeLabels[cls?.type || ''] || cls?.type || '—'
+  const isNum = cls?.type === 'numeric'
   const total = ds.rows.length
   const vals = ds.rows.map(r => r[col])
   const nonNull = vals.filter(v => v !== undefined && v !== null && v !== '').length
   const unique = new Set(vals.filter(v => v !== undefined && v !== null && v !== '').map(String)).size
   const dirtyCount = dirtyColumns.value.find(d => d.column === col)?.dirtyCount ?? 0
-  const sampleVals = vals.filter(v => v !== undefined && v !== null && v !== '').slice(0, 5).map(v => String(v).slice(0, 24))
+  // 去重后取前 5 个值作为示例，避免重复值填满列表
+  const seen = new Set<string>()
+  const sampleVals: string[] = []
+  for (const v of vals) {
+    if (v === undefined || v === null || v === '') continue
+    const s = String(v).slice(0, 24)
+    if (!seen.has(s)) { seen.add(s); sampleVals.push(s) }
+    if (sampleVals.length >= 5) break
+  }
 
   let min = '—', max = '—', avg = '—'
-  if (cls?.type === 'numeric') {
+  if (isNum) {
     const nums = vals.map(v => typeof v === 'number' ? v : Number(v)).filter(v => !isNaN(v))
     if (nums.length > 0) {
       min = Math.min(...nums).toLocaleString()
@@ -162,7 +171,7 @@ const colTooltip = computed((): ColStats => {
       avg = (nums.reduce((a, b) => a + b, 0) / nums.length).toLocaleString(undefined, { maximumFractionDigits: 2 })
     }
   }
-  return { type, total, nonNull, unique, min, max, avg, dirtyCount, samples: sampleVals }
+  return { type, total, nonNull, nullCount: total - nonNull, unique, min, max, avg, dirtyCount, samples: sampleVals, isNumeric: isNum }
 })
 
 function onColEnter(col: string, e: MouseEvent) {
@@ -614,6 +623,11 @@ function truncate(val: string | number | undefined): string {
   color: var(--text-primary);
 }
 
+.ctt-null {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
 .ctt-label {
   color: var(--text-secondary);
   font-size: 11px;
@@ -642,5 +656,7 @@ function truncate(val: string | number | undefined): string {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -388,7 +388,7 @@
                   <label v-for="col in dimensionCols" :key="col" class="chip"
                     :class="{ active: configStore.config.filters.includes(col) }">
                     <input type="checkbox" :checked="configStore.config.filters.includes(col)"
-                      @change="configStore.toggleFilter(col)" hidden />
+                      @change="configStore.toggleFilter(col)" class="sr-only" />
                     {{ col }}
                   </label>
                 </div>
@@ -413,9 +413,9 @@
                 <p class="sec-desc">{{ t('config.timeSliceHint') }}</p>
                 <div class="filter-chips">
                   <label v-for="col in dateCols" :key="col" class="chip"
-                    :class="{ active: (configStore.config.dateColumns || []).includes(col) }">
-                    <input type="checkbox" :checked="(configStore.config.dateColumns || []).includes(col)"
-                      @change="toggleDateCol(col)" hidden />
+                    :class="{ active: selectedDateCols.includes(col) }">
+                    <input type="checkbox" :checked="selectedDateCols.includes(col)"
+                      @change="toggleDateCol(col)" class="sr-only" />
                     {{ col }}
                   </label>
                 </div>
@@ -1833,16 +1833,32 @@ const selectedKpiCount = computed(() =>
 )
 
 // ====== Date column multi-select ======
+// undefined = 全选（默认状态），[] = 不选任何列，[...] = 显式选中列表
 const selectedDateCols = computed({
-  get: () => configStore.config.dateColumns || dateCols.value,
+  get: () => {
+    const d = configStore.config.dateColumns
+    return d === undefined ? dateCols.value : d
+  },
   set: (v) => { configStore.config.dateColumns = v },
 })
 function toggleDateCol(col: string) {
-  const arr = [...selectedDateCols.value]
+  const current = configStore.config.dateColumns // undefined | string[]
+  if (current === undefined) {
+    // 全选状态 → 取消当前列，其余保持选中
+    const arr = dateCols.value.filter(c => c !== col)
+    configStore.config.dateColumns = arr.length === dateCols.value.length ? undefined : arr
+    return
+  }
+  const arr = [...current]
   const idx = arr.indexOf(col)
   if (idx !== -1) arr.splice(idx, 1)
   else arr.push(col)
-  configStore.config.dateColumns = arr.length > 0 ? arr : undefined
+  // 全部重新选中 → 回到 undefined（全选）
+  if (arr.length === dateCols.value.length) {
+    configStore.config.dateColumns = undefined
+  } else {
+    configStore.config.dateColumns = arr
+  }
 }
 
 // ====== 全局指标聚合 ======

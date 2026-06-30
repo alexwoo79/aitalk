@@ -112,6 +112,7 @@ export default {
     mainTableLabel: 'Main Analysis Table',
     noMainTable: 'Not set (click ⭐ to set)',
     noRelations: 'No relations defined',
+    noRelationsHint: 'Click "Add Relation" below to join tables for cross-table analysis',
     addRelation: 'Add Relation',
     comingSoon: '(Relation form coming soon)',
     newRelation: 'New Relation',

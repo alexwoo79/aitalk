@@ -2,8 +2,11 @@
 <template>
   <div class="relation-config">
     <div class="relation-header">
-      <h3>{{ t('upload.relationTitle') }}</h3>
-      <p class="relation-desc">{{ t('upload.relationDesc') }}</p>
+      <div class="relation-header-left">
+        <h3>{{ t('upload.relationTitle') }}</h3>
+        <p class="relation-desc">{{ t('upload.relationDesc') }}</p>
+      </div>
+      <button class="btn-next" @click="goToConfig">{{ t('upload.nextStep') }}</button>
     </div>
 
     <!-- 需要至少 2 张表 -->
@@ -123,7 +126,12 @@
       </div>
     </div>
     <div v-if="dataStore.relations.length === 0" class="relation-empty">
-      <p>{{ t('upload.noRelations') }}</p>
+      <div class="empty-graphic">
+        <span class="empty-icon">🔗</span>
+        <p class="empty-title">{{ t('upload.noRelations') }}</p>
+        <p class="empty-hint">{{ t('upload.noRelationsHint', '点击下方「新建关联」建立表间关系，关联后可跨表联合分析') }}</p>
+        <span class="empty-arrow">↓</span>
+      </div>
     </div>
   </div>
 
@@ -149,6 +157,7 @@
             <option value="">{{ t('upload.selectColumn') }}</option>
             <option v-for="col in leftColumns" :key="col" :value="col">{{ col }}</option>
           </select>
+          <span v-if="form.leftColumn && leftColInfo" class="col-info-hint">{{ leftColInfo }}</span>
         </div>
       </div>
 
@@ -157,10 +166,10 @@
           <label>{{ t('upload.joinType') }}</label>
           <div class="join-type-group">
             <label v-for="jt in joinTypes" :key="jt.value" class="join-type-option"
-              :class="{ active: form.joinType === jt.value }">
+              :class="{ active: form.joinType === jt.value }" :title="jt.desc">
               <input type="radio" v-model="form.joinType" :value="jt.value" />
+              <span class="jt-venn" v-html="jt.venn"></span>
               <span class="jt-label">{{ jt.label }}</span>
-              <span class="jt-desc">{{ jt.desc }}</span>
             </label>
           </div>
         </div>
@@ -181,6 +190,7 @@
             <option value="">{{ t('upload.selectColumn') }}</option>
             <option v-for="col in rightColumns" :key="col" :value="col">{{ col }}</option>
           </select>
+          <span v-if="form.rightColumn && rightColInfo" class="col-info-hint">{{ rightColInfo }}</span>
         </div>
       </div>
 
@@ -191,7 +201,8 @@
 
       <div class="form-actions">
         <button class="btn btn-secondary" @click="resetForm">{{ t('common.cancel') }}</button>
-        <button class="btn btn-outline" @click="previewJoin" :disabled="!canSubmit">
+        <button class="btn btn-outline" @click="previewJoin" :disabled="!canSubmit"
+          :title="!form.leftTableId ? '请先选择左表' : !form.rightTableId ? '请先选择右表' : !form.leftColumn ? '请先选择左表字段' : !form.rightColumn ? '请先选择右表字段' : '预览关联结果（前20行）'">
           {{ t('upload.previewJoin') }}
         </button>
         <button class="btn btn-primary" @click="submitRelation" :disabled="!canSubmit">
@@ -294,14 +305,20 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useDataStore } from '@/stores/data-store'
 import { suggestJoins, type JoinSuggestion } from '@/core/classifier'
 import { joinDatasets, isTauri } from '@/composables/use-rust-bridge'
 import type { ChartPayload } from '@/types/data'
 
+const router = useRouter()
 const { t } = useI18n()
 const dataStore = useDataStore()
+
+function goToConfig() {
+  router.push('/config')
+}
 
 // ── 表单状态 ──
 const showForm = ref(false)
@@ -323,10 +340,14 @@ const form = ref<RelationForm>({
 })
 
 const joinTypes = [
-  { value: 'left' as const, label: 'LEFT JOIN', desc: '保留左表所有行' },
-  { value: 'inner' as const, label: 'INNER JOIN', desc: '仅保留匹配行' },
-  { value: 'right' as const, label: 'RIGHT JOIN', desc: '保留右表所有行' },
-  { value: 'outer' as const, label: 'FULL JOIN', desc: '保留两表所有行' },
+  { value: 'left' as const, label: 'LEFT JOIN', desc: '保留左表所有行',
+    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#fff" stroke="#93c5fd" stroke-width="1.2"/><circle cx="9" cy="7" r="5.5" fill="#3b82f6" opacity="0.35"/></svg>' },
+  { value: 'inner' as const, label: 'INNER JOIN', desc: '仅保留匹配行',
+    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><ellipse cx="12" cy="7" rx="2" ry="4.5" fill="#3b82f6" opacity="0.5"/></svg>' },
+  { value: 'right' as const, label: 'RIGHT JOIN', desc: '保留右表所有行',
+    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#fff" stroke="#93c5fd" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="5.5" fill="#3b82f6" opacity="0.35"/></svg>' },
+  { value: 'outer' as const, label: 'FULL JOIN', desc: '保留两表所有行',
+    venn: '<svg viewBox="0 0 24 14" width="36" height="20"><circle cx="9" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/><circle cx="15" cy="7" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/></svg>' },
 ]
 
 // ── 预览状态 ──
@@ -362,6 +383,22 @@ const canSubmit = computed(() =>
   form.value.rightTableId && form.value.rightColumn &&
   form.value.leftTableId !== form.value.rightTableId,
 )
+
+/** 选中字段的简要上下文：类型 + 唯一值数 + 示例 */
+function colInfo(tableId: string, col: string): string {
+  const ds = dataStore.tables[tableId]
+  if (!ds || !col) return ''
+  const cls = ds.classifications[col]
+  const typeMap: Record<string, string> = { numeric: '数值', categorical: '分类', date: '日期', text: '文本' }
+  const type = typeMap[cls?.type || ''] || cls?.type || '?'
+  const vals = ds.rows.map(r => r[col]).filter(v => v !== undefined && v !== null && v !== '')
+  const unique = new Set(vals.map(String)).size
+  const samples = [...new Set(vals.slice(0, 10).map(v => String(v).slice(0, 16)))].slice(0, 3).join(', ')
+  return `${type} · ${unique} 唯一值 · ${samples}`
+}
+
+const leftColInfo = computed(() => colInfo(form.value.leftTableId, form.value.leftColumn))
+const rightColInfo = computed(() => colInfo(form.value.rightTableId, form.value.rightColumn))
 
 // ── 表单交互 ──
 function onLeftTableChange() {
@@ -712,20 +749,46 @@ function onPointerUp(e: PointerEvent) {
 }
 
 .relation-header {
-  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.relation-header-left {
+  display: flex;
+  flex-direction: column;
 }
 
 .relation-header h3 {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 4px;
+  margin: 0 0 2px;
 }
 
 .relation-desc {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
   margin: 0;
+}
+
+.btn-next {
+  padding: 0 24px;
+  height: 38px;
+  border-radius: 8px;
+  border: none;
+  background: var(--primary);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-next:hover {
+  opacity: 0.9;
 }
 
 .relation-hint {
@@ -748,6 +811,10 @@ function onPointerUp(e: PointerEvent) {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  padding: 16px;
 }
 
 /* ── 主表栏 ── */
@@ -757,6 +824,7 @@ function onPointerUp(e: PointerEvent) {
   gap: 8px;
   padding: 10px 16px;
   background: var(--bg-hover);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 13px;
 }
@@ -782,8 +850,8 @@ function onPointerUp(e: PointerEvent) {
   flex-direction: column;
   gap: 6px;
   padding: 8px 12px;
-  background: #fefce8;
-  border: 1px solid #fde68a;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 12px;
   transition: all 0.2s;
@@ -839,43 +907,25 @@ function onPointerUp(e: PointerEvent) {
 }
 
 .suggest-chip {
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 2px 10px;
   font-size: 11px;
-  color: #92400e;
+  color: var(--text-primary);
   cursor: pointer;
   font-family: monospace;
   transition: all 0.15s;
 }
 
 .suggest-chip:hover {
-  background: #fde68a;
+  background: var(--primary-light, #dbeafe);
+  border-color: var(--primary);
 }
 
-/* Dark theme for suggestions */
-:root[data-theme="dark"] .suggestions-bar {
-  background: #292524;
-  border-color: #78350f;
-}
-
+/* Dark theme for suggestions toggle */
 :root[data-theme="dark"] .suggest-toggle {
-  color: #fde68a;
-}
-
-:root[data-theme="dark"] .suggest-label {
-  color: #fde68a;
-}
-
-:root[data-theme="dark"] .suggest-chip {
-  background: #3b2f1f;
-  border-color: #78350f;
-  color: #fde68a;
-}
-
-:root[data-theme="dark"] .suggest-chip:hover {
-  background: #543f28;
+  color: var(--primary-light, #93c5fd);
 }
 
 /* ── 关联拓扑图 ── */
@@ -1274,14 +1324,55 @@ function onPointerUp(e: PointerEvent) {
 .relation-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .relation-empty {
-  padding: 16px;
+  margin-top: 0;
+  padding: 32px 16px;
   text-align: center;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-size: 13px;
+  border: 2px dashed var(--primary, #93c5fd);
+  border-radius: 10px;
+  background: var(--primary-light, #eff6ff);
+}
+
+.empty-graphic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty-icon {
+  font-size: 32px;
+}
+
+.empty-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.empty-hint {
+  max-width: 360px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.empty-arrow {
+  font-size: 18px;
+  color: var(--primary);
+  margin-top: 6px;
+  animation: bounce-arrow 1.2s ease infinite;
+}
+
+@keyframes bounce-arrow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
 }
 
 .relation-card {
@@ -1289,14 +1380,14 @@ function onPointerUp(e: PointerEvent) {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: var(--bg-primary);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 8px;
 }
 
 .relation-card.editing {
   border-color: var(--primary);
-  background: #f0f7ff;
+  background: var(--primary-light, #eff6ff);
 }
 
 .rel-info {
@@ -1388,7 +1479,11 @@ function onPointerUp(e: PointerEvent) {
 
 /* ── 表单 ── */
 .relation-form {
-  margin-top: 4px;
+  margin-top: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  padding: 16px;
 }
 
 .relation-form h4 {
@@ -1401,10 +1496,7 @@ function onPointerUp(e: PointerEvent) {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
-  background: var(--bg-hover);
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  padding: 16px 0 0;
 }
 
 .form-row {
@@ -1449,16 +1541,18 @@ function onPointerUp(e: PointerEvent) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 12px;
+  gap: 3px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s;
-  min-width: 80px;
+  min-width: 70px;
 }
 
 .join-type-option:hover {
   border-color: var(--primary);
+  background: var(--bg-hover);
 }
 
 .join-type-option.active {
@@ -1470,8 +1564,18 @@ function onPointerUp(e: PointerEvent) {
   display: none;
 }
 
+.jt-venn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jt-venn svg {
+  display: block;
+}
+
 .jt-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   font-family: monospace;
 }
@@ -1480,6 +1584,14 @@ function onPointerUp(e: PointerEvent) {
   font-size: 10px;
   color: var(--text-tertiary);
   margin-top: 2px;
+}
+
+.col-info-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  line-height: 1.3;
 }
 
 /* ── 警告 ── */

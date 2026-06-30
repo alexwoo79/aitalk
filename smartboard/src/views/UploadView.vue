@@ -34,27 +34,34 @@
       </button>
     </div>
 
-    <!-- 上传区域（始终可见） -->
-    <div class="upload-section">
-      <h2>{{ t('upload.title') }}</h2>
-      <p class="subtitle">{{ t('upload.subtitle') }}</p>
-
-      <!-- 导入方式 Tab 栏 -->
-      <div class="method-tabs">
-        <button v-for="mtab in methodTabs" :key="mtab.key" class="method-tab"
-          :class="{ active: activeMethod === mtab.key }" @click="activeMethod = mtab.key">
-          {{ mtab.label }}
+    <!-- 上传区域（有数据后折叠） -->
+    <div class="upload-section" :class="{ collapsed: dataStore.dataSet }">
+      <div class="upload-section-header">
+        <h2>{{ t('upload.title') }}</h2>
+        <p class="subtitle" v-if="!dataStore.dataSet">{{ t('upload.subtitle') }}</p>
+        <button v-if="dataStore.dataSet && uploadCollapsed" class="btn-link expand-upload" @click="uploadCollapsed = false">
+          + {{ t('upload.addMoreFiles', '添加更多文件') }}
         </button>
       </div>
 
-      <!-- 各导入方式面板 -->
-      <div class="method-panel">
-        <FileUploader v-if="activeMethod === 'file'" @loaded="onFileLoaded" />
-        <PasteZone v-if="activeMethod === 'paste'" />
-        <UrlImport v-if="activeMethod === 'url'" />
-        <DatabaseImport v-if="activeMethod === 'database'" />
-        <FeishuImport v-if="activeMethod === 'feishu'" />
-      </div>
+      <template v-if="!dataStore.dataSet || !uploadCollapsed">
+        <!-- 导入方式 Tab 栏 -->
+        <div class="method-tabs">
+          <button v-for="mtab in methodTabs" :key="mtab.key" class="method-tab"
+            :class="{ active: activeMethod === mtab.key }" @click="activeMethod = mtab.key">
+            {{ mtab.label }}
+          </button>
+        </div>
+
+        <!-- 各导入方式面板 -->
+        <div class="method-panel">
+          <FileUploader v-if="activeMethod === 'file'" @loaded="onFileLoaded" />
+          <PasteZone v-if="activeMethod === 'paste'" />
+          <UrlImport v-if="activeMethod === 'url'" />
+          <DatabaseImport v-if="activeMethod === 'database'" />
+          <FeishuImport v-if="activeMethod === 'feishu'" />
+        </div>
+      </template>
     </div>
 
     <!-- 加载 / 错误状态 -->
@@ -195,6 +202,7 @@ function cancelRename() {
 // Data quality tips: shown by default on first visit, toggleable
 const TIPS_STORAGE_KEY = 'smartboard-tips-dismissed'
 const showTips = ref(!localStorage.getItem(TIPS_STORAGE_KEY))
+const uploadCollapsed = ref(true)
 
 // Persist dismissal to localStorage
 watch(showTips, (val) => {
@@ -204,7 +212,7 @@ watch(showTips, (val) => {
 })
 
 function onFileLoaded() {
-  // Auto-generate config when data is loaded (only if nothing saved yet)
+  uploadCollapsed.value = true
   if (Object.keys(configStore.sectionSnapshots).length === 0) {
     configStore.generateAutoConfig()
   }
@@ -370,6 +378,23 @@ async function downloadSample() {
 .upload-section {
   text-align: center;
   margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.upload-section.collapsed {
+  margin-bottom: 12px;
+}
+
+.upload-section-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.expand-upload {
+  font-size: 13px;
+  margin-top: 4px;
 }
 
 .upload-section h2 {
@@ -381,6 +406,7 @@ async function downloadSample() {
 .subtitle {
   color: var(--text-secondary);
   font-size: 12px;
+  text-align: center;
 }
 
 /* ── 加载 / 错误 ── */
@@ -408,41 +434,54 @@ async function downloadSample() {
 }
 
 
-/* ── 导入方式 Tab 栏 ── */
+/* ── 导入方式 Segmented Control ── */
 .method-tabs {
-  display: flex;
-  justify-content: center;
-  gap: 0;
-  border-bottom: 2px solid var(--border);
-  margin-bottom: 16px;
+  display: inline-flex;
+  gap: 3px;
+  background: var(--bg-hover, #f1f5f9);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 20px;
   margin-top: 16px;
 }
 
 .method-tab {
-  background: none;
+  background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  padding: 10px 20px;
-  font-size: 14px;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 .method-tab:hover {
   color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .method-tab.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+  color: #fff;
+  background: var(--primary, #3B82F6);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   font-weight: 600;
+}
+
+:root[data-theme="dark"] .method-tabs {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:root[data-theme="dark"] .method-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .method-panel {
   min-height: 80px;
+  padding: 20px 0 12px;
+  border-top: 1px solid var(--border-light, #e2e8f0);
 }
 
 /* ── Table Tab 栏 ── */

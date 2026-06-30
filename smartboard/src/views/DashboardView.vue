@@ -537,9 +537,16 @@ const dateStart = ref(previewStore.dateRange.start)
 const dateEnd = ref(previewStore.dateRange.end)
 const dateColWarn = ref('')
 
-// Initialize activeDateColumn from spec
-watch(() => spec.value?.dateRange?.column, (col) => {
-  if (col && !previewStore.activeDateColumn) previewStore.activeDateColumn = col
+// Initialize activeDateColumn and default full date range from spec
+watch(() => spec.value?.dateRange, (dr) => {
+  if (dr?.column && !previewStore.activeDateColumn) previewStore.activeDateColumn = dr.column
+  // 默认选择全部时间范围，使"全部"预设按钮激活
+  if (dr?.min && !previewStore.dateRange.start) {
+    previewStore.dateRange.start = dr.min
+    previewStore.dateRange.end = dr.max
+    dateStart.value = dr.min
+    dateEnd.value = dr.max
+  }
 }, { immediate: true })
 
 function onDateColumnChange() {

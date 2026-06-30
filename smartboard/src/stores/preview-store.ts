@@ -26,6 +26,11 @@ export const usePreviewStore = defineStore('preview', () => {
   watch([() => dataStore.dataSet, () => dataStore.relations, () => dataStore.tables], () => {
     _cachedEffectiveDS = null
     _filterOptionsCache.clear()
+    filterValues.value = {}
+    dateRange.value = { start: '', end: '' }
+    activeDateColumn.value = ''
+    searchText.value = ''
+    conditionFilter.value = ''
     filtersApplied.value = false
   })
 
@@ -101,6 +106,10 @@ export const usePreviewStore = defineStore('preview', () => {
     const rowsWithCC = hasCompCols ? augmentRows(e.rows) : e.rows
 
     // 预收集筛选参数，合并为单次遍历
+    // 为所有已配置筛选列补充默认"全部"值
+    for (const f of (configStore.config.filters || [])) {
+      if (!filterValues.value[f]) filterValues.value[f] = '__all__'
+    }
     const dimEntries = Object.entries(filterValues.value).filter(([, v]) => v && v !== '__all__')
     const dc = (dateRange.value.start && dateRange.value.end)
       ? (activeDateColumn.value || e.headers.find((h: string) => e.classifications[h]?.type === 'date' && !dataStore.excludedColumns.has(h)))
