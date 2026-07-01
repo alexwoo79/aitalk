@@ -531,14 +531,16 @@ export const useConfigStore = defineStore('config', () => {
 
   /** 全部重置为自动 */
   function resetAllToAuto() {
-    // 逐区域重置（而非重新生成全部），避免跨页覆盖手动配置
-    const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'computedCols']
+    sectionSnapshots.value = {}
+    generateAutoConfig()
+  }
+
+  /** 仅重置看板配置（保留数据表定义和计算列） */
+  function resetDashboardToAuto() {
+    const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts']
     for (const sec of sections) {
-      if (sectionSnapshots.value[sec] !== undefined) {
-        // 仅重置有手动保存过的区域
-        sectionAutoGens[sec]()
-        delete sectionSnapshots.value[sec]
-      }
+      sectionAutoGens[sec]()
+      delete sectionSnapshots.value[sec]
     }
   }
 
@@ -620,6 +622,7 @@ export const useConfigStore = defineStore('config', () => {
     isSectionSaved,
     saveAll,
     resetAllToAuto,
+    resetDashboardToAuto,
     exportFullConfig,
     importFullConfig,
     editTitle,

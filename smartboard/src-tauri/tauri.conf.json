@@ -1,6 +1,6 @@
 {
   "productName": "SmartBoard",
-  "version": "0.1.0-0701",
+  "version": "0.1.0-701",
   "identifier": "com.alexwoo.smartboard",
   "build": {
     "frontendDist": "../dist",

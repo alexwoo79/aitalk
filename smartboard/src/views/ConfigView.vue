@@ -29,8 +29,11 @@
             <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved
               ? t('config.saved') : t('config.saveAll') }}</button>
             <span class="reset-wrap">
-              <button class="btn btn-sm btn-reset-sec" @click="confirmResetAll()">{{ t('config.resetAll')
-                }}</button>
+              <button class="btn btn-sm btn-reset-sec" @click="showResetMenu = !showResetMenu" :title="t('config.resetAll')">↺</button>
+              <div v-if="showResetMenu" class="reset-menu" @click.stop>
+                <button class="reset-menu-item" @click="confirmResetDashboard()">↺ 重置看板配置（保留列定义）</button>
+                <button class="reset-menu-item reset-menu-item--danger" @click="confirmResetAll()">↺ 重置全部（含数据列定义）</button>
+              </div>
               <button class="reset-info-btn" @click.stop="toggleResetHint" :title="t('config.resetHint')">💡</button>
               <div v-if="showResetHint" class="reset-popup">
                 {{ t('config.resetHint') }}
@@ -782,6 +785,7 @@ const totalSections = computed(() => {
 // Reset hint popup — shown on first visit, toggleable via icon
 const RESET_HINT_KEY = 'smartboard-reset-hint-dismissed'
 const showResetHint = ref(!localStorage.getItem(RESET_HINT_KEY))
+const showResetMenu = ref(false)
 function toggleResetHint() {
   showResetHint.value = !showResetHint.value
   localStorage.setItem(RESET_HINT_KEY, '1')
@@ -1551,9 +1555,30 @@ function refreshPreview() {
 }
 
 function confirmResetAll() {
+  showResetMenu.value = false
   if (confirm('⚠️ 确定要全部重置为自动推荐吗？\n\n这将清空当前页面和关联页面中所有已手动配置的区域（看板标题、筛选、KPI、图表、数据表列定义等），恢复到自动检测的推荐值。\n\n此操作不可撤销。')) {
     configStore.resetAllToAuto()
   }
+}
+
+function confirmResetDashboard() {
+  showResetMenu.value = false
+  if (confirm('⚠️ 确定要重置看板配置吗？\n\n这将重置看板标题、筛选条件、KPI 和图表到自动推荐值。\n\n高级数据定义（列颜色/格式/计算列/合并表定义）保持不变。')) {
+    configStore.resetDashboardToAuto()
+  }
+}
+
+// Click outside reset menu to close it
+watch(showResetMenu, (v) => {
+  if (v) {
+    setTimeout(() => document.addEventListener('click', onResetMenuOutside), 0)
+  } else {
+    document.removeEventListener('click', onResetMenuOutside)
+  }
+})
+function onResetMenuOutside() {
+  showResetMenu.value = false
+  document.removeEventListener('click', onResetMenuOutside)
 }
 
 function goToDashboard() {
@@ -2028,6 +2053,49 @@ function cancelChartEdit() {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+}
+
+.reset-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  min-width: 240px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .14);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reset-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.reset-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.reset-menu-item--danger {
+  border-top: 1px solid var(--border-light);
+  padding-top: 10px;
+  color: var(--error);
 }
 
 .reset-info-btn {
