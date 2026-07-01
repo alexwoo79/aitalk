@@ -328,14 +328,53 @@
                     <div class="preview-chart-grid">
                       <div v-for="(chart, i) in selectedCharts" :key="chart.id || i" class="preview-chart-card">
                         <div class="preview-chart-visual" :class="`preview-chart-visual--${getPreviewChartKind(chart.type)}`">
+                          <!-- 柱状图 -->
                           <div v-if="getPreviewChartKind(chart.type) === 'bar'" class="preview-chart-bars">
                             <span v-for="(bar, idx) in getPreviewChartBars(chart.type)" :key="idx" :style="{ height: `${bar}%` }" />
                           </div>
-                          <div v-else-if="getPreviewChartKind(chart.type) === 'pie'" class="preview-chart-pie">
-                            <div class="preview-chart-pie-ring" />
+                          <!-- 横向柱状图 -->
+                          <div v-else-if="getPreviewChartKind(chart.type) === 'horizontal_bar'" class="preview-chart-hbars">
+                            <span v-for="(h, idx) in getPreviewChartBars(chart.type)" :key="idx" :style="{ width: `${h}%` }" />
                           </div>
-                          <div v-else class="preview-chart-line">
-                            <span v-for="(dot, idx) in getPreviewChartBars(chart.type)" :key="idx" class="preview-chart-dot" :style="{ left: `${(idx + 1) * 18}%`, bottom: `${dot}%` }" />
+                          <!-- 环形图 -->
+                          <div v-else-if="getPreviewChartKind(chart.type) === 'doughnut'" class="preview-chart-doughnut">
+                            <div class="preview-chart-doughnut-ring">
+                              <span class="doughnut-seg" v-for="(s, idx) in [55, 28, 17]" :key="idx" :style="{ '--seg-pct': s + '%', '--seg-rot': [0, 55, 83][idx] + '%' }" />
+                            </div>
+                          </div>
+                          <!-- 折线图 -->
+                          <div v-else-if="getPreviewChartKind(chart.type) === 'line'" class="preview-chart-line">
+                            <svg class="preview-svg-line" viewBox="0 0 100 56">
+                              <polyline :points="getPreviewLinePoints(chart.type)" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                              <circle v-for="(pt, idx) in getPreviewDots(chart.type)" :key="idx" :cx="pt.x" :cy="pt.y" r="3" fill="var(--primary)" />
+                            </svg>
+                          </div>
+                          <!-- 时序面积图 -->
+                          <div v-else-if="getPreviewChartKind(chart.type) === 'timeseries'" class="preview-chart-area">
+                            <svg class="preview-svg-line" viewBox="0 0 100 56">
+                              <defs>
+                                <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.35" />
+                                  <stop offset="100%" stop-color="var(--primary)" stop-opacity="0.02" />
+                                </linearGradient>
+                              </defs>
+                              <path :d="getPreviewAreaPath(chart.type)" fill="url(#area-grad)" />
+                              <polyline :points="getPreviewLinePoints(chart.type)" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                          </div>
+                          <!-- 直方图 -->
+                          <div v-else-if="getPreviewChartKind(chart.type) === 'histogram'" class="preview-chart-histogram">
+                            <span v-for="(h, idx) in [28, 52, 78, 96, 82, 54, 32, 16]" :key="idx" :style="{ height: `${h}%` }" />
+                          </div>
+                          <!-- 十分类图 -->
+                          <div v-else-if="getPreviewChartKind(chart.type) === 'decile'" class="preview-chart-decile">
+                            <span v-for="(h, idx) in [18, 32, 48, 62, 78, 90, 82, 68, 48, 28]" :key="idx" :style="{ height: `${h}%` }">
+                              <i>{{ idx + 1 }}</i>
+                            </span>
+                          </div>
+                          <!-- 聚类图 -->
+                          <div v-else class="preview-chart-cluster">
+                            <span v-for="(dot, idx) in getPreviewClusterDots(chart.type)" :key="idx" class="cluster-dot" :style="{ left: dot.x + '%', top: dot.y + '%', background: dot.color }" />
                           </div>
                         </div>
                         <div class="preview-chart-meta">
@@ -764,6 +803,29 @@ const previewStore = usePreviewStore()
 // Extract reactive refs for role overrides
 const { roleOverrides } = storeToRefs(dataStore)
 
+/** 判断配置是否完全为空（首次加载，尚未自动生成） */
+function isConfigEmpty(): boolean {
+  const c = configStore.config
+  return (
+    c.kpis.length === 0 &&
+    c.charts.length === 0 &&
+    c.filters.length === 0 &&
+    c.table.columns.length === 0 &&
+    !c.title
+  )
+}
+
+/** 数据就绪 + 配置为空 → 自动生成配置（不覆盖已有配置） */
+watch(
+  () => dataStore.dataSet,
+  (ds) => {
+    if (ds && isConfigEmpty()) {
+      configStore.generateAutoConfig()
+    }
+  },
+  { immediate: true },
+)
+
 // 全部区域是否都已保存（与快照一致）
 const allSaved = computed(() => {
   const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table', 'computedCols']
@@ -1102,27 +1164,86 @@ function previewCellValue(val: any, col?: string): string {
 
 function getPreviewChartKind(type?: string) {
   switch (type) {
+    case 'bar':
+    case 'horizontal_bar':
+      return type // keep distinct: 'bar' | 'horizontal_bar'
+    case 'doughnut':
+      return 'doughnut'
     case 'line':
-    case 'area':
       return 'line'
-    case 'pie':
-    case 'donut':
-      return 'pie'
-    case 'scatter':
-      return 'scatter'
+    case 'timeseries':
+      return 'timeseries'
+    case 'histogram':
+      return 'histogram'
+    case 'decile':
+      return 'decile'
+    case 'cluster':
+      return 'cluster'
     default:
       return 'bar'
   }
 }
 
-function getPreviewChartBars(type?: string) {
-  if (getPreviewChartKind(type) === 'line') {
-    return [24, 32, 30, 52, 68, 58]
+function getPreviewChartBars(type?: string): number[] {
+  switch (getPreviewChartKind(type)) {
+    case 'horizontal_bar':
+      return [36, 58, 45, 72, 64, 80]
+    case 'line':
+    case 'timeseries':
+      return [24, 32, 30, 52, 68, 58]
+    case 'doughnut':
+      return [55, 28, 17]
+    default:
+      return [36, 58, 45, 72, 64, 80]
   }
-  if (getPreviewChartKind(type) === 'pie') {
-    return [100]
-  }
-  return [36, 58, 45, 72, 64, 80]
+}
+
+/** 折线/面积图 SVG 路径点 */
+function getPreviewLinePoints(type?: string): string {
+  const kind = getPreviewChartKind(type)
+  const pts = kind === 'timeseries'
+    ? [[10, 42], [22, 38], [34, 44], [46, 30], [58, 18], [70, 28], [82, 16], [94, 22]]
+    : [[10, 44], [28, 38], [46, 40], [64, 22], [82, 12]]
+  return pts.map(([x, y]) => `${x},${y}`).join(' ')
+}
+
+/** 时序面积图：折线 + 底部闭合 */
+function getPreviewAreaPath(type?: string): string {
+  const linePts = getPreviewLinePoints(type)
+  return `M 10,56 L ${linePts} L 94,56 Z`
+}
+
+/** 折线图圆点坐标 */
+function getPreviewDots(type?: string): { x: number; y: number }[] {
+  const ptsStr = getPreviewLinePoints(type)
+  return ptsStr.split(' ').map(s => {
+    const [x, y] = s.split(',').map(Number)
+    return { x, y }
+  })
+}
+
+/** 聚类散点 */
+function getPreviewClusterDots(type?: string): { x: number; y: number; color: string }[] {
+  const colors = ['#3b82f6', '#f59e0b', '#10b981']
+  // 3 clusters in different quadrants
+  return [
+    // cluster 1: top-left
+    { x: 12, y: 22, color: colors[0] },
+    { x: 20, y: 16, color: colors[0] },
+    { x: 16, y: 32, color: colors[0] },
+    { x: 26, y: 26, color: colors[0] },
+    { x: 14, y: 40, color: colors[0] },
+    // cluster 2: bottom-center
+    { x: 42, y: 58, color: colors[1] },
+    { x: 48, y: 68, color: colors[1] },
+    { x: 54, y: 54, color: colors[1] },
+    { x: 60, y: 66, color: colors[1] },
+    // cluster 3: top-right
+    { x: 72, y: 18, color: colors[2] },
+    { x: 78, y: 24, color: colors[2] },
+    { x: 84, y: 12, color: colors[2] },
+    { x: 76, y: 34, color: colors[2] },
+  ]
 }
 
 // ====== Drag state ======
@@ -3752,7 +3873,7 @@ function cancelChartEdit() {
 .preview-chart-visual {
   height: 72px;
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(13,148,136,0.12), rgba(96,165,250,0.08));
+  background: linear-gradient(135deg, rgba(13,148,136,0.08), rgba(96,165,250,0.06));
   padding: 8px;
   display: flex;
   align-items: flex-end;
@@ -3775,36 +3896,126 @@ function cancelChartEdit() {
   min-height: 18px;
 }
 
-.preview-chart-line {
-  position: relative;
+/* 横向柱状图 */
+.preview-chart-hbars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   width: 100%;
   height: 100%;
-  border-bottom: 2px solid rgba(14, 116, 144, 0.2);
+  justify-content: center;
 }
 
-.preview-chart-dot {
-  position: absolute;
-  width: 8px;
+.preview-chart-hbars span {
   height: 8px;
-  border-radius: 999px;
-  background: var(--primary);
-  transform: translate(-50%, 50%);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.18);
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(90deg, var(--primary) 0%, #38bdf8 100%);
+  min-width: 12px;
 }
 
-.preview-chart-pie {
+/* 环形图 */
+.preview-chart-doughnut {
   display: grid;
   place-items: center;
   width: 100%;
   height: 100%;
 }
 
-.preview-chart-pie-ring {
-  width: 48px;
-  height: 48px;
+.preview-chart-doughnut-ring {
+  position: relative;
+  width: 52px;
+  height: 52px;
   border-radius: 999px;
-  background: conic-gradient(var(--primary) 0 58%, rgba(59,130,246,0.28) 58% 100%);
-  box-shadow: inset 0 0 0 4px var(--bg-surface);
+  background: conic-gradient(
+    var(--primary) 0% 55%,
+    #f59e0b 55% 83%,
+    #10b981 83% 100%
+  );
+  box-shadow: inset 0 0 0 6px var(--bg-surface);
+}
+
+/* 折线图 SVG */
+.preview-svg-line {
+  width: 100%;
+  height: 100%;
+}
+
+/* 面积图（timeseries）*/
+.preview-chart-area {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* 直方图 */
+.preview-chart-histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+.preview-chart-histogram span {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, #8b5cf6 0%, #a78bfa 100%);
+  min-height: 12px;
+}
+
+/* 十分类图 */
+.preview-chart-decile {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+}
+
+.preview-chart-decile span {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, #ef4444 0%, #f97316 50%, #10b981 100%);
+  min-height: 10px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.preview-chart-decile span i {
+  position: absolute;
+  bottom: -12px;
+  font-size: 7px;
+  font-style: normal;
+  color: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+/* 聚类图 */
+.preview-chart-cluster {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.cluster-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  opacity: 0.8;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
+}
+
+/* 折线图 (保留兼容旧版) */
+.preview-chart-line {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
 }
 
 .preview-chart-meta {

@@ -1,0 +1,250 @@
+# ============================================================
+# SmartBoard Makefile (Windows Only)
+# Vue 3 + Vite + Tauri 2 (Rust) 项目构建脚本
+# 用法: make [target]   (需安装 GNU Make for Windows)
+# ============================================================
+
+# ---- 辅助：调用 PowerShell 处理复杂操作 ----
+_PS := powershell -NoProfile -Command
+
+.PHONY: help dev build build-release check check-rust check-all \
+        lint lint-rust fmt fmt-rust fmt-all \
+        clean clean-all deep-clean \
+        install update setup \
+        frontend preview tauri-dev \
+        diff size stats \
+        release
+
+# ---- 默认目标 ----
+.DEFAULT_GOAL := help
+
+# ============================================================
+# 帮助
+# ============================================================
+help: ## 📖 显示此帮助信息
+	@echo.
+	@echo ╔══════════════════════════════════════════════════════╗
+	@echo ║           SmartBoard 构建命令 (Windows)              ║
+	@echo ╚══════════════════════════════════════════════════════╝
+	@echo.
+	@echo ── 开发 ────────────────────────────────────────────
+	@echo   dev              启动开发模式（Vite HMR + Tauri 热重载）
+	@echo   frontend         仅构建前端（Vite）
+	@echo   preview          预览前端构建产物
+	@echo.
+	@echo ── 构建 ────────────────────────────────────────────
+	@echo   build            完整构建（类型检查 + Vite + Rust debug）
+	@echo   build-save       构建 standalone renderer（供 save 功能）
+	@echo   build-release    发布构建（优化 + 剥离符号 + LTO）
+	@echo.
+	@echo ── 质量检查 ────────────────────────────────────────
+	@echo   check            前端 TypeScript 类型检查
+	@echo   check-rust       Rust 编译检查（不生成二进制）
+	@echo   check-all        全部检查（前端 + Rust）
+	@echo   lint             前端 ESLint 检查
+	@echo   lint-rust        Rust Clippy 检查
+	@echo   lint-all         全部 Lint
+	@echo.
+	@echo ── 代码风格 ────────────────────────────────────────
+	@echo   fmt              格式化前端代码（Prettier）
+	@echo   fmt-rust         格式化 Rust 代码（cargo fmt）
+	@echo   fmt-all          格式化全部代码
+	@echo.
+	@echo ── 清理 ────────────────────────────────────────────
+	@echo   clean            清理构建产物（保留 node_modules）
+	@echo   clean-all        深度清理（含 node_modules）
+	@echo.
+	@echo ── 依赖管理 ────────────────────────────────────────
+	@echo   install          安装全部依赖
+	@echo   update           更新全部依赖
+	@echo   setup            首次初始化
+	@echo.
+	@echo ── 信息 ────────────────────────────────────────────
+	@echo   diff             显示 git diff 统计
+	@echo   size             显示构建产物大小
+	@echo   stats            显示项目代码统计
+	@echo.
+	@echo ── 发布 ────────────────────────────────────────────
+	@echo   release          发布构建 (Windows x86_64)
+	@echo   用法: make release VERSION=1.2.3
+	@echo.
+
+# ============================================================
+# 开发
+# ============================================================
+dev: build-save ## 🚀 启动开发模式（Vite HMR + Tauri 热重载）
+	@echo ▶ 启动 Tauri 开发模式...
+	npm run tauri dev
+
+frontend: build-save ## 🎨 仅构建前端（Vite）
+	@echo ▶ 构建前端...
+	npm run build
+
+preview: ## 🔍 预览前端构建产物
+	@echo ▶ 启动预览服务器...
+	npm run preview
+
+tauri-dev: dev ## 🚀 同 dev，快捷别名
+
+# ============================================================
+# 构建
+# ============================================================
+build-save: ## 📦 构建 standalone renderer（供 save 功能使用）
+	@echo ▶ 构建 save 渲染器...
+	npm run build:save
+
+build: build-save ## 📦 完整构建（前端类型检查 + Vite + Rust debug）
+	@echo ▶ 完整构建...
+	npm run tauri build
+
+build-release: build-save ## 📦 发布构建（优化 + 剥离符号 + LTO）
+	@echo ▶ 发布构建...
+	cd src-tauri && cargo build --release
+	@echo 📦 Release 产物: src-tauri\target\release\smartboard.exe
+
+# ============================================================
+# 发布
+# ============================================================
+# ---- 版本号 ----
+_VERSION_RAW := $(shell git describe --tags --always --dirty 2>nul & if errorlevel 1 echo 0.1.0)
+_HAS_TAG     := $(shell $(_PS) "if ('$(_VERSION_RAW)' -match '^\d+\.\d+') { '1' } else { '0' }")
+ifeq ($(_HAS_TAG),1)
+VERSION ?= $(_VERSION_RAW)
+else
+VERSION ?= 0.1.0
+endif
+VERSION := $(VERSION)-$(shell $(_PS) "$$d=Get-Date; $$d.Month*100+$$d.Day")
+
+# ---- 版本号设置/恢复 ----
+define set_version
+	@$(_PS) "Write-Host '🏷  设定版本: $(VERSION)'"
+	@if exist src-tauri\tauri.conf.json \
+		$(_PS) "$$c=Get-Content src-tauri\tauri.conf.json -Raw; Copy-Item src-tauri\tauri.conf.json src-tauri\tauri.conf.json.bak -Force; $$c=$$c -replace '\""version\"":\s*\""[^\""]*\""', '\""version\"": \""$(VERSION)\""'; Set-Content src-tauri\tauri.conf.json -Value $$c -NoNewline"
+	@if exist package.json \
+		$(_PS) "$$c=Get-Content package.json -Raw; Copy-Item package.json package.json.bak -Force; $$c=$$c -replace '\""version\"":\s*\""[^\""]*\""', '\""version\"": \""$(VERSION)\""'; Set-Content package.json -Value $$c -NoNewline"
+endef
+
+define restore_version
+	@if exist src-tauri\tauri.conf.json.bak move /y src-tauri\tauri.conf.json.bak src-tauri\tauri.conf.json
+	@if exist package.json.bak move /y package.json.bak package.json
+endef
+
+release: check build-save ## 🚀 一键发布 (Windows x86_64)
+	$(call set_version)
+	@echo === 构建桌面 Release (x86_64) ===
+	npm run tauri build
+	$(call restore_version)
+	@echo === 发布完成 版本 $(VERSION) ===
+
+# ============================================================
+# 质量检查
+# ============================================================
+check: build-save ## ✅ 前端 TypeScript 类型检查
+	@echo ▶ Vue TypeScript 类型检查...
+	npx vue-tsc --noEmit
+
+check-rust: ## 🦀 Rust 类型/编译检查（不生成二进制）
+	@echo ▶ Cargo check...
+	cd src-tauri && cargo check
+
+check-all: check check-rust ## ✅ 全部检查（前端 + Rust）
+
+lint: ## 🔍 前端 ESLint 检查
+	@echo ▶ ESLint...
+	@if exist node_modules\.bin\eslint (npx eslint src/ --ext .ts,.vue) else (echo ⚠ ESLint 未安装，跳过)
+
+lint-rust: ## 🦀 Rust Clippy 检查
+	@echo ▶ Clippy...
+	cd src-tauri && cargo clippy -- -D warnings
+
+lint-all: lint lint-rust ## 🔍 全部 Lint（前端 + Rust）
+
+# ============================================================
+# 代码风格
+# ============================================================
+fmt: ## 🎨 格式化前端代码（Prettier）
+	@echo ▶ Prettier 格式化...
+	@if exist node_modules\.bin\prettier (npx prettier --write "src/**/*.{ts,vue,css}") else (echo ⚠ Prettier 未安装，跳过)
+
+fmt-rust: ## 🦀 格式化 Rust 代码（cargo fmt）
+	@echo ▶ Cargo fmt...
+	cd src-tauri && cargo fmt
+
+fmt-all: fmt fmt-rust ## 🎨 格式化全部代码（前端 + Rust）
+
+# ============================================================
+# 清理
+# ============================================================
+clean: ## 🧹 清理构建产物（保留 node_modules）
+	@echo ▶ 清理构建产物...
+	@if exist dist rmdir /s /q dist
+	@if exist src-tauri\target rmdir /s /q src-tauri\target
+	@echo ✅ 清理完成
+
+clean-all: clean ## 🧹 深度清理（含 node_modules）
+	@echo ▶ 深度清理...
+	@if exist node_modules rmdir /s /q node_modules
+	@echo ⚠ node_modules 已删除，请运行 make install 重新安装
+
+deep-clean: clean-all ## 🧹 同 clean-all
+
+# ============================================================
+# 依赖管理
+# ============================================================
+install: ## 📥 安装全部依赖（npm + Cargo 自动处理）
+	@echo ▶ 安装前端依赖...
+	npm install
+	@echo ✅ 依赖安装完成（Cargo 依赖在首次构建时自动下载）
+
+update: ## 🔄 更新全部依赖到最新兼容版本
+	@echo ▶ 更新前端依赖...
+	npm update
+	@echo ▶ 更新 Rust 依赖...
+	cd src-tauri && cargo update
+	@echo ✅ 依赖更新完成
+
+setup: install ## 🏗️ 首次初始化（安装依赖 + 类型检查）
+	@echo ▶ 运行类型检查...
+	-@npx vue-tsc --noEmit 2>nul || echo ⚠ 类型检查有警告，正常
+	@echo.
+	@echo ✅ SmartBoard 初始化完成！
+	@echo   运行 make dev 启动开发模式
+
+# ============================================================
+# 信息
+# ============================================================
+diff: ## 📊 显示未提交的 git diff 统计
+	@git diff --stat 2>nul || echo ⚠ 非 git 仓库或无变更
+
+size: ## 📏 显示构建产物大小
+	@echo 📏 构建产物大小
+	@echo ──────────────────────────────
+	@$(_PS) "function Get-Size($$p) { \
+		if (Test-Path $$p) { \
+			$$bytes = (Get-ChildItem -Path $$p -Recurse -File -EA SilentlyContinue | Measure-Object -Property Length -Sum).Sum; \
+			if ($$bytes -gt 1GB) { '{0:N1} GB' -f ($$bytes/1GB) } \
+			elseif ($$bytes -gt 1MB) { '{0:N1} MB' -f ($$bytes/1MB) } \
+			else { '{0:N1} KB' -f ($$bytes/1KB) } \
+		} else { '(未构建)' } }; \
+		Write-Host ('dist:           ' + (Get-Size dist)); \
+		Write-Host ('target/debug:   ' + (Get-Size src-tauri/target/debug)); \
+		Write-Host ('target/release: ' + (Get-Size src-tauri/target/release)); \
+		Write-Host ('node_modules:   ' + (Get-Size node_modules))"
+
+stats: ## 📈 显示项目代码统计
+	@echo 📈 代码统计
+	@echo ──────────────────────────────
+	@$(_PS) "$$vue  = if (Test-Path src) { (Get-ChildItem -Path src -Recurse -Filter *.vue -File -EA SilentlyContinue).Count } else { 0 }; \
+		$$ts   = if (Test-Path src) { (Get-ChildItem -Path src -Recurse -Filter *.ts  -File -EA SilentlyContinue).Count } else { 0 }; \
+		$$css  = if (Test-Path src) { (Get-ChildItem -Path src -Recurse -Filter *.css -File -EA SilentlyContinue).Count } else { 0 }; \
+		$$rust = if (Test-Path src-tauri/src) { (Get-ChildItem -Path src-tauri/src -Recurse -Filter *.rs -File -EA SilentlyContinue).Count } else { 0 }; \
+		Write-Host ('Vue 组件:   ' + $$vue); \
+		Write-Host ('TypeScript: ' + $$ts); \
+		Write-Host ('CSS:        ' + $$css); \
+		Write-Host ('Rust:       ' + $$rust); \
+		Write-Host '──────────────────────────────'; \
+		$$lines = 0; \
+		Get-ChildItem -Path src,src-tauri/src -Recurse -Include *.vue,*.ts,*.css,*.rs -File -EA SilentlyContinue | ForEach-Object { \
+			$$lines += (Get-Content $$_.FullName | Measure-Object -Line).Lines \
+		}; \
+		Write-Host ('总行数:     ' + $$lines)"
