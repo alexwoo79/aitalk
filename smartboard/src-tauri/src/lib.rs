@@ -53,6 +53,11 @@ pub fn run() {
             // ── 飞书多维表格 ──
             commands::feishu::test_feishu_connection,
             commands::feishu::load_feishu_table,
+            // ── 局域网分享 ──
+            commands::server::start_server,
+            commands::server::stop_server,
+            commands::server::get_server_status,
+            commands::server::update_server_html,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

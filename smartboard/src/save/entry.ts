@@ -495,7 +495,12 @@ function disposeCharts() { chartInstances.forEach(c => { try { c.dispose() } cat
 function initChart(dom: HTMLElement, h?: string) {
   if (typeof echarts === 'undefined' || !echarts.init) return null
   dom.style.height = h || '320px'
-  const c = echarts.init(dom); chartInstances.push(c)
+  dom.style.position = 'relative'
+  // 使用内层 absolute div 确保 canvas 不超出容器（与 replaceChart 一致）
+  const inner = document.createElement('div')
+  inner.style.cssText = 'position:absolute;inset:0;overflow:hidden'
+  dom.appendChild(inner)
+  const c = echarts.init(inner); chartInstances.push(c)
   window.addEventListener('resize', () => c.resize()); return c
 }
 

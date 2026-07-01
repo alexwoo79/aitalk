@@ -386,6 +386,16 @@ const advancedPreviewCols = computed(() => {
       }
     }
   }
+  // 按 columnOrder 排序，与 ColumnConfigPanel 的 orderedTableCols 保持一致
+  const order = configStore.config.table.columnOrder
+  if (order && order.length > 0) {
+    const seen = new Set(order)
+    const result = order.filter(h => cols.includes(h))
+    for (const h of cols) {
+      if (!seen.has(h)) result.push(h)
+    }
+    return result
+  }
   return cols
 })
 

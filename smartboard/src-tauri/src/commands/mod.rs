@@ -13,3 +13,4 @@ pub mod feishu;
 pub mod groupby;
 pub mod loader;
 pub mod merge;
+pub mod server;

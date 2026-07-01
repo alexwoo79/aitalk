@@ -70,6 +70,11 @@
           <button class="btn btn-sm btn-reset" @click="resetFilters">{{ t('dashboard.resetFilter') }}</button>
           <button class="btn btn-sm btn-clear" @click="clearDashboard">Clear</button>
           <button class="btn btn-sm btn-save" @click="saveDashboard">Save</button>
+          <button class="btn btn-sm btn-share" :class="{ active: shareServerInfo, loading: shareStarting }"
+            :disabled="shareStarting" @click="shareServerInfo ? updateSharing() : startSharing()">
+            {{ shareStarting ? '⏳' : (shareServerInfo ? '🔄' : '📡') }}
+            {{ shareProgress || (shareServerInfo ? t('dashboard.updateSharing', '更新分享') : t('dashboard.startSharing', '分享到局域网')) }}
+          </button>
           <span v-if="!spec.dateRange" class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }}
             {{
               t('common.records') }}</span>
@@ -103,6 +108,29 @@
             }}</span>
         </div>
       </div> <!-- .sticky-filters -->
+
+      <!-- 分享状态面板 -->
+      <div v-if="shareServerInfo" class="share-panel">
+        <div class="share-panel-body">
+          <span class="share-icon">🔗</span>
+          <span class="share-label">{{ t('dashboard.sharingLabel', '局域网分享中') }}</span>
+          <span class="share-panel-title" v-if="shareSnapshotTitle">{{ shareSnapshotTitle }}</span>
+          <code class="share-url" @click="copyShareUrl" :title="t('common.copyToClipboard')">{{ shareServerInfo.url
+            }}</code>
+          <button class="btn btn-sm btn-share-copy" @click="copyShareUrl">
+            {{ shareCopied ? '✅' : '📋' }}
+          </button>
+          <span class="share-hint" v-if="shareOutdated" style="color:#dc2626;font-weight:600">⚠️ {{ t('dashboard.shareOutdated', '分享内容与当前面板不一致') }}</span>
+          <span class="share-hint" v-else>{{ t('dashboard.shareHint', '确保设备在同一局域网下') }}</span>
+          <button class="btn btn-sm btn-share-stop" @click="stopSharing">
+            ⏹ {{ t('dashboard.stopSharing', '停止分享') }}
+          </button>
+        </div>
+      </div>
+      <div v-if="shareError" class="share-error">
+        <span>⚠️ {{ shareError }}</span>
+        <button class="dcw-close" @click="shareError = ''">✕</button>
+      </div>
 
       <!-- 已清空提示 -->
       <div v-if="dashboardCleared" class="cleared-msg">
@@ -315,6 +343,8 @@ import { useLazyRender } from '@/composables/use-lazy-render'
 import { applyFilter, parseFilter, matchRow } from '@/core/filter'
 import { augmentComputedCols } from '@/core/formula-engine'
 import SkeletonChart from '@/components/common/SkeletonChart.vue'
+import { isTauri, startServer, stopServer, updateServerHtml, getServerStatus } from '@/composables/use-rust-bridge'
+import { shareServerInfo, shareServerUrl, shareSnapshotFingerprint, shareSnapshotTitle } from '@/composables/use-share-server'
 
 use([
   CanvasRenderer, BarChart, PieChart, LineChart, ScatterChart,
@@ -612,6 +642,8 @@ watch(() => previewStore.dateRange.end, (v) => { if (v !== dateEnd.value) dateEn
 
 // ====== Init ======
 onMounted(() => {
+  // 恢复局域网分享状态（页面刷新后 JS 模块重置，需要主动查询）
+  restoreShareState()
   // 默认选中"全部"
   if (spec.value?.filters) {
     for (const f of spec.value.filters) {
@@ -681,13 +713,48 @@ function clearDashboard() {
   previewStore.filteredRows = []
 }
 
-async function saveDashboard() {
-  const ds = dataStore.dataSet
-  if (!ds) return
-  const s = spec.value
-  if (!s) return
+// ====== 局域网分享 ======
+const shareStarting = ref(false)
 
-  // 1. 等待 Vue 动态 DOM 和图表完全渲染稳定
+/** 页面刷新/重新进入后恢复分享状态（查询 Rust 端服务器是否还在运行） */
+async function restoreShareState() {
+  if (!isTauri() || shareServerInfo.value) return
+  try {
+    const status = await getServerStatus()
+    if (status.running && status.url) {
+      shareServerInfo.value = { url: status.url, port: status.port!, ip: status.ip! }
+      shareServerUrl.value = status.url
+    }
+  } catch { /* 非 Tauri 环境或命令不可用 */ }
+}
+const shareError = ref('')
+const shareProgress = ref('')
+const shareCopied = ref(false)
+
+/** 当前面板是否与分享快照不一致 */
+const shareOutdated = computed(() => {
+  if (!shareServerInfo.value || !shareSnapshotFingerprint.value) return false
+  const ds = dataStore.dataSet
+  const s = spec.value
+  const now = ds ? `${ds.id}|${s?.title || ''}|${ds.rows.length}` : ''
+  return now !== shareSnapshotFingerprint.value
+})
+
+/** 计算当前数据指纹：数据集ID + 标题 + 行数 */
+function snapshotFingerprint(): string {
+  const ds = dataStore.dataSet
+  const s = spec.value
+  return ds ? `${ds.id}|${s?.title || ''}|${ds.rows.length}` : ''
+}
+
+/** 生成自包含的 Dashboard HTML（与 saveDashboard 共用逻辑） */
+async function generateDashboardHtml(): Promise<string> {
+  const ds = dataStore.dataSet
+  if (!ds) throw new Error('没有数据')
+  const s = spec.value
+  if (!s) throw new Error('没有配置')
+
+  // 等待 DOM 渲染稳定
   await nextTick()
   await new Promise(resolve => setTimeout(resolve, 300))
 
@@ -701,10 +768,8 @@ async function saveDashboard() {
   const kpiSpecs = s.kpis.map(k => ({
     column: k.column, label: k.label, agg: k.agg,
     format: k.format, prefix: k.prefix || '', unit: k.unit || 'yuan',
-    decimals: k.decimals,
-    formula: k.formula || undefined,
+    decimals: k.decimals, formula: k.formula || undefined,
   }))
-  // 全部指标列（当 chart.metrics 为空时回退使用，排除已排除的列）
   const allMetricCols = headers.filter((h) => cls[h]?.role === 'metric' && !dataStore.excludedColumns.has(h))
 
   const chartSpecs = s.charts
@@ -716,10 +781,8 @@ async function saveDashboard() {
       dateColumn: c.dateColumn || '',
       agg: c.agg || 'sum',
       clusterMetrics: (c.clusterMetrics && c.clusterMetrics.length > 0) ? c.clusterMetrics : allMetricCols,
-      k: c.k || 3,
-      filter: c.filter || '',
-      format: c.format || '',
-      unit: c.unit || 'yuan',
+      k: c.k || 3, filter: c.filter || '',
+      format: c.format || '', unit: c.unit || 'yuan',
       metricFormats: c.metricFormats || {},
       metricAggs: c.metricAggs || {},
     }))
@@ -729,46 +792,36 @@ async function saveDashboard() {
   const tblSummaryAggs = s.table?.summaryAggs || {}
   const tblColColors = s.table?.columnColors || {}
   const tblColTextColors = s.table?.columnTextColors || {}
-  // 自动为不同来源的列附加背景色（用户自定义颜色优先）
   const autoSourceColors = computeSourceColumnColors(tblCols, dataStore)
   const mergedColColors = { ...autoSourceColors, ...tblColColors }
   const tblRowCondColors = s.table?.rowConditionColors || []
   const tblColumnFormats = s.table?.columnFormats || {}
   const tblComputedColumns = s.table?.computedColumns || []
   const tblColumnOrder = s.table?.columnOrder || []
-  const date = new Date().toISOString().slice(0, 10)
   const i18nData = locale.value === 'zh-CN' ? zhCN : enUS
 
-  // ====== 收集元数据（取自 dataStore 加载时采集的文件信息） ======
   let appVersion = '0.0.0'
   try {
     const pkg = await import('@/../package.json')
     appVersion = (pkg as any).default?.version || (pkg as any).version || appVersion
   } catch { /* ignore */ }
   const fileMeta = {
-    fileName: ds.fileName || undefined,
-    fileSize: ds.fileSize,
-    fileModified: ds.fileModified,
-    fileHash: ds.fileHash,
-    appVersion,
-    generatedAt: new Date().toISOString(),
-    rowCount: rows.length,
-    colCount: headers.length,
+    fileName: ds.fileName || undefined, fileSize: ds.fileSize,
+    fileModified: ds.fileModified, fileHash: ds.fileHash,
+    appVersion, generatedAt: new Date().toISOString(),
+    rowCount: rows.length, colCount: headers.length,
   }
 
-  // 图表卡片尺寸 CSS — 仅对用户手动拖拽过的图表固定尺寸，其余保持自适应
   const chartSizeCss = s.charts.map((_c, i) => {
     const explicit = chartSizes.value['chart-' + i]
     if (explicit) return `.chart-card-${i} { width: ${explicit.width}px; height: ${explicit.height}px; flex: none; }`
     return ''
   }).filter(Boolean).join('\n')
 
-  // 捕获当前布局容器宽度，避免浏览器窗口更宽时图表排列变化
   const containerEl = document.querySelector('.dashboard-view') as HTMLElement | null
   const layoutWidth = containerEl ? containerEl.offsetWidth : 0
   const layoutCss = layoutWidth > 0 ? `.container { max-width: ${layoutWidth}px !important; }` : ''
 
-  // ====== 2. 使用 DOMParser + DOM API 构建 HTML，避免字符串拼接错误 ======
   const [echartsMod, templateMod, rendererMod] = await Promise.all([
     import('echarts/dist/echarts.min.js?raw'),
     import('@/../templates/result_template.html?raw'),
@@ -778,13 +831,10 @@ async function saveDashboard() {
   const resultTemplate = (templateMod as any).default
   const rendererJS = (rendererMod as any).default
 
-  // 解析模板为 DOM，后续所有操作都在 DOM 上进行
   const parser = new DOMParser()
   const doc = parser.parseFromString(resultTemplate, 'text/html')
 
-  // --- 替换 head 中的 <!--ECHARTS_TAG--> ---
   if (doc.head) {
-    // 移除 HTML 注释占位符 <!--ECHARTS_TAG-->
     for (const child of Array.from(doc.head.childNodes)) {
       if (child.nodeType === Node.COMMENT_NODE && child.textContent?.trim() === 'ECHARTS_TAG') {
         child.remove()
@@ -797,49 +847,33 @@ async function saveDashboard() {
     doc.head.appendChild(echartsScript)
   }
 
-  // --- 替换标题 ---
   doc.title = title
   const h1 = doc.querySelector('h1')
   if (h1) h1.textContent = title
 
-  // --- 注入 __DATA__ 和 __I18N__ 脚本 ---
   const allScripts = Array.from(doc.querySelectorAll('script'))
   const dataScript = allScripts.find(s => (s.textContent || '').includes('__DATA__'))
   if (dataScript) {
-    // 用 DOM 构建整个 JSON 数据块，避免字符串拼接
-    const dummy = doc.createElement('div')
     const dataObj: Record<string, any> = {
-      title,
-      deviceMode: s.deviceMode || 'desktop',
-      headers,
-      rows,
-      classifications: cls,
-      filterSpecs,
-      kpiSpecs,
-      chartSpecs,
+      title, deviceMode: s.deviceMode || 'desktop',
+      headers, rows, classifications: cls,
+      filterSpecs, kpiSpecs, chartSpecs,
       metricDefaults: s.metricDefaults || {},
-      tableColumns: tblCols,
-      tableSortBy: tblSort,
-      tableRowLimit: tblRowLimit,
-      tableSummaryAggs: tblSummaryAggs,
-      tableColColors: mergedColColors,
-      tableColTextColors: tblColTextColors,
-      tableRowCondColors: tblRowCondColors,
-      tableColumnFormats: tblColumnFormats,
-      tableComputedColumns: tblComputedColumns,
-      tableColumnOrder: tblColumnOrder,
+      tableColumns: tblCols, tableSortBy: tblSort,
+      tableRowLimit: tblRowLimit, tableSummaryAggs: tblSummaryAggs,
+      tableColColors: mergedColColors, tableColTextColors: tblColTextColors,
+      tableRowCondColors: tblRowCondColors, tableColumnFormats: tblColumnFormats,
+      tableComputedColumns: tblComputedColumns, tableColumnOrder: tblColumnOrder,
       dateRange: s.dateRange || null,
       dateStart: previewStore.dateRange.start || '',
       dateEnd: previewStore.dateRange.end || '',
-      locale: locale.value,
-      _fileMeta: fileMeta,
+      locale: locale.value, _fileMeta: fileMeta,
     }
     dataScript.textContent =
       `var __DATA__ = ${JSON.stringify(dataObj)};\n` +
       `var __I18N__ = ${JSON.stringify(i18nData)};`
   }
 
-  // --- 替换 /* RENDERER_JS */ ---
   const rendererScript = allScripts.find(s => {
     const t = (s.textContent || '').trim()
     return t === '/* RENDERER_JS */' || t.includes('RENDERER_JS')
@@ -849,20 +883,17 @@ async function saveDashboard() {
     rendererScript.removeAttribute('src')
   }
 
-  // --- 替换 /* FULLSCREEN_JS */（使用 DOM API 避免转义错误）---
   const fsScript = allScripts.find(s => {
     const t = (s.textContent || '').trim()
     return t === '/* FULLSCREEN_JS */' || t.includes('FULLSCREEN_JS')
   })
   if (fsScript) {
-    // Fullscreen 由 entry.ts 的 toggleFullscreen + Escape 键处理，此处仅补充 CSS
     fsScript.textContent = [
       '// Fullscreen handled by renderer (entry.ts) via toggleFullscreen + Escape key',
       '// CSS: .chart-card.is-fullscreen has display:flex;flex-direction:column for chart body expansion',
     ].join('\n')
   }
 
-  // --- 注入布局宽度 + 图表卡片尺寸 CSS ---
   const injectCss = [layoutCss, chartSizeCss].filter(Boolean).join('\n')
   if (injectCss) {
     const styleEl = doc.querySelector('style')
@@ -871,13 +902,10 @@ async function saveDashboard() {
     }
   }
 
-  // --- 从 DOM 序列化最终 HTML ---
   let html = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML
-
-  // ====== 3. 替换捕获 HTML 中的外部资源为内联 ======
   html = await inlineExternalResources(html)
 
-  // ====== 4. DOMParser 校验 ======
+  // DOMParser 校验
   const validateParser = new DOMParser()
   const validateDoc = validateParser.parseFromString(html, 'text/html')
   const parseErrorEl = validateDoc.querySelector('parsererror')
@@ -885,20 +913,102 @@ async function saveDashboard() {
     throw new Error(`拼接错误：${parseErrorEl.textContent}`)
   }
 
-  // ====== 5. 校验通过后执行文件下载 ======
-  const { save, message } = await import('@tauri-apps/plugin-dialog')
-  const { writeTextFile } = await import('@tauri-apps/plugin-fs')
-  const filePath = await save({
-    defaultPath: `${title}_${date}.html`,
-    filters: [{ name: 'HTML', extensions: ['html'] }],
-  })
-  if (filePath) {
-    try {
+  return html
+}
+
+/** 启动局域网分享 */
+async function startSharing() {
+  if (!isTauri()) {
+    shareError.value = '局域网分享仅在桌面版可用'
+    return
+  }
+  shareStarting.value = true
+  shareError.value = ''
+  shareProgress.value = '正在生成 HTML...'
+  try {
+    const html = await generateDashboardHtml()
+    shareProgress.value = '正在启动服务器...'
+    const info = await startServer(8080, html)
+    shareServerInfo.value = info
+    shareServerUrl.value = info.url
+    shareSnapshotFingerprint.value = snapshotFingerprint()
+    shareSnapshotTitle.value = spec.value?.title || ''
+    shareProgress.value = ''
+  } catch (e: any) {
+    shareError.value = typeof e === 'string' ? e : (e?.message || '启动失败')
+    shareProgress.value = ''
+  } finally {
+    shareStarting.value = false
+  }
+}
+
+/** 更新分享内容（重新生成 HTML 并推送） */
+async function updateSharing() {
+  if (!shareServerInfo.value) return
+  shareProgress.value = '正在更新 HTML...'
+  try {
+    const html = await generateDashboardHtml()
+    await updateServerHtml(html)
+    shareSnapshotFingerprint.value = snapshotFingerprint()
+    shareSnapshotTitle.value = spec.value?.title || ''
+    shareProgress.value = ''
+  } catch (e: any) {
+    shareError.value = typeof e === 'string' ? e : (e?.message || '更新失败')
+    shareProgress.value = ''
+  }
+}
+
+/** 停止局域网分享 */
+async function stopSharing() {
+  try {
+    await stopServer()
+  } catch { /* ignore */ }
+  shareServerInfo.value = null
+  shareServerUrl.value = ''
+  shareSnapshotFingerprint.value = ''
+  shareSnapshotTitle.value = ''
+  shareError.value = ''
+}
+
+/** 复制分享链接到剪贴板 */
+function copyShareUrl() {
+  if (shareServerUrl.value) {
+    navigator.clipboard.writeText(shareServerUrl.value).then(() => {
+      shareCopied.value = true
+      setTimeout(() => { shareCopied.value = false }, 2000)
+    }).catch(() => { /* ignore */ })
+  }
+}
+
+
+
+async function saveDashboard() {
+  const ds = dataStore.dataSet
+  if (!ds) return
+  const s = spec.value
+  if (!s) return
+
+  const date = new Date().toISOString().slice(0, 10)
+  const title = s.title || 'Dashboard'
+
+  try {
+    // 复用 HTML 生成逻辑
+    const html = await generateDashboardHtml()
+
+    // 保存到文件
+    const { save, message } = await import('@tauri-apps/plugin-dialog')
+    const { writeTextFile } = await import('@tauri-apps/plugin-fs')
+    const filePath = await save({
+      defaultPath: `${title}_${date}.html`,
+      filters: [{ name: 'HTML', extensions: ['html'] }],
+    })
+    if (filePath) {
       await writeTextFile(filePath, html)
       await message(t('dashboard.saveSuccess', { path: filePath }), { title: t('dashboard.saveSuccessTitle'), kind: 'info' })
-    } catch (e: any) {
-      await message(t('dashboard.saveFailed', { error: e?.message || e }), { title: t('dashboard.saveFailedTitle'), kind: 'error' })
     }
+  } catch (e: any) {
+    const { message } = await import('@tauri-apps/plugin-dialog')
+    await message(t('dashboard.saveFailed', { error: e?.message || e }), { title: t('dashboard.saveFailedTitle'), kind: 'error' })
   }
 }
 
@@ -2015,6 +2125,165 @@ function computeSourceColumnColors(
 .btn-save:hover {
   background: #D97706;
   border-color: #D97706;
+}
+
+/* ── 分享按钮 ── */
+.btn-share {
+  color: #fff;
+  background: #10B981;
+  border-color: #10B981;
+  transition: all 0.2s;
+}
+
+.btn-share:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+.btn-share.active {
+  background: #EF4444;
+  border-color: #EF4444;
+}
+
+.btn-share.active:hover {
+  background: #DC2626;
+  border-color: #DC2626;
+}
+
+.btn-share.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+/* ── 分享面板 ── */
+.share-panel {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.share-panel-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #065f46;
+  flex-wrap: wrap;
+}
+
+:root[data-theme="dark"] .share-panel-body {
+  background: #064e3b;
+  border-color: #10b981;
+  color: #a7f3d0;
+}
+
+.share-icon {
+  font-size: 16px;
+}
+
+.share-label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.share-panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #065f46;
+  padding: 1px 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid #a7f3d0;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+:root[data-theme="dark"] .share-panel-title {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #10b981;
+  color: #a7f3d0;
+}
+
+.share-url {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  padding: 2px 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid #a7f3d0;
+  border-radius: 4px;
+  color: #065f46;
+  cursor: pointer;
+  user-select: all;
+  word-break: break-all;
+}
+
+:root[data-theme="dark"] .share-url {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+.share-url:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.share-hint {
+  font-size: 11px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.btn-share-copy {
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid #a7f3d0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.5);
+  color: #065f46;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.btn-share-copy:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.btn-share-stop {
+  padding: 3px 10px;
+  font-size: 11px;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  background: #fef2f2;
+  color: #dc2626;
+  cursor: pointer;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.btn-share-stop:hover {
+  background: #fee2e2;
+}
+
+:root[data-theme="dark"] .btn-share-stop {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+.share-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  margin-top: 4px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #991b1b;
 }
 
 .filter-count {

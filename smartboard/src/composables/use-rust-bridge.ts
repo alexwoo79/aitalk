@@ -399,3 +399,47 @@ export async function computeClusters(
     rowsJson: JSON.stringify(rows), metricCols, k, xCol, yCol,
   })
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 局域网分享 HTTP 服务器
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ServerInfo {
+  url: string
+  port: number
+  ip: string
+}
+
+export interface ServerStatus {
+  running: boolean
+  url: string | null
+  port: number | null
+  ip: string | null
+}
+
+/** 启动局域网分享 HTTP 服务器（直接 serve 自包含 HTML） */
+export async function startServer(
+  port: number,
+  html: string,
+): Promise<ServerInfo> {
+  if (!isTauri()) throw new Error('startServer 仅在 Tauri 环境下可用')
+  return invoke<ServerInfo>('start_server', { port, html })
+}
+
+/** 停止局域网分享服务器 */
+export async function stopServer(): Promise<void> {
+  if (!isTauri()) throw new Error('stopServer 仅在 Tauri 环境下可用')
+  return invoke<void>('stop_server')
+}
+
+/** 获取服务器当前状态 */
+export async function getServerStatus(): Promise<ServerStatus> {
+  if (!isTauri()) throw new Error('getServerStatus 仅在 Tauri 环境下可用')
+  return invoke<ServerStatus>('get_server_status')
+}
+
+/** 更新服务器缓存的 HTML（Dashboard 数据变化时调用） */
+export async function updateServerHtml(html: string): Promise<void> {
+  if (!isTauri()) throw new Error('updateServerHtml 仅在 Tauri 环境下可用')
+  return invoke<void>('update_server_html', { html })
+}

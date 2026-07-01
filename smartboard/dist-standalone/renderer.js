@@ -1470,7 +1470,11 @@ var SmartboardRenderer = (function(exports) {
   function initChart(dom, h) {
     if (typeof echarts === "undefined" || !echarts.init) return null;
     dom.style.height = h || "320px";
-    const c = echarts.init(dom);
+    dom.style.position = "relative";
+    const inner = document.createElement("div");
+    inner.style.cssText = "position:absolute;inset:0;overflow:hidden";
+    dom.appendChild(inner);
+    const c = echarts.init(inner);
     chartInstances.push(c);
     window.addEventListener("resize", () => c.resize());
     return c;
