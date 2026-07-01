@@ -2,6 +2,7 @@ export default {
   common: {
     close: 'Close',
     reset: 'Reset',
+    delete: 'Delete',
     search: 'Search',
     condition: 'Condition',
     all: 'All',
@@ -78,6 +79,7 @@ export default {
       samples: 'Samples',
     },
     dataTips: {
+      title: 'Data Quality Tips',
       toggle: '💡 Data Quality Tips',
       format: '📄 Supports CSV / Excel / JSON / Parquet / Paste / URL / Google Sheets / Feishu / SQLite / MySQL / PostgreSQL',
       header: '📋 Data should have a header row to identify column meanings (toggle first-row-as-header for paste)',
@@ -180,6 +182,8 @@ export default {
     urlLocalNotSupported: 'Local paths not supported in browser mode. Use the desktop app or File Upload instead.',
     fileNotFound: 'File not found: ',
     dbFileNotFound: 'Database file not found: ',
+    addMoreFiles: 'Add more files',
+    advancedConfig: 'Advanced Config',
     uncPathHint: 'Hint: This is a network share path. Please verify:\n1. This computer is connected to the network (VPN/LAN)\n2. You can access this path in File Explorer\n3. If unavailable, copy the file locally first and use "📂 File Upload" to import',
     urlFormat: 'Format',
     urlAutoDetect: 'Auto Detect',
@@ -229,9 +233,13 @@ export default {
   },
 
   config: {
+    noData: 'No data, please upload data first',
+    title: 'Configure Dashboard',
     backToUpload: 'Back to Upload',
     backToUploadArrow: '← Back to Upload',
     saveAll: '💾 Save All',
+    edit: 'Edit',
+    remove: 'Remove',
     saved: '✅ Saved (click to undo)',
     resetAll: '↺ Reset All',
     resetHint: '⚠️ If you loaded data with a different structure, please click "Reset All" first to clear the previous configuration and avoid column mismatch errors.',
@@ -275,6 +283,8 @@ export default {
     columnName: 'Column',
     columnType: 'Type',
     columnRole: 'Role',
+    collapse: 'Collapse',
+    format: 'Format',
     columnBgColor: 'Bg',
     columnFontColor: 'Font',
     unit: 'Unit',
@@ -308,6 +318,7 @@ export default {
     charts: 'Charts',
     dimension: 'Dimension',
     metric: 'Metric',
+    date: 'Date',
     dateRange: 'Date Range',
     chartType: 'Chart Type',
     generate: 'Generate Dashboard',
@@ -404,8 +415,10 @@ export default {
   },
 
   dashboard: {
+    noData: 'No data, please configure dashboard first',
     backToConfig: '← Back to Config',
     backToConfigText: 'Back to Config',
+    timeSlice: 'Time Slice',
     dateColWarn: '{cols} computed on column 「{from}」, current slice uses 「{to}」— chart data may be inconsistent',
     to: 'to',
     recordsCount: '{filtered} / {total} records',
@@ -440,6 +453,8 @@ export default {
 
   chart: {
     insufficientData: 'Insufficient data for {name}',
+    timeseries: 'Time Series',
+    decile: 'Decile Analysis',
     selectAnalysisMetric: 'Analysis Metric',
     xAxis: 'X Axis',
     yAxis: 'Y Axis',

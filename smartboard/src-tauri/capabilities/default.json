@@ -1,12 +1,17 @@
 {
   "identifier": "default",
   "description": "Default capability for main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "dialog:default",
     "dialog:allow-open",
     "dialog:allow-save",
+    "dialog:allow-confirm",
+    "dialog:allow-ask",
+    "dialog:allow-message",
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-read-file",

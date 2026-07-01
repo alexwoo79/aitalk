@@ -716,7 +716,8 @@ async function downloadSample() {
 }
 
 .tips-got-it {
-  margin-top: 8px;
+  display: block;
+  margin: 8px auto 0;
 }
 
 .spinner {

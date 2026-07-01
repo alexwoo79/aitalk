@@ -1216,6 +1216,10 @@ function refreshAll() {
   renderTable(rows)
   const fc = document.getElementById('fc'); if (fc) fc.textContent = `${t('common.currentFilter')}: ${rows.length} ${t('common.records')}`
   updateDrInfo()
+  // Force all chart instances to resize after layout settles
+  setTimeout(() => {
+    chartInstances.forEach(c => { try { c.resize() } catch { /* ignore */ } })
+  }, 100)
 }
 
 export function initDashboard(data: DashboardData) {

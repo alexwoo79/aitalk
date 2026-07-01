@@ -4,6 +4,8 @@ import type { LayoutItem } from './config'
 /** Dashboard 完整规格（渲染引擎消费） */
 export interface DashboardSpec {
   title: string
+  /** 终端布局模式（来自配置页） */
+  deviceMode?: 'desktop' | 'tablet' | 'mobile'
   primaryMetric: string | null
   chartDimensions: string[]
   columns: Record<string, ColumnClassification>

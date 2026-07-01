@@ -16,7 +16,7 @@
           <div class="col-card" :class="[
             'role-' + effRole(col),
             { 'is-computed': isComputedCol(col), 'is-expanded': isColCardOpen(col), 'drag-placeholder': dragPlaceholder === ci && dragList === 'table' }
-          ]" :data-drag-idx="ci" @click="toggleColCard(col)">
+          ]" :data-drag-idx="ci" @click="toggleColCard(col)" @mouseenter="onColEnter(col, $event)" @mouseleave="onColLeave">
             <span class="drag-handle col-drag" :title="t('config.dragTitle')"
               @pointerdown.prevent="onPointerDown($event, ci, 'table')" @click.stop>⋮</span>
             <span class="col-icon">{{ roleIcon(effRole(col)) }}</span>
@@ -168,7 +168,7 @@
           <div class="col-card" :class="[
             'role-' + effRole(col),
             { 'is-computed': true, 'is-expanded': isColCardOpen(col), 'drag-placeholder': dragPlaceholder === ci && dragList === 'table-computed' }
-          ]" :data-drag-idx="ci" @click="toggleColCard(col)">
+          ]" :data-drag-idx="ci" @click="toggleColCard(col)" @mouseenter="onColEnter(col, $event)" @mouseleave="onColLeave">
             <div class="col-card-row1">
               <span class="drag-handle col-drag" :title="t('config.dragTitle')"
                 @pointerdown.prevent="onPointerDown($event, ci, 'table-computed')" @click.stop>⋮</span>
@@ -416,6 +416,24 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- 列信息悬停提示 -->
+    <Teleport to="body">
+      <div v-if="hoveredCol" class="col-tooltip" :style="{ top: tooltipY + 'px', left: tooltipX + 'px' }">
+        <div class="ctt-header">{{ hoveredCol }}</div>
+        <div class="ctt-row"><span class="ctt-label">类型</span>{{ colTooltip.type }}</div>
+        <div class="ctt-row"><span class="ctt-label">非空</span>{{ colTooltip.nonNull }}
+          / {{ colTooltip.total }}<span v-if="colTooltip.nullCount > 0" class="ctt-null"> · 空值 {{ colTooltip.nullCount }}</span></div>
+        <div class="ctt-row"><span class="ctt-label">唯一值</span>{{ colTooltip.unique }}</div>
+        <div v-if="colTooltip.isNumeric" class="ctt-row"><span class="ctt-label">最小值</span>{{ colTooltip.min }}</div>
+        <div v-if="colTooltip.isNumeric" class="ctt-row"><span class="ctt-label">最大值</span>{{ colTooltip.max }}</div>
+        <div v-if="colTooltip.isNumeric" class="ctt-row"><span class="ctt-label">平均值</span>{{ colTooltip.avg }}</div>
+        <div v-if="colTooltip.samples.length" class="ctt-samples">
+          <div class="ctt-label ctt-samples-label">示例值</div>
+          <div v-for="s in colTooltip.samples" :key="s" class="ctt-sample">{{ s }}</div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -628,6 +646,81 @@ function cycleRole(col: string) {
 
 // ====== Card expand/collapse ======
 const expandedColCards = ref(new Set<string>())
+
+// ====== Column hover tooltip ======
+const hoveredCol = ref('')
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+let _hoverTimer: ReturnType<typeof setTimeout> | null = null
+
+interface ColTooltipData {
+  type: string
+  total: number
+  nonNull: number
+  nullCount: number
+  unique: number
+  min: string
+  max: string
+  avg: string
+  samples: string[]
+  isNumeric: boolean
+}
+
+const colTooltip = computed((): ColTooltipData => {
+  const col = hoveredCol.value
+  if (!col) return { type: '', total: 0, nonNull: 0, nullCount: 0, unique: 0, min: '', max: '', avg: '', samples: [], isNumeric: false }
+
+  // Get classification
+  const cls = dataStore.getEffectiveClassification(col) || dataStore.dataSet?.classifications[col]
+  const typeLabels: Record<string, string> = {
+    numeric: '数值', categorical: '分类', date: '日期', text: '文本'
+  }
+  const type = typeLabels[cls?.type || ''] || cls?.type || '—'
+  const isNum = cls?.type === 'numeric'
+
+  // Get rows: prefer effectiveRows (merged), fallback to dataset rows
+  const rows = dataStore.hasRelations ? previewStore.effectiveRows : (dataStore.dataSet?.rows ?? [])
+  const vals = rows.map(r => r[col]).filter(v => v !== undefined && v !== null && v !== '')
+  const total = rows.length
+  const nonNull = vals.length
+  const nullCount = total - nonNull
+  const unique = new Set(vals.map(String)).size
+
+  // Samples
+  const seen = new Set<string>()
+  const sampleVals: string[] = []
+  for (const v of vals) {
+    const s = String(v).slice(0, 24)
+    if (!seen.has(s)) { seen.add(s); sampleVals.push(s) }
+    if (sampleVals.length >= 5) break
+  }
+
+  let min = '—', max = '—', avg = '—'
+  if (isNum) {
+    const nums = vals.map(v => Number(v)).filter(v => !isNaN(v))
+    if (nums.length > 0) {
+      min = Math.min(...nums).toLocaleString()
+      max = Math.max(...nums).toLocaleString()
+      avg = (nums.reduce((a, b) => a + b, 0) / nums.length).toLocaleString(undefined, { maximumFractionDigits: 2 })
+    }
+  }
+  return { type, total, nonNull, nullCount, unique, min, max, avg, samples: sampleVals, isNumeric: isNum }
+})
+
+function onColEnter(col: string, e: MouseEvent) {
+  if (_hoverTimer) clearTimeout(_hoverTimer)
+  _hoverTimer = setTimeout(() => {
+    hoveredCol.value = col
+    tooltipX.value = e.clientX + 12
+    tooltipY.value = e.clientY + 8
+  }, 300)
+}
+
+function onColLeave() {
+  if (_hoverTimer) { clearTimeout(_hoverTimer); _hoverTimer = null }
+  hoveredCol.value = ''
+}
+
 function toggleColCard(col: string) {
   if (expandedColCards.value.has(col)) {
     expandedColCards.value.delete(col)
@@ -1548,6 +1641,68 @@ function onPointerUp(e: PointerEvent) {
   box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
   transform: rotate(1deg);
   cursor: grabbing;
+}
+
+/* ── 列悬停 Tooltip ── */
+.col-tooltip {
+  position: fixed;
+  z-index: 9999;
+  min-width: 180px;
+  max-width: 260px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .14);
+  padding: 10px 12px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.ctt-header {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 4px;
+}
+
+.ctt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  color: var(--text-primary);
+}
+
+.ctt-null {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.ctt-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.ctt-samples {
+  margin-top: 6px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 4px;
+}
+
+.ctt-samples-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.ctt-sample {
+  font-size: 11px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
 

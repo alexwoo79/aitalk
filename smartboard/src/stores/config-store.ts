@@ -8,9 +8,15 @@ const t = i18n.global.t
 
 export type ConfigSection = 'title' | 'filters' | 'dateColumn' | 'kpis' | 'charts' | 'table' | 'computedCols'
 
+function normalizePreviewDevice(mode: unknown): 'desktop' | 'tablet' | 'mobile' {
+  if (mode === 'tablet' || mode === 'mobile') return mode
+  return 'desktop'
+}
+
 export const useConfigStore = defineStore('config', () => {
   const config = ref<DashboardConfig>({
     title: '',
+    previewDevice: 'desktop',
     kpis: [],
     filters: [],
     charts: [],
@@ -438,6 +444,7 @@ export const useConfigStore = defineStore('config', () => {
   function resetConfig() {
     config.value = {
       title: '',
+      previewDevice: 'desktop',
       kpis: [],
       filters: [],
       charts: [],
@@ -524,8 +531,15 @@ export const useConfigStore = defineStore('config', () => {
 
   /** 全部重置为自动 */
   function resetAllToAuto() {
-    sectionSnapshots.value = {}
-    generateAutoConfig()
+    // 逐区域重置（而非重新生成全部），避免跨页覆盖手动配置
+    const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'computedCols']
+    for (const sec of sections) {
+      if (sectionSnapshots.value[sec] !== undefined) {
+        // 仅重置有手动保存过的区域
+        sectionAutoGens[sec]()
+        delete sectionSnapshots.value[sec]
+      }
+    }
   }
 
   // ====== Phase 5: 完整配置导出/导入（含多表关系） ======
@@ -565,7 +579,10 @@ export const useConfigStore = defineStore('config', () => {
     try {
       const full = JSON.parse(json)
       if (!full.version || full.version < 2) {
-        config.value = full
+        config.value = {
+          ...full,
+          previewDevice: normalizePreviewDevice((full as DashboardConfig).previewDevice),
+        }
         return { ok: true, message: '已导入配置（旧版格式，不含多表关系）' }
       }
       if (full.relations && Array.isArray(full.relations)) {
@@ -575,7 +592,12 @@ export const useConfigStore = defineStore('config', () => {
         }))
       }
       if (full.mainTableId) dataStore.mainTableId = full.mainTableId
-      if (full.config) config.value = full.config
+      if (full.config) {
+        config.value = {
+          ...full.config,
+          previewDevice: normalizePreviewDevice(full.config.previewDevice),
+        }
+      }
       return { ok: true, message: `已导入配置（${full.tableMeta?.length || 0} 张表，${full.relations?.length || 0} 个关联）` }
     } catch (e: any) {
       return { ok: false, message: `导入失败: ${e.message}` }

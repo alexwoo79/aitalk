@@ -109,7 +109,7 @@ export const usePreviewStore = defineStore('preview', () => {
     let drs: DashboardSpec['dateRange']; const adc = e.headers.filter(h => e.classifications[h]?.type === 'date' && !ex.has(h))
     const cd = cfg.dateColumns?.length ? cfg.dateColumns : adc; const dc = cd.length > 0 ? cd[0] : undefined
     if (dc) { const dts = e.rows.reduce((acc: { min: string, max: string }, r) => { const d = String(r[dc] ?? ''); if (!d) return acc; return { min: !acc.min || d < acc.min ? d : acc.min, max: !acc.max || d > acc.max ? d : acc.max }; }, { min: '', max: '' }); if (dts.min) drs = { column: dc, min: dts.min, max: dts.max } }
-    return { title: cfg.title || 'Dashboard', primaryMetric: e.primaryMetric && !ex.has(e.primaryMetric) ? e.primaryMetric : null, chartDimensions: e.chartDimensions.filter(d => !ex.has(d)), columns: e.classifications, kpis, charts, filters: cfg.filters.map(f => ({ column: f })), table: tbl, analyses: {}, dateRange: drs, dateColumns: cd, layout: cfg.layout, metricDefaults: defs }
+    return { title: cfg.title || 'Dashboard', deviceMode: cfg.previewDevice || 'desktop', primaryMetric: e.primaryMetric && !ex.has(e.primaryMetric) ? e.primaryMetric : null, chartDimensions: e.chartDimensions.filter(d => !ex.has(d)), columns: e.classifications, kpis, charts, filters: cfg.filters.map(f => ({ column: f })), table: tbl, analyses: {}, dateRange: drs, dateColumns: cd, layout: cfg.layout, metricDefaults: defs }
   }
 
   function applyFilters() {

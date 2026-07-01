@@ -79,6 +79,8 @@ export interface LayoutItem {
 /** 用户配置（表单输出，等价于 YAML 模板） */
 export interface DashboardConfig {
   title: string
+  /** 预览/展示终端模式 */
+  previewDevice?: 'desktop' | 'tablet' | 'mobile'
   kpis: KpiFormItem[]
   filters: string[]
   /** 可用的时间切片列（多选，展示页可动态切换） */

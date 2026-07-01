@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-view">
+  <div class="dashboard-view" :class="dashboardModeClass">
     <div v-if="saveMsg" class="save-toast" :class="saveMsgType === 'error' ? 'save-toast-err' : 'save-toast-ok'">
       {{ saveMsg }}
       <button class="save-toast-close" @click="saveMsg = ''">✕</button>
@@ -16,6 +16,7 @@
         <button class="btn btn-sm btn-ghost" @click="$router.push('/config')">← {{ t('dashboard.backToConfigText')
           }}</button>
         <h2 class="dashboard-title">{{ spec.title }}</h2>
+        <span class="dashboard-device-badge">{{ dashboardModeLabel }}</span>
         <span class="layout-size">{{ layoutW }} × {{ layoutH }}</span>
       </div>
 
@@ -374,6 +375,13 @@ const { t, locale } = useI18n()
 const previewStore = usePreviewStore()
 
 const spec = computed(() => previewStore.buildSpec())
+const dashboardModeClass = computed(() => `dashboard-mode-${spec.value?.deviceMode || 'desktop'}`)
+const dashboardModeLabel = computed(() => {
+  const mode = spec.value?.deviceMode || 'desktop'
+  if (mode === 'tablet') return 'Tablet'
+  if (mode === 'mobile') return 'Mobile'
+  return 'Desktop'
+})
 
 // 流式懒加载：仅渲染视口内可见的图表
 const { isVisible: isChartVisible, setCardRef } = useLazyRender(spec.value?.charts?.length ?? 0)
@@ -802,6 +810,7 @@ async function saveDashboard() {
     const dummy = doc.createElement('div')
     const dataObj: Record<string, any> = {
       title,
+      deviceMode: s.deviceMode || 'desktop',
       headers,
       rows,
       classifications: cls,
@@ -1097,6 +1106,96 @@ function formatCellValue(val: string | number | undefined, col: string): string 
   return String(val)
 }
 
+function withAlpha(color: string, alpha: number): string {
+  const a = Math.max(0, Math.min(1, alpha))
+  const c = color.trim()
+  if (!c) return color
+  if (c.startsWith('#')) {
+    const hex = c.slice(1)
+    if (hex.length === 3 || hex.length === 4) {
+      const r = parseInt(hex[0] + hex[0], 16)
+      const g = parseInt(hex[1] + hex[1], 16)
+      const b = parseInt(hex[2] + hex[2], 16)
+      return `rgba(${r}, ${g}, ${b}, ${a})`
+    }
+    if (hex.length === 6 || hex.length === 8) {
+      const r = parseInt(hex.slice(0, 2), 16)
+      const g = parseInt(hex.slice(2, 4), 16)
+      const b = parseInt(hex.slice(4, 6), 16)
+      return `rgba(${r}, ${g}, ${b}, ${a})`
+    }
+  }
+  if (c.startsWith('rgb(') || c.startsWith('rgba(')) {
+    const m = c.match(/rgba?\(([^)]+)\)/)
+    if (m) {
+      const parts = m[1].split(',').map(s => s.trim())
+      if (parts.length >= 3) {
+        return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${a})`
+      }
+    }
+  }
+  return color
+}
+
+function toRgb(color: string): { r: number; g: number; b: number } | null {
+  const c = color.trim()
+  if (!c) return null
+  if (c.startsWith('#')) {
+    const hex = c.slice(1)
+    if (hex.length === 3 || hex.length === 4) {
+      return {
+        r: parseInt(hex[0] + hex[0], 16),
+        g: parseInt(hex[1] + hex[1], 16),
+        b: parseInt(hex[2] + hex[2], 16)
+      }
+    }
+    if (hex.length === 6 || hex.length === 8) {
+      return {
+        r: parseInt(hex.slice(0, 2), 16),
+        g: parseInt(hex.slice(2, 4), 16),
+        b: parseInt(hex.slice(4, 6), 16)
+      }
+    }
+    return null
+  }
+  const m = c.match(/rgba?\(([^)]+)\)/)
+  if (!m) return null
+  const parts = m[1].split(',').map(s => Number(s.trim()))
+  if (parts.length < 3 || parts.some(n => Number.isNaN(n))) return null
+  return { r: parts[0], g: parts[1], b: parts[2] }
+}
+
+function channelToLinear(v: number): number {
+  const c = Math.max(0, Math.min(255, v)) / 255
+  return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+}
+
+function luminance(rgb: { r: number; g: number; b: number }): number {
+  return 0.2126 * channelToLinear(rgb.r) + 0.7152 * channelToLinear(rgb.g) + 0.0722 * channelToLinear(rgb.b)
+}
+
+function contrastRatio(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): number {
+  const l1 = luminance(a)
+  const l2 = luminance(b)
+  const hi = Math.max(l1, l2)
+  const lo = Math.min(l1, l2)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+function darkAdjustedAlpha(bgColor: string, lightBgAlpha: number, defaultAlpha: number): number {
+  const rgb = toRgb(bgColor)
+  if (!rgb) return defaultAlpha
+  return luminance(rgb) > 0.72 ? lightBgAlpha : defaultAlpha
+}
+
+function pickReadableText(prefColor: string, bgColor: string, dark: boolean): string {
+  const fg = toRgb(prefColor)
+  const bg = toRgb(bgColor)
+  const fallback = dark ? '#e5e7eb' : '#1f2937'
+  if (!fg || !bg) return prefColor
+  return contrastRatio(fg, bg) >= 3 ? prefColor : fallback
+}
+
 function toggleSort(col: string) {
   if (sortCol.value === col) {
     sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
@@ -1109,45 +1208,53 @@ function toggleSort(col: string) {
 // ====== Column & Row color helpers ======
 function getColumnHeaderStyle(col: string): Record<string, string> {
   const s: Record<string, string> = {}
+  const dark = theme.value === 'dark'
   const bg = configStore.config.table.columnColors?.[col]
   const fg = configStore.config.table.columnTextColors?.[col]
-  if (bg) { s.backgroundColor = bg }
+  if (bg) {
+    const alpha = dark ? darkAdjustedAlpha(bg, 0.22, 0.4) : 1
+    s.backgroundColor = withAlpha(bg, alpha)
+  }
   else {
     const isComp = (configStore.config.table.computedColumns || []).some(cc => cc.name === col && cc.selected !== false)
     if (isComp) {
-      s.backgroundColor = '#e8d5f5'
+      s.backgroundColor = dark ? 'rgba(196, 181, 253, 0.32)' : '#e8d5f5'
     } else {
       const idx = associatedColumnMap.value.get(col)
       if (idx !== undefined) {
         const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
-        s.backgroundColor = p.headerBg
+        s.backgroundColor = dark ? withAlpha(p.headerBg, 0.34) : p.headerBg
       }
     }
   }
-  if (fg) s.color = fg
+  if (fg) s.color = dark && bg ? pickReadableText(fg, bg, true) : fg
   return s
 }
 
 function getColumnCellStyle(col: string, val: any): Record<string, string> {
   const s: Record<string, string> = {}
+  const dark = theme.value === 'dark'
   const bg = configStore.config.table.columnColors?.[col]
   const fg = configStore.config.table.columnTextColors?.[col]
-  if (bg) { s.backgroundColor = bg + '20' }
+  if (bg) {
+    const alpha = dark ? darkAdjustedAlpha(bg, 0.12, 0.24) : 0.22
+    s.backgroundColor = withAlpha(bg, alpha)
+  }
   else {
     const isComp = (configStore.config.table.computedColumns || []).some(cc => cc.name === col && cc.selected !== false)
     if (isComp) {
-      s.backgroundColor = '#f5edfa'
+      s.backgroundColor = dark ? 'rgba(167, 139, 250, 0.2)' : '#f5edfa'
     } else {
       const idx = associatedColumnMap.value.get(col)
       if (idx !== undefined) {
         const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
-        s.backgroundColor = p.cellBg
+        s.backgroundColor = dark ? withAlpha(p.cellBg, 0.24) : p.cellBg
       }
     }
   }
   // 列条件字体色优先于静态字体色
   const ruleColor = matchColTextRule(col, val)
-  const textColor = ruleColor || (fg ? fg + 'a0' : '')
+  const textColor = ruleColor || (fg ? (dark && bg ? pickReadableText(fg, bg, true) : withAlpha(fg, dark ? 0.95 : 0.82)) : '')
   if (textColor) s.color = textColor
   return s
 }
@@ -1563,6 +1670,80 @@ function computeSourceColumnColors(
   margin: 0 auto;
 }
 
+.dashboard-view.dashboard-mode-tablet {
+  max-width: 900px;
+}
+
+.dashboard-view.dashboard-mode-mobile {
+  max-width: 560px;
+}
+
+.dashboard-view.dashboard-mode-tablet .kpi-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-view.dashboard-mode-mobile .kpi-row {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.dashboard-view.dashboard-mode-tablet .charts-wrap {
+  gap: 12px;
+}
+
+.dashboard-view.dashboard-mode-tablet .chart-card {
+  flex: 1 1 calc(50% - 12px);
+  min-width: 280px;
+}
+
+.dashboard-view.dashboard-mode-mobile .charts-wrap {
+  gap: 10px;
+}
+
+.dashboard-view.dashboard-mode-mobile .chart-card,
+.dashboard-view.dashboard-mode-mobile .chart-card-full {
+  flex: 1 1 100%;
+  min-width: 0;
+  min-height: 240px;
+  padding: 12px;
+}
+
+.dashboard-view.dashboard-mode-mobile .dashboard-toolbar {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.dashboard-view.dashboard-mode-mobile .dashboard-toolbar .btn-ghost,
+.dashboard-view.dashboard-mode-mobile .dashboard-device-badge,
+.dashboard-view.dashboard-mode-mobile .layout-size {
+  position: static;
+}
+
+.dashboard-view.dashboard-mode-mobile .dashboard-title {
+  width: 100%;
+  text-align: left;
+  font-size: 18px;
+}
+
+.dashboard-view.dashboard-mode-mobile .filter-bar,
+.dashboard-view.dashboard-mode-mobile .date-range-bar {
+  padding: 6px;
+  gap: 6px;
+}
+
+.dashboard-view.dashboard-mode-mobile .filter-search-group {
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.dashboard-view.dashboard-mode-mobile .search-input,
+.dashboard-view.dashboard-mode-mobile .condition-input,
+.dashboard-view.dashboard-mode-mobile .table-search,
+.dashboard-view.dashboard-mode-mobile .table-cond {
+  width: 100%;
+}
+
 .save-toast {
   position: fixed;
   top: 12px;
@@ -1641,6 +1822,20 @@ function computeSourceColumnColors(
   text-align: center;
 }
 
+.dashboard-device-badge {
+  position: absolute;
+  right: 88px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-light);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
 .layout-size {
   position: absolute;
   right: 0;
@@ -1655,20 +1850,6 @@ function computeSourceColumnColors(
 .row-count {
   font-size: 13px;
   color: var(--text-secondary);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 5px;
-  font-size: 11px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  transition: all 0.2s;
-  line-height: 1.3;
 }
 
 .btn-ghost {
@@ -1999,10 +2180,6 @@ function computeSourceColumnColors(
   gap: 14px;
   margin-top: 16px;
   margin-bottom: 20px;
-}
-
-.kpi-row .kpi-card {
-  /* grid 自动分配尺寸，无需 flex/max-width */
 }
 
 /* Charts flex layout with resize handles — contain & overflow prevent ECharts infinite stretch on Windows */

@@ -420,10 +420,105 @@ const advRows = computed(() => advancedPreviewCols.value.length > 0 ? advancedPr
 
 function getPreviewCellStyle(col: string, val: any): Record<string, string> {
   const style: Record<string, string> = {}
+  const dark = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
+  const withAlpha = (color: string, alpha: number): string => {
+    const a = Math.max(0, Math.min(1, alpha))
+    const c = color.trim()
+    if (!c) return color
+    if (c.startsWith('#')) {
+      const hex = c.slice(1)
+      if (hex.length === 3 || hex.length === 4) {
+        const r = parseInt(hex[0] + hex[0], 16)
+        const g = parseInt(hex[1] + hex[1], 16)
+        const b = parseInt(hex[2] + hex[2], 16)
+        return `rgba(${r}, ${g}, ${b}, ${a})`
+      }
+      if (hex.length === 6 || hex.length === 8) {
+        const r = parseInt(hex.slice(0, 2), 16)
+        const g = parseInt(hex.slice(2, 4), 16)
+        const b = parseInt(hex.slice(4, 6), 16)
+        return `rgba(${r}, ${g}, ${b}, ${a})`
+      }
+    }
+    if (c.startsWith('rgb(') || c.startsWith('rgba(')) {
+      const m = c.match(/rgba?\(([^)]+)\)/)
+      if (m) {
+        const parts = m[1].split(',').map(s => s.trim())
+        if (parts.length >= 3) {
+          return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${a})`
+        }
+      }
+    }
+    return color
+  }
+
+  const toRgb = (color: string): { r: number; g: number; b: number } | null => {
+    const c = color.trim()
+    if (!c) return null
+    if (c.startsWith('#')) {
+      const hex = c.slice(1)
+      if (hex.length === 3 || hex.length === 4) {
+        return {
+          r: parseInt(hex[0] + hex[0], 16),
+          g: parseInt(hex[1] + hex[1], 16),
+          b: parseInt(hex[2] + hex[2], 16)
+        }
+      }
+      if (hex.length === 6 || hex.length === 8) {
+        return {
+          r: parseInt(hex.slice(0, 2), 16),
+          g: parseInt(hex.slice(2, 4), 16),
+          b: parseInt(hex.slice(4, 6), 16)
+        }
+      }
+      return null
+    }
+    const m = c.match(/rgba?\(([^)]+)\)/)
+    if (!m) return null
+    const parts = m[1].split(',').map(s => Number(s.trim()))
+    if (parts.length < 3 || parts.some(n => Number.isNaN(n))) return null
+    return { r: parts[0], g: parts[1], b: parts[2] }
+  }
+
+  const channelToLinear = (v: number): number => {
+    const c = Math.max(0, Math.min(255, v)) / 255
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  }
+
+  const luminance = (rgb: { r: number; g: number; b: number }): number => {
+    return 0.2126 * channelToLinear(rgb.r) + 0.7152 * channelToLinear(rgb.g) + 0.0722 * channelToLinear(rgb.b)
+  }
+
+  const contrastRatio = (a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): number => {
+    const l1 = luminance(a)
+    const l2 = luminance(b)
+    const hi = Math.max(l1, l2)
+    const lo = Math.min(l1, l2)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+
+  const darkAdjustedAlpha = (bgColor: string, lightBgAlpha: number, defaultAlpha: number): number => {
+    const rgb = toRgb(bgColor)
+    if (!rgb) return defaultAlpha
+    return luminance(rgb) > 0.72 ? lightBgAlpha : defaultAlpha
+  }
+
+  const pickReadableText = (prefColor: string, bgColor: string): string => {
+    const fg = toRgb(prefColor)
+    const bg = toRgb(bgColor)
+    if (!fg || !bg) return prefColor
+    return contrastRatio(fg, bg) >= 3 ? prefColor : (dark ? '#e5e7eb' : '#1f2937')
+  }
+
   const colors = configStore.config.table.columnColors
   const textColors = configStore.config.table.columnTextColors
-  if (colors?.[col]) style.backgroundColor = colors[col]
-  if (textColors?.[col]) style.color = textColors[col]
+  const colBg = colors?.[col]
+  const colFg = textColors?.[col]
+  if (colBg) {
+    const alpha = dark ? darkAdjustedAlpha(colBg, 0.12, 0.24) : 0.22
+    style.backgroundColor = withAlpha(colBg, alpha)
+  }
+  if (colFg) style.color = dark && colBg ? pickReadableText(colFg, colBg) : colFg
   // 条件着色
   const rules = configStore.config.table.columnTextRules?.[col]
   if (rules && typeof val === 'number') {
@@ -568,12 +663,12 @@ function formatPreviewValue(col: string, val: any): string {
 
 .btn-next {
   padding: 0 24px;
-  height: 38px;
-  border-radius: 8px;
+  height: 32px;
+  border-radius: 6px;
   border: none;
   background: var(--primary);
   color: white;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s;

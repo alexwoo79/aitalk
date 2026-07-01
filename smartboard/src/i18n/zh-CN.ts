@@ -3,6 +3,7 @@ export default {
   common: {
     close: '关闭',
     reset: '重置',
+    delete: '删除',
     search: '搜索',
     condition: '条件',
     all: '全部',
@@ -81,6 +82,7 @@ export default {
       samples: '示例值',
     },
     dataTips: {
+      title: '数据质量要求',
       toggle: '💡 数据质量要求',
       format: '📄 支持 CSV / Excel / JSON / Parquet / 粘贴 / URL / Google Sheets / 飞书多维表格 / SQLite / MySQL / PostgreSQL',
       header: '📋 数据应有表头行，用于识别各列含义（粘贴时可切换首行是否为表头）',
@@ -182,6 +184,8 @@ export default {
     urlLocalNotSupported: '浏览器模式不支持本地路径，请在桌面应用中打开或使用「文件上传」功能',
     fileNotFound: '文件不存在: ',
     dbFileNotFound: '数据库文件不存在: ',
+    addMoreFiles: '添加更多文件',
+    advancedConfig: '高级配置',
     uncPathHint: '提示: 这是网络共享路径，请确认:\n1. 该电脑已连接到相应网络（VPN/局域网）\n2. 在文件资源管理器中能正常访问此路径\n3. 如无法访问，请先将文件复制到本地再通过「📂 文件上传」导入',
     urlFormat: '格式',
     urlAutoDetect: '自动检测',
@@ -233,9 +237,13 @@ export default {
 
   // Config view
   config: {
+    noData: '暂无数据，请先上传数据',
+    title: '配置看板',
     backToUpload: '返回上传',
     backToUploadArrow: '← 返回上传',
     saveAll: '💾 全部保存',
+    edit: '编辑',
+    remove: '移除',
     saved: '✅ 已保存（点击解除）',
     resetAll: '↺ 全部重置',
     resetHint: '⚠️ 如果加载了不同结构的数据，请先点击「全部重置」清理旧配置，避免列名不匹配导致错误。',
@@ -279,6 +287,8 @@ export default {
     columnName: '列名',
     columnType: '类型',
     columnRole: '角色',
+    collapse: '收起',
+    format: '格式',
     columnBgColor: '背景色',
     columnFontColor: '字体色',
     unit: '单位',
@@ -312,6 +322,7 @@ export default {
     charts: '图表',
     dimension: '维度',
     metric: '指标',
+    date: '日期',
     dateRange: '日期范围',
     chartType: '图表类型',
     generate: '生成 Dashboard',
@@ -409,8 +420,10 @@ export default {
 
   // Dashboard view
   dashboard: {
+    noData: '暂无数据，请先配置看板',
     backToConfig: '← 返回配置',
     backToConfigText: '返回配置',
+    timeSlice: '时间切片',
     dateColWarn: '{cols} 基于「{from}」列计算，当前切片使用「{to}」列，图表数据可能不一致',
     to: '至',
     recordsCount: '{filtered} / {total} 条',
@@ -446,6 +459,8 @@ export default {
   // Chart common
   chart: {
     insufficientData: '数据不足，无法生成{name}',
+    timeseries: '时序分析',
+    decile: '十分位分析',
     selectAnalysisMetric: '分析指标',
     xAxis: 'X 轴',
     yAxis: 'Y 轴',

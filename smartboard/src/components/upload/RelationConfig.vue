@@ -96,7 +96,7 @@
             <svg class="graph-svg-lines" v-if="graphNodes.length > 1" :viewBox="`0 0 ${canvasW} ${canvasH}`">
               <defs>
                 <marker id="gc-arrow" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
-                  <polygon points="0 0, 7 2.5, 0 5" fill="#3b82f6" />
+                  <polygon points="0 0, 7 2.5, 0 5" :fill="theme === 'dark' ? '#60a5fa' : '#3b82f6'" />
                 </marker>
               </defs>
               <g v-for="(line, li) in graphLines" :key="li">
@@ -119,7 +119,7 @@
                 <span class="gc-name">{{ node.name }}</span>
                 <span class="gc-count">{{ node.rowCount }}行</span>
               </div>
-              <div class="gc-cols">
+              <div v-if="showFieldDetails" class="gc-cols">
                 <div v-for="col in node.cols.slice(0, 8)" :key="col.name" class="gc-col"
                   :class="{ 'is-key': col.isKey }">
                   <span class="gc-dot" :class="'role-' + col.role"></span>
@@ -178,138 +178,145 @@
     </button>
   </div>
 
-  <!-- 新建/编辑关联表单 -->
-  <div v-if="showForm" class="relation-form">
-    <h4>{{ editingId ? t('upload.editRelation') : t('upload.newRelation') }}</h4>
+  <!-- 新建/编辑关联弹窗 -->
+  <Teleport to="body">
+    <div v-if="showForm" class="relation-form-overlay" @click.self="resetForm">
+      <div class="relation-form-popup">
+        <div class="rf-header">
+          <h4>{{ editingId ? t('upload.editRelation') : t('upload.newRelation') }}</h4>
+          <button class="rf-close" @click="resetForm" title="关闭">✕</button>
+        </div>
 
-    <div class="form-body">
-      <div class="form-row">
-        <div class="form-group">
-          <label>{{ t('upload.leftTable') }}</label>
-          <select v-model="form.leftTableId" @change="onLeftTableChange">
-            <option value="">{{ t('upload.selectTable') }}</option>
-            <option v-for="t in dataStore.tableList" :key="t.id" :value="t.id">{{ t.name }}</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>{{ t('upload.leftColumn') }}</label>
-          <select v-model="form.leftColumn" :disabled="!form.leftTableId">
-            <option value="">{{ t('upload.selectColumn') }}</option>
-            <option v-for="col in leftColumns" :key="col" :value="col">{{ col }}</option>
-          </select>
-          <span v-if="form.leftColumn && leftColInfo" class="col-info-hint">{{ leftColInfo }}</span>
-        </div>
-      </div>
-
-      <div class="form-row form-join-type">
-        <div class="form-group">
-          <label>{{ t('upload.joinType') }}</label>
-          <div class="join-type-group">
-            <label v-for="jt in joinTypes" :key="jt.value" class="join-type-option"
-              :class="{ active: form.joinType === jt.value }" :title="jt.desc">
-              <input type="radio" v-model="form.joinType" :value="jt.value" />
-              <span class="jt-venn" v-html="jt.venn"></span>
-              <span class="jt-label">{{ jt.label }}</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>{{ t('upload.rightTable') }}</label>
-          <select v-model="form.rightTableId" @change="onRightTableChange">
-            <option value="">{{ t('upload.selectTable') }}</option>
-            <option v-for="t in dataStore.tableList" :key="t.id" :value="t.id" :disabled="t.id === form.leftTableId">{{
-              t.name }}</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>{{ t('upload.rightColumn') }}</label>
-          <select v-model="form.rightColumn" :disabled="!form.rightTableId">
-            <option value="">{{ t('upload.selectColumn') }}</option>
-            <option v-for="col in rightColumns" :key="col" :value="col">{{ col }}</option>
-          </select>
-          <span v-if="form.rightColumn && rightColInfo" class="col-info-hint">{{ rightColInfo }}</span>
-        </div>
-      </div>
-
-      <!-- 基数检测警告 -->
-      <div v-if="cardinalityWarning" class="cardinality-warning">
-        ⚠️ {{ cardinalityWarning }}
-      </div>
-
-      <div class="form-actions">
-        <button class="btn btn-secondary" @click="resetForm">{{ t('common.cancel') }}</button>
-        <button class="btn btn-outline" @click="previewJoin" :disabled="!canSubmit"
-          :title="!form.leftTableId ? '请先选择左表' : !form.rightTableId ? '请先选择右表' : !form.leftColumn ? '请先选择左表字段' : !form.rightColumn ? '请先选择右表字段' : '预览关联结果（前20行）'">
-          {{ t('upload.previewJoin') }}
-        </button>
-        <button class="btn btn-primary" @click="submitRelation" :disabled="!canSubmit">
-          {{ editingId ? t('upload.updateRelation') : t('upload.confirmRelation') }}
-        </button>
-      </div>
-
-      <!-- 预览结果 (Tab 切换) -->
-      <div v-if="previewData || previewLoading" class="preview-section">
-        <div class="preview-tabs">
-          <button class="preview-tab" :class="{ active: previewTab === 'data' }" @click="previewTab = 'data'">
-            {{ t('upload.dataPreview') }}
-          </button>
-          <button class="preview-tab" :class="{ active: previewTab === 'quality' }" @click="previewTab = 'quality'">
-            {{ t('upload.relationQuality') }}
-          </button>
-        </div>
-        <div v-if="previewLoading" class="preview-loading">
-          <div class="spinner-sm"></div>
-          {{ t('upload.previewing') }}
-        </div>
-        <div v-else-if="previewTab === 'data' && previewData" class="preview-table-wrap">
-          <p class="preview-info">{{ t('upload.previewResult') }} ({{ previewData.rows.length }} / {{
-            previewData.total_rows }})</p>
-          <table class="preview-table">
-            <thead>
-              <tr>
-                <th v-for="col in previewData.columns.slice(0, 8)" :key="col.name">{{ col.name }}</th>
-                <th v-if="previewData.columns.length > 8">...</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(row, i) in previewData.rows.slice(0, 10)" :key="i">
-                <td v-for="col in previewData.columns.slice(0, 8)" :key="col.name">
-                  {{ row[col.name] ?? '' }}
-                </td>
-                <td v-if="previewData.columns.length > 8">...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else-if="previewTab === 'quality' && previewData" class="preview-quality">
-          <div class="quality-metrics">
-            <div class="quality-item">
-              <span class="quality-label">{{ t('upload.matchRate') }}</span>
-              <span class="quality-value">{{ relationQuality.matchRate }}%</span>
+        <div class="form-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ t('upload.leftTable') }}</label>
+              <select v-model="form.leftTableId" @change="onLeftTableChange">
+                <option value="">{{ t('upload.selectTable') }}</option>
+                <option v-for="t in dataStore.tableList" :key="t.id" :value="t.id">{{ t.name }}</option>
+              </select>
             </div>
-            <div class="quality-item">
-              <span class="quality-label">{{ t('upload.leftNullRate') }}</span>
-              <span class="quality-value">{{ relationQuality.leftNullRate }}%</span>
-            </div>
-            <div class="quality-item">
-              <span class="quality-label">{{ t('upload.rightNullRate') }}</span>
-              <span class="quality-value">{{ relationQuality.rightNullRate }}%</span>
-            </div>
-            <div class="quality-item">
-              <span class="quality-label">{{ t('upload.totalRows') }}</span>
-              <span class="quality-value">{{ previewData.total_rows.toLocaleString() }}</span>
+            <div class="form-group">
+              <label>{{ t('upload.leftColumn') }}</label>
+              <select v-model="form.leftColumn" :disabled="!form.leftTableId">
+                <option value="">{{ t('upload.selectColumn') }}</option>
+                <option v-for="col in leftColumns" :key="col" :value="col">{{ col }}</option>
+              </select>
+              <span v-if="form.leftColumn && leftColInfo" class="col-info-hint">{{ leftColInfo }}</span>
             </div>
           </div>
-          <div v-if="cardinalityWarning" class="quality-warning">
+
+          <div class="form-row form-join-type">
+            <div class="form-group">
+              <label>{{ t('upload.joinType') }}</label>
+              <div class="join-type-group">
+                <label v-for="jt in joinTypes" :key="jt.value" class="join-type-option"
+                  :class="{ active: form.joinType === jt.value }" :title="jt.desc">
+                  <input type="radio" v-model="form.joinType" :value="jt.value" />
+                  <span class="jt-venn" v-html="jt.venn"></span>
+                  <span class="jt-label">{{ jt.label }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ t('upload.rightTable') }}</label>
+              <select v-model="form.rightTableId" @change="onRightTableChange">
+                <option value="">{{ t('upload.selectTable') }}</option>
+                <option v-for="t in dataStore.tableList" :key="t.id" :value="t.id" :disabled="t.id === form.leftTableId">{{
+                  t.name }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>{{ t('upload.rightColumn') }}</label>
+              <select v-model="form.rightColumn" :disabled="!form.rightTableId">
+                <option value="">{{ t('upload.selectColumn') }}</option>
+                <option v-for="col in rightColumns" :key="col" :value="col">{{ col }}</option>
+              </select>
+              <span v-if="form.rightColumn && rightColInfo" class="col-info-hint">{{ rightColInfo }}</span>
+            </div>
+          </div>
+
+          <!-- 基数检测警告 -->
+          <div v-if="cardinalityWarning" class="cardinality-warning">
             ⚠️ {{ cardinalityWarning }}
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-secondary" @click="resetForm">{{ t('common.cancel') }}</button>
+            <button class="btn btn-outline" @click="previewJoin" :disabled="!canSubmit"
+              :title="!form.leftTableId ? '请先选择左表' : !form.rightTableId ? '请先选择右表' : !form.leftColumn ? '请先选择左表字段' : !form.rightColumn ? '请先选择右表字段' : '预览关联结果（前20行）'">
+              {{ t('upload.previewJoin') }}
+            </button>
+            <button class="btn btn-primary" @click="submitRelation" :disabled="!canSubmit">
+              {{ editingId ? t('upload.updateRelation') : t('upload.confirmRelation') }}
+            </button>
+          </div>
+
+          <!-- 预览结果 (Tab 切换) -->
+          <div v-if="previewData || previewLoading" class="preview-section">
+            <div class="preview-tabs">
+              <button class="preview-tab" :class="{ active: previewTab === 'data' }" @click="previewTab = 'data'">
+                {{ t('upload.dataPreview') }}
+              </button>
+              <button class="preview-tab" :class="{ active: previewTab === 'quality' }" @click="previewTab = 'quality'">
+                {{ t('upload.relationQuality') }}
+              </button>
+            </div>
+            <div v-if="previewLoading" class="preview-loading">
+              <div class="spinner-sm"></div>
+              {{ t('upload.previewing') }}
+            </div>
+            <div v-else-if="previewTab === 'data' && previewData" class="preview-table-wrap">
+              <p class="preview-info">{{ t('upload.previewResult') }} ({{ previewData.rows.length }} / {{
+                previewData.total_rows }})</p>
+              <table class="preview-table">
+                <thead>
+                  <tr>
+                    <th v-for="col in previewData.columns.slice(0, 8)" :key="col.name">{{ col.name }}</th>
+                    <th v-if="previewData.columns.length > 8">...</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, i) in previewData.rows.slice(0, 10)" :key="i">
+                    <td v-for="col in previewData.columns.slice(0, 8)" :key="col.name">
+                      {{ row[col.name] ?? '' }}
+                    </td>
+                    <td v-if="previewData.columns.length > 8">...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else-if="previewTab === 'quality' && previewData" class="preview-quality">
+              <div class="quality-metrics">
+                <div class="quality-item">
+                  <span class="quality-label">{{ t('upload.matchRate') }}</span>
+                  <span class="quality-value">{{ relationQuality.matchRate }}%</span>
+                </div>
+                <div class="quality-item">
+                  <span class="quality-label">{{ t('upload.leftNullRate') }}</span>
+                  <span class="quality-value">{{ relationQuality.leftNullRate }}%</span>
+                </div>
+                <div class="quality-item">
+                  <span class="quality-label">{{ t('upload.rightNullRate') }}</span>
+                  <span class="quality-value">{{ relationQuality.rightNullRate }}%</span>
+                </div>
+                <div class="quality-item">
+                  <span class="quality-label">{{ t('upload.totalRows') }}</span>
+                  <span class="quality-value">{{ previewData.total_rows.toLocaleString() }}</span>
+                </div>
+              </div>
+              <div v-if="cardinalityWarning" class="quality-warning">
+                ⚠️ {{ cardinalityWarning }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 
   <!-- 拓扑图弹出窗口 -->
   <Teleport to="body">
@@ -334,7 +341,7 @@
             <svg class="graph-svg-lines" v-if="graphNodes.length > 1" :viewBox="`0 0 ${canvasW} ${canvasH}`">
               <defs>
                 <marker id="gc-arrow2" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
-                  <polygon points="0 0, 7 2.5, 0 5" fill="#3b82f6" />
+                  <polygon points="0 0, 7 2.5, 0 5" :fill="theme === 'dark' ? '#60a5fa' : '#3b82f6'" />
                 </marker>
               </defs>
               <g v-for="(line, li) in graphLines" :key="li">
@@ -355,7 +362,7 @@
                 <span class="gc-name">{{ node.name }}</span>
                 <span class="gc-count">{{ node.rowCount }}行</span>
               </div>
-              <div class="gc-cols">
+              <div v-if="showFieldDetails" class="gc-cols">
                 <div v-for="col in node.cols.slice(0, 8)" :key="col.name" class="gc-col"
                   :class="{ 'is-key': col.isKey }">
                   <span class="gc-dot" :class="'role-' + col.role"></span>
@@ -430,6 +437,8 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useTheme } from '@/composables/use-theme'
+import { confirm } from '@tauri-apps/plugin-dialog'
 import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { usePreviewStore } from '@/stores/preview-store'
@@ -442,6 +451,7 @@ import { fmtByChart, getNumericVal } from '@/core/chart-options'
 
 const router = useRouter()
 const { t } = useI18n()
+const { theme } = useTheme()
 const dataStore = useDataStore()
 const configStore = useConfigStore()
 const previewStore = usePreviewStore()
@@ -706,8 +716,9 @@ function getJoinTypeLabel(type: string): string {
   return jt ? `${jt.label} - ${jt.desc}` : type
 }
 
-function confirmRemoveRelation(id: string) {
-  if (confirm('确定要删除这个关联吗？')) {
+async function confirmRemoveRelation(id: string) {
+  const ok = await confirm('确定要删除这个关联吗？', { title: '删除关联', kind: 'warning' })
+  if (ok) {
     dataStore.removeRelation(id)
   }
 }
@@ -807,6 +818,7 @@ interface NodePos {
   cols: GraphCol[]
   x: number
   y: number
+  h: number
 }
 const graphPositions = ref<Record<string, { x: number; y: number }>>({})
 const tableColorIndex = computed(() => {
@@ -833,7 +845,10 @@ const graphNodes = computed<NodePos[]>(() => {
       role: ds.classifications[h]?.role || 'ignore',
       isKey: keyCols.has(h),
     }))
-    const pos = graphPositions.value[id] || autoLayout(id)
+    // 根据实际列数估算卡片高度（头部~50px + 每列~22px，最多8列）
+    const shownCols = showFieldDetails.value ? Math.min(cols.length, 8) : 0
+    const nodeH = 50 + shownCols * 22
+    const pos = graphPositions.value[id] || autoLayout(id, nodeH)
     nodes.push({
       id,
       key: `node-${id}`,
@@ -842,12 +857,13 @@ const graphNodes = computed<NodePos[]>(() => {
       cols,
       x: pos.x,
       y: pos.y,
+      h: nodeH,
     })
   }
   return nodes
 })
 
-function autoLayout(id: string): { x: number; y: number } {
+function autoLayout(id: string, nodeH: number = CARD_H_EST): { x: number; y: number } {
   const ids = Object.keys(dataStore.tables)
   const idx = ids.indexOf(id)
   const cols = Math.min(ids.length, 3)
@@ -855,7 +871,7 @@ function autoLayout(id: string): { x: number; y: number } {
   const col = idx % cols
   return {
     x: 40 + col * (CARD_W + 120),
-    y: 20 + row * (CARD_H_EST + 40),
+    y: 20 + row * (nodeH + 40),
   }
 }
 
@@ -894,19 +910,20 @@ const graphLines = computed<GraphLine[]>(() => {
     const d = `M ${x1} ${ly} C ${x1 + Math.abs(x2 - x1) * 0.4} ${ly}, ${x2 - Math.abs(x2 - x1) * 0.4} ${ry}, ${x2} ${ry}`
 
     const jc = jcolors[rel.joinType] || jcolors.left
+    const dark = theme.value === 'dark'
     const label = `${rel.leftColumn} → ${rel.rightColumn}`
     lines.push({
       d, color: jc.stroke, dashed: rel.joinType === 'right',
       label, lx: midX, ly: (ly + ry) / 2, lw: label.length * 6.5,
-      lbg: jc.bg, lfg: jc.fg,
+      lbg: dark ? jc.darkBg : jc.bg, lfg: dark ? jc.darkFg : jc.fg,
     })
   }
 
   // Update canvas size
-  let maxX = 400, maxY = 300
+  let maxX = 200, maxY = 100
   for (const n of nodes) {
-    if (n.x + CARD_W + 40 > maxX) maxX = n.x + CARD_W + 40
-    if (n.y + CARD_H_EST + 40 > maxY) maxY = n.y + CARD_H_EST + 40
+    if (n.x + CARD_W + 24 > maxX) maxX = n.x + CARD_W + 24
+    if (n.y + n.h + 24 > maxY) maxY = n.y + n.h + 24
   }
   canvasW.value = maxX
   canvasH.value = maxY
@@ -914,11 +931,11 @@ const graphLines = computed<GraphLine[]>(() => {
   return lines
 })
 
-const jcolors: Record<string, { stroke: string; bg: string; fg: string }> = {
-  left: { stroke: '#3b82f6', bg: '#eff6ff', fg: '#1d4ed8' },
-  inner: { stroke: '#16a34a', bg: '#f0fdf4', fg: '#065f46' },
-  right: { stroke: '#f59e0b', bg: '#fffbeb', fg: '#92400e' },
-  outer: { stroke: '#7c3aed', bg: '#f5f3ff', fg: '#5b21b6' },
+const jcolors: Record<string, { stroke: string; bg: string; fg: string; darkBg: string; darkFg: string }> = {
+  left:  { stroke: '#3b82f6', bg: '#eff6ff',  fg: '#1d4ed8', darkBg: 'rgba(96,165,250,0.18)',  darkFg: '#93c5fd' },
+  inner: { stroke: '#16a34a', bg: '#f0fdf4',  fg: '#065f46', darkBg: 'rgba(52,211,153,0.18)',  darkFg: '#6ee7b7' },
+  right: { stroke: '#f59e0b', bg: '#fffbeb',  fg: '#92400e', darkBg: 'rgba(251,146,60,0.18)',   darkFg: '#fcd34d' },
+  outer: { stroke: '#7c3aed', bg: '#f5f3ff',  fg: '#5b21b6', darkBg: 'rgba(167,139,250,0.18)', darkFg: '#c4b5fd' },
 }
 
 // ── Pointer-based drag ──
@@ -1090,22 +1107,77 @@ const mergedColSourceMap = computed(() => {
   return map
 })
 
+function _mergedColWithAlpha(color: string, alpha: number): string {
+  const a = Math.max(0, Math.min(1, alpha))
+  const c = color.trim()
+  if (!c) return color
+  if (c.startsWith('#')) {
+    const hex = c.slice(1)
+    if (hex.length === 3 || hex.length === 4) {
+      const r = parseInt(hex[0] + hex[0], 16)
+      const g = parseInt(hex[1] + hex[1], 16)
+      const b = parseInt(hex[2] + hex[2], 16)
+      return `rgba(${r}, ${g}, ${b}, ${a})`
+    }
+    if (hex.length === 6 || hex.length === 8) {
+      const r = parseInt(hex.slice(0, 2), 16)
+      const g = parseInt(hex.slice(2, 4), 16)
+      const b = parseInt(hex.slice(4, 6), 16)
+      return `rgba(${r}, ${g}, ${b}, ${a})`
+    }
+  }
+  const m = c.match(/rgba?\(([^)]+)\)/)
+  if (m) {
+    const parts = m[1].split(',').map(s => s.trim())
+    if (parts.length >= 3) return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${a})`
+  }
+  return color
+}
+
+function _mergedColLuminance(color: string): number {
+  const c = color.trim()
+  let r = 0, g = 0, b = 0
+  if (c.startsWith('#')) {
+    const hex = c.slice(1)
+    if (hex.length === 3) { r = parseInt(hex[0] + hex[0], 16); g = parseInt(hex[1] + hex[1], 16); b = parseInt(hex[2] + hex[2], 16) }
+    else if (hex.length >= 6) { r = parseInt(hex.slice(0, 2), 16); g = parseInt(hex.slice(2, 4), 16); b = parseInt(hex.slice(4, 6), 16) }
+  } else {
+    const m = c.match(/rgba?\(([^)]+)\)/)
+    if (m) { const p = m[1].split(',').map(s => Number(s.trim())); r = p[0]; g = p[1]; b = p[2] }
+  }
+  const toLinear = (v: number) => { const n = Math.max(0, Math.min(255, v)) / 255; return n <= 0.03928 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4) }
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
+}
+
+function _mergedColIsDark(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
+}
+
 function mergedColThStyle(col: string): Record<string, string> {
+  const dark = _mergedColIsDark()
   const userBg = configStore.config.table.columnColors?.[col]
-  if (userBg) return { backgroundColor: userBg }
+  if (userBg) {
+    const alpha = dark ? (_mergedColLuminance(userBg) > 0.72 ? 0.22 : 0.4) : 1
+    return { backgroundColor: _mergedColWithAlpha(userBg, alpha) }
+  }
   const src = mergedColSourceMap.value.get(col)
   if (!src) return {}
-  return { backgroundColor: SOURCE_COLORS[src].bg }
+  return { backgroundColor: dark ? _mergedColWithAlpha(SOURCE_COLORS[src].bg, 0.3) : SOURCE_COLORS[src].bg }
 }
 
 function mergedColTdStyle(col: string): Record<string, string> {
+  const dark = _mergedColIsDark()
   const userBg = configStore.config.table.columnColors?.[col]
-  if (userBg) return { backgroundColor: userBg + '40' }
   const userFg = configStore.config.table.columnTextColors?.[col]
   const style: Record<string, string> = {}
-  const src = mergedColSourceMap.value.get(col)
-  if (src) style.backgroundColor = SOURCE_COLORS[src].light
-  if (userFg) style.color = userFg + 'c0'
+  if (userBg) {
+    const alpha = dark ? (_mergedColLuminance(userBg) > 0.72 ? 0.12 : 0.24) : 0.24
+    style.backgroundColor = _mergedColWithAlpha(userBg, alpha)
+  } else {
+    const src = mergedColSourceMap.value.get(col)
+    if (src) style.backgroundColor = dark ? _mergedColWithAlpha(SOURCE_COLORS[src].light, 0.2) : SOURCE_COLORS[src].light
+  }
+  if (userFg) style.color = dark ? userFg : _mergedColWithAlpha(userFg, 0.82)
   return style
 }
 </script>
@@ -1290,8 +1362,9 @@ function mergedColTdStyle(col: string): Record<string, string> {
   border-color: var(--primary);
 }
 
-/* Dark theme for suggestions toggle */
-:root[data-theme="dark"] .suggest-toggle {
+/* Dark theme for suggestions toggle and label */
+:root[data-theme="dark"] .suggest-toggle,
+:root[data-theme="dark"] .suggest-label {
   color: var(--primary-light, #93c5fd);
 }
 
@@ -1345,6 +1418,7 @@ function mergedColTdStyle(col: string): Record<string, string> {
   gap: 8px;
   background: none;
   border: none;
+  color: inherit;
   cursor: pointer;
   padding: 2px 0;
   flex: 1;
@@ -1434,12 +1508,12 @@ function mergedColTdStyle(col: string): Record<string, string> {
   -webkit-overflow-scrolling: touch;
   padding-bottom: 4px;
   width: 100%;
-  min-height: 200px;
 }
 
 .graph-flow {
   position: relative;
   transition: transform 0.2s ease;
+  overflow: hidden;
 }
 
 /* SVG lines overlay */
@@ -1500,6 +1574,33 @@ function mergedColTdStyle(col: string): Record<string, string> {
 .graph-card.is-main.table-color-2,
 .graph-card.is-main.table-color-3 {
   background: #fffbeb;
+}
+
+:root[data-theme="dark"] .graph-card.table-color-0 {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+:root[data-theme="dark"] .graph-card.table-color-1 {
+  background: rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+:root[data-theme="dark"] .graph-card.table-color-2 {
+  background: rgba(251, 146, 60, 0.1);
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+:root[data-theme="dark"] .graph-card.table-color-3 {
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+:root[data-theme="dark"] .graph-card.is-main.table-color-0,
+:root[data-theme="dark"] .graph-card.is-main.table-color-1,
+:root[data-theme="dark"] .graph-card.is-main.table-color-2,
+:root[data-theme="dark"] .graph-card.is-main.table-color-3 {
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .graph-card.dragging {
@@ -1612,6 +1713,11 @@ function mergedColTdStyle(col: string): Record<string, string> {
   font-weight: 600;
   font-family: inherit;
   text-transform: uppercase;
+}
+
+:root[data-theme="dark"] .gc-key-tag {
+  background: rgba(96, 165, 250, 0.2);
+  color: #93c5fd;
 }
 
 .gc-col.gc-more {
@@ -1765,9 +1871,9 @@ function mergedColTdStyle(col: string): Record<string, string> {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 12px;
+  padding: 8px;
   border: 2px dashed var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-secondary);
   font-size: 13px;
@@ -1838,11 +1944,11 @@ function mergedColTdStyle(col: string): Record<string, string> {
 .relation-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
+  gap: 10px;
+  padding: 10px 14px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   transition: all 0.2s;
 }
 
@@ -1865,7 +1971,7 @@ function mergedColTdStyle(col: string): Record<string, string> {
 }
 
 .rel-tbl-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -1893,7 +1999,7 @@ function mergedColTdStyle(col: string): Record<string, string> {
 }
 
 .rel-join-icon {
-  font-size: 20px;
+  font-size: 16px;
   color: var(--primary);
   flex-shrink: 0;
   opacity: 0.7;
@@ -1918,7 +2024,7 @@ function mergedColTdStyle(col: string): Record<string, string> {
   font-family: monospace;
   color: var(--text-secondary);
   background: var(--bg-hover);
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1961,31 +2067,75 @@ function mergedColTdStyle(col: string): Record<string, string> {
   background: #fef2f2;
 }
 
-/* ── 表单 ── */
-.relation-form {
-  margin-top: 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius, 10px);
-  padding: 16px;
+/* ── 关联表单弹窗 ── */
+.relation-form-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
 }
 
-.relation-form h4 {
-  font-size: 15px;
+.relation-form-popup {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  width: 640px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  animation: rf-slide-in 0.2s ease;
+}
+
+@keyframes rf-slide-in {
+  from { opacity: 0; transform: translateY(-16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.rf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.rf-header h4 {
+  font-size: 16px;
   font-weight: 600;
-  margin: 0 0 12px;
+  margin: 0;
+}
+
+.rf-close {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.rf-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .form-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 0 0;
+  gap: 10px;
+  padding: 12px 0 0;
 }
 
 .form-row {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .form-group {
@@ -2280,6 +2430,7 @@ function mergedColTdStyle(col: string): Record<string, string> {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-surface);
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 12px;
 }
@@ -2287,6 +2438,11 @@ function mergedColTdStyle(col: string): Record<string, string> {
 .btn-save.saved {
   border-color: #22c55e;
   color: #22c55e;
+}
+
+:root[data-theme="dark"] .btn-save.saved {
+  border-color: #4ade80;
+  color: #4ade80;
 }
 
 .detect-text {

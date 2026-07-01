@@ -11,11 +11,16 @@
     </div>
 
     <template v-else>
-      <div class="config-header">
-        <div class="config-header-top">
-          <button class="btn btn-sm btn-ghost" @click="$router.push('/')">← {{ t('config.backToUpload') }}</button>
-          <h2>{{ t('config.title') }}</h2>
-          <div class="header-actions">
+      <div class="config-header-top">
+        <button class="btn btn-sm btn-ghost" @click="$router.push('/')">← {{ t('config.backToUpload') }}</button>
+        <div class="config-title-wrapper">
+          <div class="config-title-group">
+            <h2>{{ t('config.title') }}</h2>
+            <p class="subtitle">{{ t('config.hint') }}</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="header-action-row">
             <button class="btn btn-sm btn-export" @click="exportConfig">{{ t('config.exportConfig') }}</button>
             <label class="btn btn-sm btn-import">
               {{ t('config.importConfig') }}
@@ -24,7 +29,7 @@
             <button class="btn btn-sm btn-save" :class="{ saved: allSaved }" @click="configStore.saveAll()">{{ allSaved
               ? t('config.saved') : t('config.saveAll') }}</button>
             <span class="reset-wrap">
-              <button class="btn btn-sm btn-reset-sec" @click="configStore.resetAllToAuto()">{{ t('config.resetAll')
+              <button class="btn btn-sm btn-reset-sec" @click="confirmResetAll()">{{ t('config.resetAll')
                 }}</button>
               <button class="reset-info-btn" @click.stop="toggleResetHint" :title="t('config.resetHint')">💡</button>
               <div v-if="showResetHint" class="reset-popup">
@@ -32,17 +37,16 @@
               </div>
             </span>
           </div>
+          <div class="header-generate-wrap">
+            <button class="btn btn-primary btn-sm" @click="goToDashboard">{{ t('config.generateArrow') }}</button>
+          </div>
         </div>
-        <div v-if="configMsg" class="config-toast">{{ configMsg }}</div>
-        <p class="subtitle">{{ t('config.hint') }}</p>
       </div>
-
-      <div class="config-bottom-head">
-        <button class="btn btn-primary btn-sm" @click="goToDashboard">{{ t('config.generateArrow') }}</button>
-      </div>
+      <div v-if="configMsg" class="config-toast">{{ configMsg }}</div>
       <div class="config-layout">
-        <div class="config-panel">
-          <!-- 标题 -->
+        <div class="config-panel-wrapper">
+          <div class="config-panel">
+            <!-- 标题 -->
           <section class="config-section">
             <div class="section-header-row" @click="toggleConfigSection('title')">
               <span class="sec-arrow">{{ isSectionOpen('title') ? '▼' : '▶' }}</span>
@@ -78,15 +82,10 @@
               </div>
             </div>
             <div v-show="isSectionOpen('filters')" class="section-body">
-              <p class="sec-desc">{{ t('config.dragToReorder') }}，{{ t('config.maxLimit', { n: 10 }) }}</p>
-              <div class="filter-search-wrap">
-                <input v-model="filterSearch" class="input" :placeholder="t('config.searchFilters')" />
-              </div>
-              <div class="filter-chips" data-drag-list="filter">
-                <label v-for="(col, fi) in filteredDimensionCols" :key="col" class="chip"
-                  :class="{ active: configStore.config.filters.includes(col), 'drag-placeholder': dragPlaceholder === fi && dragList === 'filter' }"
-                  :data-drag-idx="fi">
-                  <span class="drag-handle-sm" @pointerdown.prevent="onPointerDown($event, fi, 'filter')">⋮⋮</span>
+              <p class="sec-desc">{{ t('config.maxLimit', { n: 10 }) }}</p>
+              <div class="filter-chips">
+                <label v-for="col in dimensionCols" :key="col" class="chip"
+                  :class="{ active: configStore.config.filters.includes(col) }">
                   <input type="checkbox" :checked="configStore.config.filters.includes(col)"
                     @change="configStore.toggleFilter(col)" class="sr-only" />
                   {{ col }}
@@ -220,13 +219,18 @@
             </div>
           </section>
 
+          </div>
         </div>
 
         <!-- 右侧：实时预览 -->
-        <div class="config-preview">
-          <div class="preview-dash">
+        <div class="config-preview-wrapper">
+          <div class="config-preview">
+            <div class="preview-dash">
             <div class="preview-dash-header">
-              <h3>{{ configStore.config.title || t('common.preview') }}</h3>
+              <div class="preview-dash-title-group">
+                <h3>{{ configStore.config.title || t('common.preview') }}</h3>
+                <span class="preview-dash-subtitle">{{ t('common.preview') }} · {{ previewDeviceLabel }}</span>
+              </div>
             </div>
             
             <!-- 未保存警告 -->
@@ -255,72 +259,125 @@
               }}
             </div>
 
-            <!-- 筛选条件预览 -->
-            <div v-if="configStore.config.filters.length > 0" class="preview-section">
-              <h4 class="ps-title">{{ t('config.filters') }}</h4>
-              <div class="preview-filters">
-                <span v-for="f in configStore.config.filters" :key="f" class="pf-chip">{{ f }}</span>
+            <div class="preview-summary-row">
+              <div class="preview-summary-pill preview-summary-pill--accent">
+                <span class="preview-summary-label">KPI</span>
+                <strong>{{ previewKpis.length }}</strong>
+              </div>
+              <div class="preview-summary-pill">
+                <span class="preview-summary-label">Charts</span>
+                <strong>{{ selectedCharts.length }}</strong>
+              </div>
+              <div class="preview-summary-pill">
+                <span class="preview-summary-label">Rows</span>
+                <strong>{{ previewStore.effectiveRows.length }}</strong>
+              </div>
+              <div class="preview-summary-pill preview-summary-pill--muted">
+                <span class="preview-summary-label">Mode</span>
+                <strong>{{ previewDeviceLabel }}</strong>
               </div>
             </div>
 
-            <!-- 时间切片预览 -->
-            <div v-if="previewSpec?.dateRange" class="preview-section">
-              <h4 class="ps-title">{{ t('config.timeSlice') }}</h4>
-              <div class="preview-filters">
-                <span class="pf-chip">{{ previewSpec!.dateRange!.min }} ~ {{ previewSpec!.dateRange!.max }}</span>
-              </div>
-            </div>
-
-            <!-- KPI 预览 -->
-            <div v-if="previewKpis.length > 0" class="preview-section">
-              <h4 class="ps-title">{{ t('config.kpiCards') }} ({{ previewKpis.length }})</h4>
-              <div class="preview-kpi-row">
-                <div v-for="(kpi, i) in previewKpis" :key="'pk-' + i" class="preview-kpi-card">
-                  <div class="pk-label">{{ kpi.label }}</div>
-                  <div class="pk-value" style="font-size:16px">{{ formatPreviewValue(kpi) }}</div>
+            <div class="preview-device-shell" :class="previewDeviceClass">
+              <div class="preview-device-frame">
+                <div class="preview-device-toolbar">
+                  <div class="preview-device-toolbar-left">
+                    <span class="preview-device-toolbar-dot"></span>
+                    <span class="preview-device-toolbar-text">{{ t('common.preview') }}</span>
+                  </div>
+                  <span class="preview-device-toolbar-chip">{{ previewDeviceLabel }}</span>
                 </div>
-              </div>
-            </div>
+                <div class="preview-device-screen">
+                  <div class="preview-dashboard-grid">
+                    <div class="preview-grid-stack">
+                      <!-- 筛选条件预览 -->
+                      <div v-if="configStore.config.filters.length > 0" class="preview-section preview-card">
+                        <h4 class="ps-title">{{ t('config.filters') }}</h4>
+                        <div class="preview-filters">
+                          <span v-for="f in configStore.config.filters" :key="f" class="pf-chip">{{ f }}</span>
+                        </div>
+                      </div>
 
-            <!-- 图表占位预览 -->
-            <div v-if="selectedCharts.length > 0" class="preview-section">
-              <h4 class="ps-title">{{ t('config.charts') }} ({{ selectedCharts.length }})</h4>
-              <div class="preview-chart-grid">
-                <div v-for="(chart, i) in selectedCharts" :key="chart.id || i" class="preview-chart-card">
-                  <span class="pc-type">{{ chartTypeLabel(chart.type) }}</span>
-                  <span class="pc-title">{{ chart.title }}</span>
+                      <!-- 时间切片预览 -->
+                      <div v-if="previewSpec?.dateRange" class="preview-section preview-card">
+                        <h4 class="ps-title">{{ t('config.timeSlice') }}</h4>
+                        <div class="preview-filters">
+                          <span class="pf-chip">{{ previewSpec!.dateRange!.min }} ~ {{ previewSpec!.dateRange!.max }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- KPI 预览 -->
+                    <div v-if="previewKpis.length > 0" class="preview-section preview-card preview-card--wide">
+                      <h4 class="ps-title">{{ t('config.kpiCards') }} ({{ previewKpis.length }})</h4>
+                      <div class="preview-kpi-row">
+                        <div v-for="(kpi, i) in previewKpis" :key="'pk-' + i" class="preview-kpi-card">
+                          <div class="pk-label">{{ kpi.label }}</div>
+                          <div class="pk-value" style="font-size:16px">{{ formatPreviewValue(kpi) }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 图表占位预览 -->
+                  <div v-if="selectedCharts.length > 0" class="preview-section preview-card">
+                    <h4 class="ps-title">{{ t('config.charts') }} ({{ selectedCharts.length }})</h4>
+                    <div class="preview-chart-grid">
+                      <div v-for="(chart, i) in selectedCharts" :key="chart.id || i" class="preview-chart-card">
+                        <div class="preview-chart-visual" :class="`preview-chart-visual--${getPreviewChartKind(chart.type)}`">
+                          <div v-if="getPreviewChartKind(chart.type) === 'bar'" class="preview-chart-bars">
+                            <span v-for="(bar, idx) in getPreviewChartBars(chart.type)" :key="idx" :style="{ height: `${bar}%` }" />
+                          </div>
+                          <div v-else-if="getPreviewChartKind(chart.type) === 'pie'" class="preview-chart-pie">
+                            <div class="preview-chart-pie-ring" />
+                          </div>
+                          <div v-else class="preview-chart-line">
+                            <span v-for="(dot, idx) in getPreviewChartBars(chart.type)" :key="idx" class="preview-chart-dot" :style="{ left: `${(idx + 1) * 18}%`, bottom: `${dot}%` }" />
+                          </div>
+                        </div>
+                        <div class="preview-chart-meta">
+                          <span class="pc-type">
+                            <span v-if="chartTypeIcon(chart.type)" class="chart-type-icon">{{ chartTypeIcon(chart.type) }}</span>
+                            {{ chartTypeLabel(chart.type) }}
+                          </span>
+                          <span class="pc-title">{{ chart.title }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 数据表摘要 -->
+                  <div v-if="configStore.config.table.columns.length > 0" class="preview-section preview-card">
+                    <h4 class="ps-title">{{ t('config.sections.table') }}</h4>
+                    <div class="preview-table-info">
+                      <span>{{ t('config.displayColumns') }}: {{ configStore.config.table.columns.length }}</span>
+                      <span>{{ t('config.dataRows') }}: {{ previewStore.effectiveRows.length }}</span>
+                    </div>
+                    <div class="preview-table-mini-wrap">
+                      <table class="preview-table-mini">
+                        <thead>
+                          <tr>
+                            <th v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, true)">{{ col }}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="(row, ri) in previewTableRows" :key="ri">
+                            <td v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, false)">{{
+                              previewCellValue(row[col], col) }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            <!-- 数据表摘要 -->
-            <div v-if="configStore.config.table.columns.length > 0" class="preview-section">
-              <h4 class="ps-title">{{ t('config.sections.table') }}</h4>
-              <div class="preview-table-info">
-                <span>{{ t('config.displayColumns') }}: {{ configStore.config.table.columns.length }}</span>
-                <span>{{ t('config.dataRows') }}: {{ previewStore.effectiveRows.length }}</span>
-              </div>
-              <div class="preview-table-mini-wrap">
-                <table class="preview-table-mini">
-                  <thead>
-                    <tr>
-                      <th v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, true)">{{ col }}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(row, ri) in previewTableRows" :key="ri">
-                      <td v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, false)">{{
-                        previewCellValue(row[col], col) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
               </div>
             </div>
           </div>
           <button class="btn btn-refresh-preview" @click="refreshPreview" :title="t('common.refresh')">↻ {{
             t('common.refresh')
           }}</button>
+          </div>
         </div>
       </div>
     </template>
@@ -706,15 +763,21 @@ const { roleOverrides } = storeToRefs(dataStore)
 
 // 全部区域是否都已保存（与快照一致）
 const allSaved = computed(() => {
-  const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'computedCols']
+  const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table', 'computedCols']
+  if (dateCols.value.length > 0) sections.push('dateColumn')
   return sections.every((s) => configStore.isSectionSaved(s))
 })
 
 const savedCount = computed(() => {
-  const sections: ConfigSection[] = ['title', 'filters', 'dateColumn', 'kpis', 'charts', 'table', 'computedCols']
+  const sections: ConfigSection[] = ['title', 'filters', 'kpis', 'charts', 'table', 'computedCols']
+  if (dateCols.value.length > 0) sections.push('dateColumn')
   return sections.filter((s) => configStore.isSectionSaved(s)).length
 })
-const totalSections = 7
+const totalSections = computed(() => {
+  let n = 5 // title, filters, kpis, charts, table + computedCols
+  if (dateCols.value.length > 0) n += 1 // dateColumn
+  return n
+})
 
 // Reset hint popup — shown on first visit, toggleable via icon
 const RESET_HINT_KEY = 'smartboard-reset-hint-dismissed'
@@ -851,25 +914,127 @@ const associatedColumnMap = computed(() => {
 
 function getAssocColStyle(col: string, isHeader: boolean): Record<string, string> {
   const style: Record<string, string> = {}
+  const dark = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
+
+  const withAlpha = (color: string, alpha: number): string => {
+    const a = Math.max(0, Math.min(1, alpha))
+    const c = color.trim()
+    if (!c) return color
+    if (c.startsWith('#')) {
+      const hex = c.slice(1)
+      if (hex.length === 3 || hex.length === 4) {
+        const r = parseInt(hex[0] + hex[0], 16)
+        const g = parseInt(hex[1] + hex[1], 16)
+        const b = parseInt(hex[2] + hex[2], 16)
+        return `rgba(${r}, ${g}, ${b}, ${a})`
+      }
+      if (hex.length === 6 || hex.length === 8) {
+        const r = parseInt(hex.slice(0, 2), 16)
+        const g = parseInt(hex.slice(2, 4), 16)
+        const b = parseInt(hex.slice(4, 6), 16)
+        return `rgba(${r}, ${g}, ${b}, ${a})`
+      }
+    }
+    if (c.startsWith('rgb(') || c.startsWith('rgba(')) {
+      const m = c.match(/rgba?\(([^)]+)\)/)
+      if (m) {
+        const parts = m[1].split(',').map(s => s.trim())
+        if (parts.length >= 3) {
+          return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${a})`
+        }
+      }
+    }
+    return color
+  }
+
+  const toRgb = (color: string): { r: number; g: number; b: number } | null => {
+    const c = color.trim()
+    if (!c) return null
+    if (c.startsWith('#')) {
+      const hex = c.slice(1)
+      if (hex.length === 3 || hex.length === 4) {
+        return {
+          r: parseInt(hex[0] + hex[0], 16),
+          g: parseInt(hex[1] + hex[1], 16),
+          b: parseInt(hex[2] + hex[2], 16)
+        }
+      }
+      if (hex.length === 6 || hex.length === 8) {
+        return {
+          r: parseInt(hex.slice(0, 2), 16),
+          g: parseInt(hex.slice(2, 4), 16),
+          b: parseInt(hex.slice(4, 6), 16)
+        }
+      }
+      return null
+    }
+    const m = c.match(/rgba?\(([^)]+)\)/)
+    if (!m) return null
+    const parts = m[1].split(',').map(s => Number(s.trim()))
+    if (parts.length < 3 || parts.some(n => Number.isNaN(n))) return null
+    return { r: parts[0], g: parts[1], b: parts[2] }
+  }
+
+  const channelToLinear = (v: number): number => {
+    const c = Math.max(0, Math.min(255, v)) / 255
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  }
+
+  const luminance = (rgb: { r: number; g: number; b: number }): number => {
+    return 0.2126 * channelToLinear(rgb.r) + 0.7152 * channelToLinear(rgb.g) + 0.0722 * channelToLinear(rgb.b)
+  }
+
+  const contrastRatio = (a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): number => {
+    const l1 = luminance(a)
+    const l2 = luminance(b)
+    const hi = Math.max(l1, l2)
+    const lo = Math.min(l1, l2)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+
+  const darkAdjustedAlpha = (bgColor: string, lightBgAlpha: number, defaultAlpha: number): number => {
+    const rgb = toRgb(bgColor)
+    if (!rgb) return defaultAlpha
+    return luminance(rgb) > 0.72 ? lightBgAlpha : defaultAlpha
+  }
+
+  const pickReadableText = (prefColor: string, bgColor: string): string => {
+    const fg = toRgb(prefColor)
+    const bg = toRgb(bgColor)
+    if (!fg || !bg) return prefColor
+    return contrastRatio(fg, bg) >= 3 ? prefColor : (dark ? '#e5e7eb' : '#1f2937')
+  }
+
   // 用户自定义列颜色（优先级高于自动着色）
   const userBg = configStore.config.table.columnColors?.[col]
   const userFg = configStore.config.table.columnTextColors?.[col]
   if (userBg) {
-    style.backgroundColor = isHeader ? userBg : (userBg + '40')
+    const alpha = isHeader
+      ? (dark ? darkAdjustedAlpha(userBg, 0.22, 0.4) : 1)
+      : (dark ? darkAdjustedAlpha(userBg, 0.12, 0.24) : 0.24)
+    style.backgroundColor = withAlpha(userBg, alpha)
   } else {
     // 计算列：淡紫色
     const isComp = (configStore.config.table.computedColumns || []).some(cc => cc.name === col && cc.selected !== false)
     if (isComp) {
-      style.backgroundColor = isHeader ? '#e8d5f5' : '#f5edfa'
+      style.backgroundColor = isHeader
+        ? (dark ? 'rgba(196, 181, 253, 0.32)' : '#e8d5f5')
+        : (dark ? 'rgba(167, 139, 250, 0.2)' : '#f5edfa')
     } else {
       const idx = associatedColumnMap.value.get(col)
       if (idx !== undefined) {
         const p = ASSOC_PALETTE[idx % ASSOC_PALETTE.length]
-        style.backgroundColor = isHeader ? p.headerBg : p.cellBg
+        style.backgroundColor = isHeader
+          ? (dark ? withAlpha(p.headerBg, 0.34) : p.headerBg)
+          : (dark ? withAlpha(p.cellBg, 0.24) : p.cellBg)
       }
     }
   }
-  if (userFg) style.color = isHeader ? userFg : (userFg + 'c0')
+  if (userFg) {
+    style.color = dark && userBg
+      ? pickReadableText(userFg, userBg)
+      : (isHeader ? userFg : withAlpha(userFg, dark ? 0.95 : 0.82))
+  }
   return style
 }
 
@@ -931,12 +1096,46 @@ function previewCellValue(val: any, col?: string): string {
   return s.length > 30 ? s.slice(0, 28) + '…' : s
 }
 
+function getPreviewChartKind(type?: string) {
+  switch (type) {
+    case 'line':
+    case 'area':
+      return 'line'
+    case 'pie':
+    case 'donut':
+      return 'pie'
+    case 'scatter':
+      return 'scatter'
+    default:
+      return 'bar'
+  }
+}
+
+function getPreviewChartBars(type?: string) {
+  if (getPreviewChartKind(type) === 'line') {
+    return [24, 32, 30, 52, 68, 58]
+  }
+  if (getPreviewChartKind(type) === 'pie') {
+    return [100]
+  }
+  return [36, 58, 45, 72, 64, 80]
+}
+
 // ====== Drag state ======
 const dragList = ref<'kpi' | 'chart' | 'table' | 'filter' | null>(null)
 const dragIdx = ref(-1)
 const dragPlaceholder = ref(-1)
 const filterSearch = ref('')
-const previewDevice = ref<'desktop' | 'tablet' | 'mobile'>('desktop')
+const previewDevice = computed<'desktop' | 'tablet' | 'mobile'>({
+  get: () => configStore.config.previewDevice || 'desktop',
+  set: (mode) => { configStore.config.previewDevice = mode },
+})
+const previewDeviceClass = computed(() => `preview-device-${previewDevice.value}`)
+const previewDeviceLabel = computed(() => {
+  if (previewDevice.value === 'tablet') return 'Tablet'
+  if (previewDevice.value === 'mobile') return 'Mobile'
+  return 'Desktop'
+})
 
 const filteredDimensionCols = computed(() => {
   if (!filterSearch.value) return dimensionCols.value
@@ -1112,8 +1311,33 @@ function chartTypeLabel(type: string): string {
 }
 
 function chartTypeIcon(type: string): string {
-  const map: Record<string, string> = { bar: '📊', line: '📈', pie: '', scatter: '', table: '📋', funnel: '▽', gauge: '', radar: '✳', heatmap: '▦', treemap: '▤', sankey: '⇌', graph: '', candlestick: '🕯', boxplot: '', parallel: '∥', themeRiver: '≋', sunburst: '', tree: '', wordCloud: '☁', calendar: '📅', custom: '⚙' }
-  return map[type] || ''
+  const map: Record<string, string> = {
+    bar: '📊',
+    horizontal_bar: '📊',
+    line: '📈',
+    timeseries: '📈',
+    pie: '🥧',
+    doughnut: '🍩',
+    scatter: '📍',
+    table: '📋',
+    funnel: '▽',
+    gauge: '◔',
+    radar: '✳',
+    heatmap: '▦',
+    treemap: '▤',
+    sankey: '⇌',
+    graph: '⛓',
+    candlestick: '🕯',
+    boxplot: '▣',
+    parallel: '∥',
+    themeRiver: '≋',
+    sunburst: '◉',
+    tree: '🌲',
+    wordCloud: '☁',
+    calendar: '📅',
+    custom: '⚙',
+  }
+  return map[type] || '📊'
 }
 
 // ====== KPI editor ======
@@ -1324,6 +1548,12 @@ function recoverData() {
 
 function refreshPreview() {
   previewStore.applyFilters()
+}
+
+function confirmResetAll() {
+  if (confirm('⚠️ 确定要全部重置为自动推荐吗？\n\n这将清空当前页面和关联页面中所有已手动配置的区域（看板标题、筛选、KPI、图表、数据表列定义等），恢复到自动检测的推荐值。\n\n此操作不可撤销。')) {
+    configStore.resetAllToAuto()
+  }
 }
 
 function goToDashboard() {
@@ -1672,33 +1902,83 @@ function cancelChartEdit() {
   color: var(--text-secondary);
 }
 
-.config-header {
-  margin-bottom: 16px;
-  text-align: center;
+.config-header-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 72px;
+  margin-bottom: 8px;
+  padding-top: 4px;
   position: relative;
 }
 
-.config-header-top {
+.config-title-wrapper {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
   display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  width: max-content;
+  max-width: calc(100% - 280px);
+}
+
+.config-title-group {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  margin-bottom: 4px;
-  min-height: 36px;
+  text-align: center;
+  max-width: 480px;
+  width: max-content;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+  margin: 0;
+  max-width: 480px;
+  width: 100%;
 }
 
 .config-header-top .btn-ghost {
-  position: absolute;
-  left: 0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .header-actions {
-  position: absolute;
-  right: 0;
-  top: 0;
+  margin-left: auto;
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.header-action-row {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  justify-content: flex-end;
+}
+
+.header-generate-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 6px;
+}
+
+.header-generate-wrap .btn-primary {
+  width: auto;
 }
 
 .header-actions .btn-save,
@@ -1735,17 +2015,12 @@ function cancelChartEdit() {
 }
 
 .config-header h2 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   margin-bottom: 0;
   line-height: 36px;
 }
 
-.subtitle {
-  color: var(--text-secondary);
-  font-size: 14px;
-  text-align: center;
-}
 
 /* Reset hint popup */
 .reset-wrap {
@@ -1817,10 +2092,42 @@ function cancelChartEdit() {
 }
 
 .config-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+  min-height: calc(100vh - 160px);
+}
+
+.config-panel-wrapper {
+  flex: 0.82 1 0;
+  min-width: 260px;
+  display: flex;
+}
+
+.config-preview-wrapper {
+  flex: 1.18 1 0;
+  min-width: 360px;
+  display: flex;
+}
+
+.config-panel {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+  box-sizing: border-box;
+}
+
+.config-preview {
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
 }
 
 .config-top {
@@ -1924,31 +2231,50 @@ function cancelChartEdit() {
   margin: 0;
 }
 
+.config-bottom-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+}
+
 .config-bottom-head {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+}
+
+.config-bottom-meta {
+  min-width: 0;
 }
 
 .config-bottom-head .config-bottom-title {
   margin-bottom: 0;
 }
 
-.config-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: calc(100vh - 140px);
-  overflow-y: auto;
-  padding-right: 4px;
+.config-panel > .config-section {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .config-section {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.config-section:hover {
+  border-color: var(--primary-light, #bfdbfe);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
 }
 
 /* Section header with per-section save/reset */
@@ -1958,7 +2284,9 @@ function cancelChartEdit() {
   gap: 4px;
   cursor: pointer;
   user-select: none;
-  padding: 1px 0;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 8px;
 }
 
 .section-header-row h3 {
@@ -1993,7 +2321,7 @@ function cancelChartEdit() {
 }
 
 .section-body {
-  padding-top: 8px;
+  padding-top: 2px;
 }
 
 .config-section h3 {
@@ -3162,11 +3490,6 @@ function cancelChartEdit() {
 }
 
 /* Preview panel */
-.config-preview {
-  min-width: 0;
-  position: relative;
-}
-
 .btn-refresh-preview {
   position: absolute;
   bottom: 8px;
@@ -3190,13 +3513,18 @@ function cancelChartEdit() {
 }
 
 .preview-dash {
-  background: var(--bg-surface);
+  background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg) 100%);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 14px;
   padding: 14px 14px 40px 14px;
   min-height: 240px;
   width: 100%;
   box-sizing: border-box;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .preview-dash-header {
@@ -3207,6 +3535,13 @@ function cancelChartEdit() {
   margin-bottom: 8px;
 }
 
+.preview-dash-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .preview-dash-header h3 {
   font-size: 15px;
   font-weight: 700;
@@ -3214,6 +3549,12 @@ function cancelChartEdit() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.preview-dash-subtitle {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
 }
 
 .btn-refresh {
@@ -3248,8 +3589,34 @@ function cancelChartEdit() {
 }
 
 /* Preview section labels */
+.preview-dashboard-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1.05fr 0.95fr;
+  align-items: start;
+}
+
+.preview-grid-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .preview-section {
-  margin-bottom: 14px;
+  margin-bottom: 0;
+  padding: 10px 0 0;
+}
+
+.preview-card {
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--bg-surface), var(--bg-hover));
+  box-shadow: 0 10px 24px rgba(15,23,42,0.05);
+}
+
+.preview-card--wide {
+  grid-column: span 2;
 }
 
 .ps-title {
@@ -3293,7 +3660,7 @@ function cancelChartEdit() {
 
 .preview-chart-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 8px;
 }
 
@@ -3304,13 +3671,78 @@ function cancelChartEdit() {
 }
 
 .preview-chart-card {
-  background: var(--bg);
+  background: linear-gradient(180deg, var(--bg-surface), var(--bg-hover));
   border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 12px 14px;
+  border-radius: 10px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+}
+
+.preview-chart-visual {
+  height: 72px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(13,148,136,0.12), rgba(96,165,250,0.08));
+  padding: 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.preview-chart-bars {
+  display: flex;
+  align-items: flex-end;
   gap: 4px;
+  width: 100%;
+  height: 100%;
+}
+
+.preview-chart-bars span {
+  flex: 1;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, var(--primary) 0%, #38bdf8 100%);
+  min-height: 18px;
+}
+
+.preview-chart-line {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-bottom: 2px solid rgba(14, 116, 144, 0.2);
+}
+
+.preview-chart-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  transform: translate(-50%, 50%);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.18);
+}
+
+.preview-chart-pie {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.preview-chart-pie-ring {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: conic-gradient(var(--primary) 0 58%, rgba(59,130,246,0.28) 58% 100%);
+  box-shadow: inset 0 0 0 4px var(--bg-surface);
+}
+
+.preview-chart-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .pc-type {
@@ -3318,6 +3750,7 @@ function cancelChartEdit() {
   font-weight: 600;
   color: var(--primary);
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .pc-title {
@@ -3326,6 +3759,162 @@ function cancelChartEdit() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.preview-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+
+.preview-summary-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 92px;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--bg-surface), var(--bg-hover));
+  border: 1px solid var(--border-light);
+  box-shadow: 0 6px 16px rgba(15,23,42,0.05);
+}
+
+.preview-summary-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.preview-summary-pill strong {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.preview-summary-pill--accent {
+  background: linear-gradient(135deg, rgba(59,130,246,0.16), rgba(16,185,129,0.12));
+  border-color: rgba(59,130,246,0.2);
+}
+
+.preview-summary-pill--muted {
+  background: var(--bg-hover);
+}
+
+.preview-device-shell {
+  margin-top: 2px;
+  padding: 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  max-width: 100%;
+  background: linear-gradient(135deg, var(--bg-hover), var(--bg));
+  transition: all 0.2s ease;
+}
+
+.preview-device-frame {
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-surface), var(--bg-hover));
+  box-shadow: 0 12px 32px rgba(15,23,42,0.06);
+}
+
+.preview-device-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(90deg, rgba(15,23,42,0.03), rgba(59,130,246,0.04));
+}
+
+.preview-device-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-device-toolbar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), #38bdf8);
+}
+
+.preview-device-toolbar-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.preview-device-toolbar-chip {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(59,130,246,0.12);
+  color: var(--primary);
+}
+
+.preview-device-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.preview-device-shell.preview-device-tablet {
+  max-width: 760px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.preview-device-shell.preview-device-mobile {
+  max-width: 420px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.preview-device-shell.preview-device-mobile .preview-kpi-row {
+  flex-direction: column;
+}
+
+.preview-device-shell.preview-device-mobile .preview-chart-grid {
+  grid-template-columns: 1fr;
+}
+
+.preview-device-shell.preview-device-tablet .preview-chart-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.preview-device-shell.preview-device-mobile .preview-table-info {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preview-device-shell.preview-device-mobile .preview-device-screen {
+  padding: 10px;
+}
+
+.preview-device-shell.preview-device-mobile .preview-dashboard-grid {
+  grid-template-columns: 1fr;
+}
+
+.preview-device-shell.preview-device-mobile .preview-card--wide {
+  grid-column: span 1;
+}
+
+.preview-device-shell.preview-device-mobile .preview-section {
+  margin-bottom: 10px;
+}
+
+.preview-device-shell.preview-device-mobile .preview-kpi-card,
+.preview-device-shell.preview-device-mobile .preview-chart-card {
+  padding: 8px;
 }
 
 .preview-table-info {
@@ -3379,13 +3968,13 @@ function cancelChartEdit() {
   border-radius: 8px;
   font-size: 12px;
   text-align: center;
-  background: #ecfdf5;
-  color: #065f46;
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
 }
 
 .save-status.unsaved {
-  background: #fffbeb;
-  color: #92400e;
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
 }
 
 /* Buttons — ConfigView-specific overrides */
@@ -3463,6 +4052,7 @@ function cancelChartEdit() {
   line-height: 24px;
   box-sizing: border-box;
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .md-dec::-webkit-outer-spin-button,
@@ -4091,16 +4681,45 @@ function cancelChartEdit() {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.42);
   border-radius: 8px;
-  color: #92400e;
+  color: #b45309;
   font-size: 12px;
   margin-bottom: 12px;
 }
 
 .unsaved-warning .warn-icon {
   font-size: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .preview-card,
+  .preview-chart-card,
+  .preview-summary-pill,
+  .preview-device-frame {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .preview-device-shell {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.92));
+  }
+
+  .preview-chart-pie-ring {
+    box-shadow: inset 0 0 0 4px rgba(15, 23, 42, 0.92);
+  }
+
+  .save-status {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+  }
+
+  .save-status.unsaved,
+  .unsaved-warning {
+    background: rgba(245, 158, 11, 0.22);
+    border-color: rgba(245, 158, 11, 0.5);
+    color: #fcd34d;
+  }
 }
 
 /* Chart type icons */
