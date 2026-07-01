@@ -1,4 +1,4 @@
-var SmartboardRenderer = (function (exports) {
+var SmartboardRenderer = (function(exports) {
   "use strict";
   function parseFilter(filter) {
     if (!filter || !filter.trim()) return null;
@@ -297,7 +297,7 @@ var SmartboardRenderer = (function (exports) {
     }
     if (typeof window !== "undefined" && !window.__copyTableSetup) {
       window.__copyTableSetup = true;
-      document.addEventListener("click", function (e) {
+      document.addEventListener("click", function(e) {
         const btn = e.target.closest(".copy-table-btn");
         if (!btn) return;
         const tsvB64 = btn.getAttribute("data-tsv") || "";
@@ -331,7 +331,7 @@ var SmartboardRenderer = (function (exports) {
         title: L.dataView,
         readOnly: true,
         lang: [L.dataTable, L.close, L.refresh],
-        optionToContent: function (opt) {
+        optionToContent: function(opt) {
           const series = opt.series || [];
           const root = document.documentElement;
           const cs = getComputedStyle(root);
@@ -793,7 +793,7 @@ var SmartboardRenderer = (function (exports) {
       series
     };
   }
-  typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+  typeof SuppressedError === "function" ? SuppressedError : function(error, suppressed, message) {
     var e = new Error(message);
     return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
   };
@@ -1576,12 +1576,10 @@ var SmartboardRenderer = (function (exports) {
       z: 10
     });
     const opt = {
-      tooltip: {
-        formatter: (p) => {
-          const xy = p.value;
-          return `${p.seriesName}<br/>X: ${fmtCompact$1(xy[0])}<br/>Y: ${fmtCompact$1(xy[1])}`;
-        }
-      },
+      tooltip: { formatter: (p) => {
+        const xy = p.value;
+        return `${p.seriesName}<br/>X: ${fmtCompact$1(xy[0])}<br/>Y: ${fmtCompact$1(xy[1])}`;
+      } },
       legend: { top: 0, left: "center", textStyle: { fontSize: 11 } },
       grid: { left: 80, right: 20, top: 40, bottom: 50 },
       xAxis: { type: "value", name: cd.colX, nameLocation: "center", nameGap: 34, nameTextStyle: { fontSize: 13, fontWeight: "bold" }, axisLabel: { fontSize: 10, formatter: (v) => fmtCompact$1(v) } },
@@ -1854,7 +1852,7 @@ var SmartboardRenderer = (function (exports) {
       el.appendChild(hse);
     });
     if (!window.__sbResizeInit) {
-      let resizeChartInCard = function (card) {
+      let resizeChartInCard = function(card) {
         const bodies = card.querySelectorAll(".chart-body, .chart-body-ts, .chart-body-cl");
         bodies.forEach((body) => {
           const b = body;
@@ -2399,26 +2397,19 @@ var SmartboardRenderer = (function (exports) {
     const fc = document.getElementById("fc");
     if (fc) fc.textContent = `${t("common.currentFilter")}: ${rows.length} ${t("common.records")}`;
     updateDrInfo();
-    // Force all chart instances to resize after layout settles
-    setTimeout(function () {
-      chartInstances.forEach(function (c) {
-        try { c.resize(); } catch (e) { /* ignore */ }
+    setTimeout(() => {
+      chartInstances.forEach((c) => {
+        try {
+          c.resize();
+        } catch {
+        }
       });
     }, 100);
-  }
-  function applyDeviceMode(mode) {
-    const m = mode === "tablet" || mode === "mobile" ? mode : "desktop";
-    document.body.classList.remove("dashboard-mode-desktop", "dashboard-mode-tablet", "dashboard-mode-mobile");
-    document.body.classList.add(`dashboard-mode-${m}`);
-    const badge = document.getElementById("deviceModeBadge");
-    if (!badge) return;
-    badge.textContent = m === "tablet" ? "Tablet" : m === "mobile" ? "Mobile" : "Desktop";
   }
   function initDashboard(data) {
     DATA = data;
     MSG = typeof __I18N__ !== "undefined" ? __I18N__ : {};
     setToolboxLocale(data.locale || "zh-CN");
-    applyDeviceMode(data.deviceMode || "desktop");
     initTheme();
     renderFileMeta();
     sortCol = data.tableSortBy;
