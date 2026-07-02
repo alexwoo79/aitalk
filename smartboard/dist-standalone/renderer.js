@@ -2435,18 +2435,18 @@ var SmartboardRenderer = (function (exports) {
 
   /** 切换筛选区域折叠/展开 */
   window.toggleFiltersCollapse = function () {
-    const sticky = document.querySelector('.sticky-filters');
-    const toggle = document.getElementById('filterCollapseToggle');
+    var sticky = document.querySelector('.sticky-filters');
+    var toggle = document.getElementById('filterCollapseToggle');
     if (!sticky || !toggle) return;
-    const isCollapsed = sticky.classList.toggle('collapsed');
+    var isCollapsed = sticky.classList.toggle('collapsed');
     toggle.textContent = isCollapsed
       ? ('▼ ' + (MSG?.dashboard?.expandFilters || '展开筛选'))
       : ('▲ ' + (MSG?.dashboard?.collapseFilters || '收起筛选'));
   };
 
   function applyFiltersCollapsed(collapsed) {
-    const sticky = document.querySelector('.sticky-filters');
-    const toggle = document.getElementById('filterCollapseToggle');
+    var sticky = document.querySelector('.sticky-filters');
+    var toggle = document.getElementById('filterCollapseToggle');
     if (!sticky || !toggle) return;
     if (collapsed) {
       sticky.classList.add('collapsed');
