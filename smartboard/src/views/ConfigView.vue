@@ -405,7 +405,7 @@
                         </thead>
                         <tbody>
                           <tr v-for="(row, ri) in previewTableRows" :key="ri">
-                            <td v-for="col in previewTableCols" :key="col" :style="getAssocColStyle(col, false)">{{
+                            <td v-for="col in previewTableCols" :key="col" :style="getPreviewCellStyleInTable(col, row[col])">{{
                               previewCellValue(row[col], col) }}</td>
                           </tr>
                         </tbody>
@@ -786,6 +786,7 @@ import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { usePreviewStore } from '@/stores/preview-store'
 import { augmentComputedCols } from '@/core/formula-engine'
+import { getNumericVal, resolveColTextRuleColor } from '@/core/chart-options'
 import type { ConfigSection } from '@/stores/config-store'
 import { CHART_TYPES, AGG_OPTIONS, KPI_FORMAT_OPTIONS } from '@/types/config'
 import type { ChartFormItem } from '@/types/config'
@@ -1104,6 +1105,19 @@ function getAssocColStyle(col: string, isHeader: boolean): Record<string, string
   return style
 }
 
+/** 预览表格单元格样式（含条件文字颜色） */
+function getPreviewCellStyleInTable(col: string, val: any): Record<string, string> {
+  const style = getAssocColStyle(col, false)
+  const condColor = getConditionalTextColor(col, val)
+  if (condColor) style.color = condColor
+  return style
+}
+
+/** 条件文字颜色规则解析 */
+function getConditionalTextColor(col: string, val: any): string | undefined {
+  return resolveColTextRuleColor(configStore.config.table.columnTextRules?.[col], val) ?? undefined
+}
+
 /** 预览表格的排序列 */
 const previewTableCols = computed(() => {
   const cols = [...configStore.config.table.columns]
@@ -1140,22 +1154,24 @@ const previewTableRows = computed(() => {
 
 function previewCellValue(val: any, col?: string): string {
   if (val === undefined || val === null || val === '') return '—'
-  if (typeof val === 'number') {
+  const n = getNumericVal(val)
+  const isNum = !isNaN(n)
+  if (isNum) {
     if (col) {
       const fmt = configStore.config.table.columnFormats?.[col]
       if (fmt?.format) {
-        if (fmt.format === 'integer') return Math.round(val).toLocaleString()
-        if (fmt.format === 'percent') return val.toFixed(fmt.decimals ?? 1) + '%'
+        if (fmt.format === 'integer') return Math.round(n).toLocaleString()
+        if (fmt.format === 'percent') return n.toFixed(fmt.decimals ?? 1) + '%'
         if (fmt.format === 'currency') {
           const prefix = fmt.prefix || ''
-          if (fmt.unit === 'wan') return prefix + (val / 10000).toFixed(fmt.decimals ?? 2).toLocaleString() + '万'
-          if (fmt.unit === 'yi') return prefix + (val / 100000000).toFixed(fmt.decimals ?? 2).toLocaleString() + '亿'
-          return prefix + val.toFixed(fmt.decimals ?? 2).toLocaleString()
+          if (fmt.unit === 'wan') return prefix + (n / 10000).toFixed(fmt.decimals ?? 2).toLocaleString() + '万'
+          if (fmt.unit === 'yi') return prefix + (n / 100000000).toFixed(fmt.decimals ?? 2).toLocaleString() + '亿'
+          return prefix + n.toFixed(fmt.decimals ?? 2).toLocaleString()
         }
-        return val.toFixed(fmt.decimals ?? 2).toLocaleString()
+        return n.toFixed(fmt.decimals ?? 2).toLocaleString()
       }
     }
-    const s = val.toLocaleString(undefined, { maximumFractionDigits: 4 })
+    const s = n.toLocaleString(undefined, { maximumFractionDigits: 4 })
     return s.length > 30 ? s.slice(0, 28) + '…' : s
   }
   const s = String(val)

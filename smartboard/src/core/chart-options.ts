@@ -86,6 +86,54 @@ export function getNumericVal(v: string | number | undefined): number {
   return isNaN(n) ? NaN : n
 }
 
+/**
+ * 对给定的列规则列表和单元格值，返回第一个匹配规则的颜色。
+ * 支持两种写法：
+ *   - 数值比较：> 100, < 0, >= 50, <= 20, = 0, != 0
+ *   - 字符串比较：= 张三, != 李四, ~ 王（模糊包含）
+ * @param rules 规则数组 [{ condition, color }]
+ * @param val 单元格值
+ * @returns 匹配的颜色字符串，无匹配返回 null
+ */
+export function resolveColTextRuleColor(
+  rules: { condition: string; color: string }[] | undefined,
+  val: any
+): string | null {
+  if (!rules || rules.length === 0) return null
+  const numVal = Number(val)
+  const isNum = !isNaN(numVal) && val != null && val !== ''
+  for (const rule of rules) {
+    if (!rule.condition.trim() || !rule.color) continue
+    try {
+      const cond = rule.condition.trim()
+      if (isNum) {
+        const m = cond.match(/^(>=?|<=?|!=?|=)\s*(-?[\d.]+)$/)
+        if (m) {
+          const op = m[1]; const n = parseFloat(m[2])
+          if ((op === '>' && numVal > n) || (op === '>=' && numVal >= n) ||
+            (op === '<' && numVal < n) || (op === '<=' && numVal <= n) ||
+            ((op === '=' || op === '==') && numVal === n) ||
+            (op === '!=' && numVal !== n)) {
+            return rule.color
+          }
+        }
+      } else {
+        const strVal = String(val ?? '')
+        const mStr = cond.match(/^(=|!=|~)\s*(.+)$/)
+        if (mStr) {
+          const op = mStr[1]; const t = mStr[2]
+          if ((op === '=' && strVal === t) ||
+            (op === '!=' && strVal !== t) ||
+            (op === '~' && strVal.includes(t))) {
+            return rule.color
+          }
+        }
+      }
+    } catch { /* skip invalid rule */ }
+  }
+  return null
+}
+
 // ====== Shared toolbox (PNG download, data table, restore) ======
 let _toolboxLocale = 'zh-CN'
 export function setToolboxLocale(locale: string) { _toolboxLocale = locale }

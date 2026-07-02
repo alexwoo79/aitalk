@@ -1046,7 +1046,7 @@ function truncateVal(val: any): string {
 function formatMergedCell(col: string, val: any): string {
   if (val === undefined || val === null || val === '') return '—'
   const fmt = configStore.config.table.columnFormats?.[col]
-  if (fmt?.format && typeof val === 'number') {
+  if (fmt?.format) {
     const n = getNumericVal(val)
     if (!isNaN(n)) {
       return fmtByChart(n, { format: fmt.format, unit: fmt.unit as any, metricFormats: { [col]: { format: fmt.format, unit: fmt.unit as any, decimals: fmt.decimals } } }, col)

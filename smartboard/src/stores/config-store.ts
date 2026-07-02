@@ -194,7 +194,12 @@ export const useConfigStore = defineStore('config', () => {
       columns: cols,
       summaryAggs: summaryAggs as Record<string, 'sum' | 'avg' | 'count' | 'unique_count' | 'min' | 'max'>,
       computedColumns: maybeCC,
-      columnFormats: config.value.table?.columnFormats || {},
+      columnFormats: {} as Record<string, { format?: string; unit?: 'yuan' | 'wan' | 'yi'; prefix?: string; decimals?: number }>,
+      columnColors: undefined,
+      columnTextColors: undefined,
+      columnTextRules: undefined,
+      rowConditionColors: undefined,
+      columnOrder: undefined,
     }
   }
 

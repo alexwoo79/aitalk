@@ -568,7 +568,7 @@ function toggleActiveColumn(col: string) {
   }
 }
 
-import { COLORS, fmt, fmtCompact, getNumericVal, fmtByChart } from '@/core/chart-options'
+import { COLORS, fmt, fmtCompact, getNumericVal, fmtByChart, resolveColTextRuleColor } from '@/core/chart-options'
 
 // KPI card colors — theme-aware
 const KPI_BG_LIGHT = ['#EBF5FF', '#ECFDF5', '#FFFBEB', '#FEF2F2', '#F5F3FF', '#ECFEFF']
@@ -1371,42 +1371,7 @@ function getColumnCellStyle(col: string, val: any): Record<string, string> {
 
 /** 对单个单元格值，匹配列条件字体色规则 */
 function matchColTextRule(col: string, val: any): string | null {
-  const rules = configStore.config.table.columnTextRules?.[col]
-  if (!rules || rules.length === 0) return null
-  const numVal = Number(val)
-  const isNum = !isNaN(numVal) && val != null && val !== ''
-  for (const rule of rules) {
-    if (!rule.condition.trim() || !rule.color) continue
-    try {
-      const cond = rule.condition.trim()
-      if (isNum) {
-        // 数值条件：> 100, < 0, >= 50, <= 20, = 0, != 0
-        const m = cond.match(/^(>=?|<=?|!=?|=)\s*(-?[\d.]+)$/)
-        if (m) {
-          const op = m[1]; const n = parseFloat(m[2])
-          if ((op === '>' && numVal > n) || (op === '>=' && numVal >= n) ||
-            (op === '<' && numVal < n) || (op === '<=' && numVal <= n) ||
-            (op === '=' || op === '==') && numVal === n ||
-            (op === '!=' && numVal !== n)) {
-            return rule.color
-          }
-        }
-      } else {
-        // 字符串条件：= 张三, != 张三, ~ 张三（模糊匹配）
-        const strVal = String(val ?? '')
-        const mStr = cond.match(/^(=|!=|~)\s*(.+)$/)
-        if (mStr) {
-          const op = mStr[1]; const t = mStr[2]
-          if ((op === '=' && strVal === t) ||
-            (op === '!=' && strVal !== t) ||
-            (op === '~' && strVal.includes(t))) {
-            return rule.color
-          }
-        }
-      }
-    } catch { /* skip */ }
-  }
-  return null
+  return resolveColTextRuleColor(configStore.config.table.columnTextRules?.[col], val)
 }
 
 const rowColorCache = computed(() => {

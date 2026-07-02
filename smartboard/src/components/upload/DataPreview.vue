@@ -129,7 +129,8 @@
           </thead>
           <tbody>
             <tr v-for="(row, i) in dataSet.rows.slice(0, 5)" :key="i">
-              <td v-for="col in visibleHeaders" :key="col">{{ truncate(row[col]) }}</td>
+              <td v-for="col in visibleHeaders" :key="col" :style="getPreviewCellStyle(col, row[col])">{{
+                formatPreviewValue(col, row[col]) }}</td>
             </tr>
           </tbody>
         </table>
@@ -168,6 +169,7 @@ import { useDataStore } from '@/stores/data-store'
 import { useConfigStore } from '@/stores/config-store'
 import { usePreviewStore } from '@/stores/preview-store'
 import { augmentComputedCols } from '@/core/formula-engine'
+import { getNumericVal, resolveColTextRuleColor } from '@/core/chart-options'
 import ColumnConfigPanel from '@/components/config/ColumnConfigPanel.vue'
 
 import { useI18n } from 'vue-i18n'
@@ -530,33 +532,27 @@ function getPreviewCellStyle(col: string, val: any): Record<string, string> {
   }
   if (colFg) style.color = dark && colBg ? pickReadableText(colFg, colBg) : colFg
   // 条件着色
-  const rules = configStore.config.table.columnTextRules?.[col]
-  if (rules && typeof val === 'number') {
-    for (const rule of rules) {
-      try {
-        if (rule.condition && new Function('v', 'return ' + rule.condition)(val)) {
-          style.color = rule.color
-          break
-        }
-      } catch { /* ignore invalid expressions */ }
-    }
-  }
+  const condColor = resolveColTextRuleColor(configStore.config.table.columnTextRules?.[col], val)
+  if (condColor) style.color = condColor
   return style
 }
 
 function formatPreviewValue(col: string, val: any): string {
   if (val === undefined || val === null || val === '') return '—'
   const fmt = configStore.config.table.columnFormats?.[col]
-  if (fmt?.format && typeof val === 'number') {
-    if (fmt.format === 'integer') return Math.round(val).toLocaleString()
-    if (fmt.format === 'percent') return (val * 100).toFixed(fmt.decimals ?? 1) + '%'
-    if (fmt.format === 'currency') {
-      const prefix = fmt.prefix || ''
-      if (fmt.unit === 'wan') return prefix + (val / 10000).toFixed(fmt.decimals ?? 2).toLocaleString() + '万'
-      if (fmt.unit === 'yi') return prefix + (val / 100000000).toFixed(fmt.decimals ?? 2).toLocaleString() + '亿'
-      return prefix + val.toFixed(fmt.decimals ?? 2).toLocaleString()
+  if (fmt?.format) {
+    const n = getNumericVal(val)
+    if (!isNaN(n)) {
+      if (fmt.format === 'integer') return Math.round(n).toLocaleString()
+      if (fmt.format === 'percent') return (n * 100).toFixed(fmt.decimals ?? 1) + '%'
+      if (fmt.format === 'currency') {
+        const prefix = fmt.prefix || ''
+        if (fmt.unit === 'wan') return prefix + (n / 10000).toFixed(fmt.decimals ?? 2).toLocaleString() + '万'
+        if (fmt.unit === 'yi') return prefix + (n / 100000000).toFixed(fmt.decimals ?? 2).toLocaleString() + '亿'
+        return prefix + n.toFixed(fmt.decimals ?? 2).toLocaleString()
+      }
+      return n.toFixed(fmt.decimals ?? 2).toLocaleString()
     }
-    return val.toFixed(fmt.decimals ?? 2).toLocaleString()
   }
   return truncate(val)
 }
