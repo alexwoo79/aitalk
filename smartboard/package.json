@@ -1,6 +1,6 @@
 {
   "name": "smartboard",
-  "version": "0.1.0-0701",
+  "version": "0.1.1-0702",
   "private": true,
   "type": "module",
   "scripts": {

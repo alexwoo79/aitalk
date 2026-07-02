@@ -443,6 +443,8 @@ export default {
     showingRows: 'Showing {shown} / {total} rows, scroll to load more',
     showAll: 'Show All',
     filterModeHint: '⚡ Instant search / 🖱️ Manual confirm',
+    collapseFilters: 'Collapse Filters',
+    expandFilters: 'Expand Filters',
     saveSuccess: 'Saved to:\n{path}',
     saveSuccessTitle: 'Save Successful',
     saveFailed: 'Save failed:\n{error}',
@@ -532,6 +534,10 @@ export default {
   },
   kpiFormat: {
     global: 'Inherit Global',
+    number: 'Number',
+    currency: 'Currency',
+    percent: 'Percent',
+    integer: 'Integer',
   },
   datePreset: {
   },

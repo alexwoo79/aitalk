@@ -448,6 +448,8 @@ export default {
     showingRows: '正在显示 {shown} / {total} 行，滚动加载更多',
     showAll: '显示全部',
     filterModeHint: '⚡ 即时搜索（输入即搜）/ 🖱️ 手动确认（点击按钮搜索）',
+    collapseFilters: '收起筛选',
+    expandFilters: '展开筛选',
     saveSuccess: '已保存到:\n{path}',
     saveSuccessTitle: '保存成功',
     saveFailed: '保存失败:\n{error}',
@@ -542,6 +544,10 @@ export default {
   },
   kpiFormat: {
     global: '继承全局',
+    number: '数字',
+    currency: '货币',
+    percent: '百分比',
+    integer: '整数',
   },
   datePreset: {
   },

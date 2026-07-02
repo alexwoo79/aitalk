@@ -1,4 +1,4 @@
-var SmartboardRenderer = (function(exports) {
+var SmartboardRenderer = (function (exports) {
   "use strict";
   function parseFilter(filter) {
     if (!filter || !filter.trim()) return null;
@@ -297,7 +297,7 @@ var SmartboardRenderer = (function(exports) {
     }
     if (typeof window !== "undefined" && !window.__copyTableSetup) {
       window.__copyTableSetup = true;
-      document.addEventListener("click", function(e) {
+      document.addEventListener("click", function (e) {
         const btn = e.target.closest(".copy-table-btn");
         if (!btn) return;
         const tsvB64 = btn.getAttribute("data-tsv") || "";
@@ -331,7 +331,7 @@ var SmartboardRenderer = (function(exports) {
         title: L.dataView,
         readOnly: true,
         lang: [L.dataTable, L.close, L.refresh],
-        optionToContent: function(opt) {
+        optionToContent: function (opt) {
           const series = opt.series || [];
           const root = document.documentElement;
           const cs = getComputedStyle(root);
@@ -793,7 +793,7 @@ var SmartboardRenderer = (function(exports) {
       series
     };
   }
-  typeof SuppressedError === "function" ? SuppressedError : function(error, suppressed, message) {
+  typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
     var e = new Error(message);
     return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
   };
@@ -1580,10 +1580,12 @@ var SmartboardRenderer = (function(exports) {
       z: 10
     });
     const opt = {
-      tooltip: { formatter: (p) => {
-        const xy = p.value;
-        return `${p.seriesName}<br/>X: ${fmtCompact$1(xy[0])}<br/>Y: ${fmtCompact$1(xy[1])}`;
-      } },
+      tooltip: {
+        formatter: (p) => {
+          const xy = p.value;
+          return `${p.seriesName}<br/>X: ${fmtCompact$1(xy[0])}<br/>Y: ${fmtCompact$1(xy[1])}`;
+        }
+      },
       legend: { top: 0, left: "center", textStyle: { fontSize: 11 } },
       grid: { left: 80, right: 20, top: 40, bottom: 50 },
       xAxis: { type: "value", name: cd.colX, nameLocation: "center", nameGap: 34, nameTextStyle: { fontSize: 13, fontWeight: "bold" }, axisLabel: { fontSize: 10, formatter: (v) => fmtCompact$1(v) } },
@@ -1856,7 +1858,7 @@ var SmartboardRenderer = (function(exports) {
       el.appendChild(hse);
     });
     if (!window.__sbResizeInit) {
-      let resizeChartInCard = function(card) {
+      let resizeChartInCard = function (card) {
         const bodies = card.querySelectorAll(".chart-body, .chart-body-ts, .chart-body-cl");
         bodies.forEach((body) => {
           const b = body;
@@ -2424,8 +2426,37 @@ var SmartboardRenderer = (function(exports) {
     dateEnd = data.dateEnd;
     renderFilterBar();
     renderDateRangeBar();
+    // 初始化筛选折叠状态
+    if (data.filtersCollapsed) {
+      applyFiltersCollapsed(true);
+    }
     refreshAll();
   }
+
+  /** 切换筛选区域折叠/展开 */
+  window.toggleFiltersCollapse = function () {
+    const sticky = document.querySelector('.sticky-filters');
+    const toggle = document.getElementById('filterCollapseToggle');
+    if (!sticky || !toggle) return;
+    const isCollapsed = sticky.classList.toggle('collapsed');
+    toggle.textContent = isCollapsed
+      ? ('▼ ' + (MSG?.dashboard?.expandFilters || '展开筛选'))
+      : ('▲ ' + (MSG?.dashboard?.collapseFilters || '收起筛选'));
+  };
+
+  function applyFiltersCollapsed(collapsed) {
+    const sticky = document.querySelector('.sticky-filters');
+    const toggle = document.getElementById('filterCollapseToggle');
+    if (!sticky || !toggle) return;
+    if (collapsed) {
+      sticky.classList.add('collapsed');
+      toggle.textContent = '▼ ' + (MSG?.dashboard?.expandFilters || '展开筛选');
+    } else {
+      sticky.classList.remove('collapsed');
+      toggle.textContent = '▲ ' + (MSG?.dashboard?.collapseFilters || '收起筛选');
+    }
+  }
+
   window.initDashboard = initDashboard;
   exports.initDashboard = initDashboard;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });

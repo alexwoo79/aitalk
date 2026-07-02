@@ -21,7 +21,12 @@
       </div>
 
       <!-- 筛选栏 + 日期范围（顶部固定） -->
-      <div class="sticky-filters">
+      <div class="sticky-filters" :class="{ collapsed: filtersCollapsed }">
+        <button class="filter-collapse-toggle" @click="filtersCollapsed = !filtersCollapsed"
+          :title="filtersCollapsed ? t('dashboard.expandFilters') : t('dashboard.collapseFilters')">
+          {{ filtersCollapsed ? '▼ ' + t('dashboard.expandFilters') : '▲ ' + t('dashboard.collapseFilters') }}
+        </button>
+        <div v-show="!filtersCollapsed" class="sticky-filters-content">
         <!-- 筛选栏 -->
         <div class="filter-bar">
           <div v-for="f in spec.filters" :key="f.column" class="filter-item">
@@ -107,6 +112,7 @@
           <span class="filter-count">{{ t('common.currentFilter') }}: {{ previewStore.rowCount }} {{ t('common.records')
             }}</span>
         </div>
+        </div> <!-- .sticky-filters-content -->
       </div> <!-- .sticky-filters -->
 
       <!-- 分享状态面板 -->
@@ -678,6 +684,7 @@ function onFilterChange() {
 
 // ====== Filter bar actions ======
 const dashboardCleared = ref(false)
+const filtersCollapsed = ref(false)
 const saveMsg = ref('')
 const saveMsgType = ref<'success' | 'error'>('success')
 const tableFullscreen = ref(false)
@@ -867,6 +874,7 @@ async function generateDashboardHtml(): Promise<string> {
       dateRange: s.dateRange || null,
       dateStart: previewStore.dateRange.start || '',
       dateEnd: previewStore.dateRange.end || '',
+      filtersCollapsed: filtersCollapsed.value,
       locale: locale.value, _fileMeta: fileMeta,
     }
     dataScript.textContent =
@@ -1952,6 +1960,31 @@ function computeSourceColumnColors(
   background: var(--bg);
   padding: 2px 0 0 0;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.sticky-filters.collapsed {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.filter-collapse-toggle {
+  display: block;
+  width: 100%;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: none;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.15s, background 0.15s;
+  user-select: none;
+}
+
+.filter-collapse-toggle:hover {
+  color: var(--primary);
+  background: var(--bg-hover);
 }
 
 /* Filter bar — 紧凑模式 */
